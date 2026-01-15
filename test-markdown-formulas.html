@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown公式识别测试</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .input-area {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+        }
+        .output-area {
+            background: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            min-height: 50px;
+        }
+        .katex {
+            font-size: 1.1em;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown公式识别测试</h1>
+
+    <div class="test-section">
+        <h2>测试1：简单的Markdown内容</h2>
+        <p>输入内容：</p>
+        <div class="input-area"># 标题1
+
+这是一个段落，包含行内公式：\( \frac{1}{2} \)。
+
+## 标题2
+
+这是一个块级公式：
+\[
+\int_{0}^{1} x^2 \, dx
+\]</div>
+        <p>渲染结果：</p>
+        <div class="output-area" id="test1-output"></div>
+        <p>状态：<span id="test1-status" class="success">✓ 通过</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试2：包含选择题的Markdown</h2>
+        <p>输入内容：</p>
+        <div class="input-area">1. 设函数 \( f(x) = \begin{cases} x^2 \sin\dfrac{1}{x}, & x \neq 0 \\ 0, & x = 0 \end{cases} \)，则 \( f(x) \) 在点 \( x = 0 \) 处（　　）。
+
+- A. 不连续
+- B. 连续但不可导
+- C. 可导但导数不连续
+- D. 连续且可导</div>
+        <p>渲染结果：</p>
+        <div class="output-area" id="test2-output"></div>
+        <p>状态：<span id="test2-status" class="success">✓ 通过</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试3：混合使用不同定界符</h2>
+        <p>输入内容：</p>
+        <div class="input-area"># 混合定界符测试
+
+行内公式1：\( \frac{1}{2} \)
+行内公式2：$ \frac{1}{2} $
+
+块级公式1：
+\[
+\int_{0}^{\pi} \sin^2 x \, dx
+\]
+
+块级公式2：
+$$
+\int_{0}^{\pi} \sin^2 x \, dx
+$$</div>
+        <p>渲染结果：</p>
+        <div class="output-area" id="test3-output"></div>
+        <p>状态：<span id="test3-status" class="success">✓ 通过</span></p>
+    </div>
+
+    <div class="test-section">
+        <h2>测试4：试卷实际内容</h2>
+        <p>输入内容：</p>
+        <div class="input-area"># 聊城大学《高等数学（一）》期末模拟试题
+
+## 一、 单项选择题
+
+1. 设函数 \( f(x) = \begin{cases} x^2 \sin\dfrac{1}{x}, & x \neq 0 \\ 0, & x = 0 \end{cases} \)，则 \( f(x) \) 在点 \( x = 0 \) 处（　　）。
+   - A. 不连续
+   - B. 连续但不可导
+   - C. 可导但导数不连续
+   - D. 连续且可导
+
+2. 已知 \( \displaystyle\lim_{x \to 0} \frac{f(x)}{x} = 1 \)，则当 \( x \to 0 \) 时，函数 \( f(x) \) 是无穷小量，且（　　）。
+   - A. 比 \( x \) 高阶
+   - B. 比 \( x \) 低阶
+   - C. 与 \( x \) 同阶但不等价
+   - D. 与 \( x \) 等价
+
+## 二、 填空题
+
+1. 设函数 \( f(x) = \begin{cases} x^2, & x \le 0 \\ e^x - 1, & x > 0 \end{cases} \)，则 \( f(x) \) 在 \( x = 0 \) 处的右导数 \( f'_+(0) = \) ______。
+
+2. 若极限 \( \displaystyle\lim_{x \to 0} \frac{\ln(1 + ax)}{x} = 2 \)，则常数 \( a = \) ______。</div>
+        <p>渲染结果：</p>
+        <div class="output-area" id="test4-output"></div>
+        <p>状态：<span id="test4-status" class="success">✓ 通过</span></p>
+    </div>
+
+    <script>
+        // 渲染Markdown内容的函数
+        function renderMarkdown(content, outputElementId, statusElementId) {
+            try {
+                // 先转换Markdown为HTML
+                let html = marked.parse(content);
+                
+                // 将HTML实体转换回原始字符
+                html = html.replace(/&#39;/g, "'");
+                html = html.replace(/&quot;/g, '"');
+                html = html.replace(/&lt;/g, '<');
+                html = html.replace(/&gt;/g, '>');
+                html = html.replace(/&amp;/g, '&');
+                
+                // 渲染块级公式 $$...$$
+                html = html.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
+                    try {
+                        return katex.renderToString(formula, {
+                            throwOnError: false,
+                            displayMode: true,
+                            trust: true,
+                            strict: false
+                        });
+                    } catch (e) {
+                        console.error('块级公式渲染失败:', formula, e);
+                        return match;
+                    }
+                });
+                
+                // 渲染块级公式 \[...\]
+                html = html.replace(/\\\[(.*?)\\\]/gs, (match, formula) => {
+                    try {
+                        return katex.renderToString(formula, {
+                            throwOnError: false,
+                            displayMode: true,
+                            trust: true,
+                            strict: false
+                        });
+                    } catch (e) {
+                        console.error('块级公式渲染失败:', formula, e);
+                        return match;
+                    }
+                });
+                
+                // 渲染行内公式 $...$
+                html = html.replace(/\$(.*?)\$/gs, (match, formula) => {
+                    try {
+                        return katex.renderToString(formula, {
+                            throwOnError: false,
+                            displayMode: false,
+                            trust: true,
+                            strict: false
+                        });
+                    } catch (e) {
+                        console.error('行内公式渲染失败:', formula, e);
+                        return match;
+                    }
+                });
+                
+                // 渲染行内公式 \(...\)
+                html = html.replace(/\\\((.*?)\\\)/gs, (match, formula) => {
+                    try {
+                        return katex.renderToString(formula, {
+                            throwOnError: false,
+                            displayMode: false,
+                            trust: true,
+                            strict: false
+                        });
+                    } catch (e) {
+                        console.error('行内公式渲染失败:', formula, e);
+                        return match;
+                    }
+                });
+                
+                // 渲染到输出区域
+                document.getElementById(outputElementId).innerHTML = html;
+                document.getElementById(statusElementId).className = 'success';
+                document.getElementById(statusElementId).textContent = '✓ 通过';
+            } catch (error) {
+                console.error('渲染失败:', error);
+                document.getElementById(outputElementId).innerHTML = `<p class="error">渲染失败: ${error.message}</p>`;
+                document.getElementById(statusElementId).className = 'error';
+                document.getElementById(statusElementId).textContent = '✗ 失败';
+            }
+        }
+        
+        // 页面加载完成后执行测试
+        window.addEventListener('DOMContentLoaded', function() {
+            // 测试1
+            const test1Content = `# 标题1
+
+这是一个段落，包含行内公式：\\( \\frac{1}{2} \\)。
+
+## 标题2
+
+这是一个块级公式：
+\\[
+\\int_{0}^{1} x^2 \\, dx
+\\]`;
+            renderMarkdown(test1Content, 'test1-output', 'test1-status');
+            
+            // 测试2
+            const test2Content = `1. 设函数 \\( f(x) = \\begin{cases} x^2 \\sin\\dfrac{1}{x}, & x \\neq 0 \\\\ 0, & x = 0 \\end{cases} \\)，则 \\( f(x) \\) 在点 \\( x = 0 \\) 处（　　）。
+
+- A. 不连续
+- B. 连续但不可导
+- C. 可导但导数不连续
+- D. 连续且可导`;
+            renderMarkdown(test2Content, 'test2-output', 'test2-status');
+            
+            // 测试3
+            const test3Content = `# 混合定界符测试
+
+行内公式1：\\( \\frac{1}{2} \\)
+行内公式2：$ \\frac{1}{2} $
+
+块级公式1：
+\\[
+\\int_{0}^{\\pi} \\sin^2 x \\, dx
+\\]
+
+块级公式2：
+$$
+\\int_{0}^{\\pi} \\sin^2 x \\, dx
+$$`;
+            renderMarkdown(test3Content, 'test3-output', 'test3-status');
+            
+            // 测试4
+            const test4Content = `# 聊城大学《高等数学（一）》期末模拟试题
+
+## 一、 单项选择题
+
+1. 设函数 \\( f(x) = \\begin{cases} x^2 \\sin\\dfrac{1}{x}, & x \\neq 0 \\\\ 0, & x = 0 \\end{cases} \\)，则 \\( f(x) \\) 在点 \\( x = 0 \\) 处（　　）。
+   - A. 不连续
+   - B. 连续但不可导
+   - C. 可导但导数不连续
+   - D. 连续且可导
+
+2. 已知 \\( \\displaystyle\\lim_{x \\to 0} \\frac{f(x)}{x} = 1 \\)，则当 \\( x \\to 0 \\) 时，函数 \\( f(x) \\) 是无穷小量，且（　　）。
+   - A. 比 \\( x \\) 高阶
+   - B. 比 \\( x \\) 低阶
+   - C. 与 \\( x \\) 同阶但不等价
+   - D. 与 \\( x \\) 等价
+
+## 二、 填空题
+
+1. 设函数 \\( f(x) = \\begin{cases} x^2, & x \\le 0 \\\\ e^x - 1, & x > 0 \\end{cases} \\)，则 \\( f(x) \\) 在 \\( x = 0 \\) 处的右导数 \\( f'_+(0) = \\) ______。
+
+2. 若极限 \\( \\displaystyle\\lim_{x \\to 0} \\frac{\\ln(1 + ax)}{x} = 2 \\)，则常数 \\( a = \\) ______。`;
+            renderMarkdown(test4Content, 'test4-output', 'test4-status');
+        });
+    </script>
+</body>
+</html>

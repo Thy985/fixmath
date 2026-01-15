@@ -85,58 +85,86 @@ function extractFormulaFragments(text) {
   const fragments = [];
   let lastIndex = 0;
   
-  // 先处理带$定界符的公式
-  // 块级公式：$$...$$
-  const blockFormulaRegex = /\$\$(.*?)\$\$/gs;
-  let blockMatch;
+  // 定义所有支持的公式定界符对及其优先级
+  // 优先级从高到低：块级公式优先处理，避免被行内公式匹配器误匹配
+  const formulaDelimiters = [
+    { 
+      regex: /\\\[(.*?)\\\]/gs,  // \[...\] 块级公式
+      displayMode: true,
+      name: 'block_brackets'
+    },
+    { 
+      regex: /\$\$(.*?)\$\$/gs,  // $$...$$ 块级公式
+      displayMode: true,
+      name: 'block_dollars'
+    },
+    { 
+      regex: /\\\((.*?)\\\)/gs,  // \(...\) 行内公式
+      displayMode: false,
+      name: 'inline_parentheses'
+    },
+    { 
+      regex: /\$(.*?)\$/g,       // $...$ 行内公式
+      displayMode: false,
+      name: 'inline_dollars'
+    }
+  ];
   
-  while ((blockMatch = blockFormulaRegex.exec(text)) !== null) {
-    if (blockMatch.index > lastIndex) {
-      // 处理$前的文本，识别其中的未包裹公式
-      const textBefore = text.slice(lastIndex, blockMatch.index);
+  // 找到所有公式匹配项及其位置
+  const allMatches = [];
+  
+  formulaDelimiters.forEach(delimiter => {
+    const regex = delimiter.regex;
+    let match;
+    regex.lastIndex = 0; // 重置正则表达式的lastIndex
+    
+    while ((match = regex.exec(text)) !== null) {
+      allMatches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        displayMode: delimiter.displayMode,
+        delimiter: delimiter.name,
+        fullMatch: match[0]
+      });
+    }
+  });
+  
+  // 按起始位置排序所有匹配项
+  allMatches.sort((a, b) => a.start - b.start);
+  
+  // 处理匹配项，避免重叠
+  const validMatches = [];
+  let lastEnd = 0;
+  
+  allMatches.forEach(match => {
+    if (match.start >= lastEnd) {
+      validMatches.push(match);
+      lastEnd = match.end;
+    }
+  });
+  
+  // 根据有效匹配项构建片段
+  validMatches.forEach(match => {
+    // 处理公式前的文本
+    if (match.start > lastIndex) {
+      const textBefore = text.slice(lastIndex, match.start);
       if (textBefore.trim() !== '') {
-        // 使用extractFormulaFragmentsWithoutDollars处理未包裹的公式
         fragments.push(...extractFormulaFragmentsWithoutDollars(textBefore));
       }
     }
     
-    // 添加块级公式
+    // 添加公式片段
     fragments.push({
       type: 'formula',
-      content: blockMatch[1],
-      displayMode: true
+      content: match.content,
+      displayMode: match.displayMode
     });
     
-    lastIndex = blockMatch.index + blockMatch[0].length;
-  }
+    lastIndex = match.end;
+  });
   
-  // 处理行内公式：$...$
-  const inlineFormulaRegex = /\$(.*?)\$/g;
-  let inlineMatch;
-  
-  // 从lastIndex开始匹配
-  inlineFormulaRegex.lastIndex = lastIndex;
-  while ((inlineMatch = inlineFormulaRegex.exec(text)) !== null) {
-    if (inlineMatch.index > lastIndex) {
-      // 处理$前的文本，识别其中的未包裹公式
-      const textBefore = text.slice(lastIndex, inlineMatch.index);
-      if (textBefore.trim() !== '') {
-        // 使用extractFormulaFragmentsWithoutDollars处理未包裹的公式
-        fragments.push(...extractFormulaFragmentsWithoutDollars(textBefore));
-      }
-    }
-    
-    // 添加行内公式
-    fragments.push({
-      type: 'formula',
-      content: inlineMatch[1],
-      displayMode: false
-    });
-    
-    lastIndex = inlineMatch.index + inlineMatch[0].length;
-  }
-  
-  // 处理剩余文本，识别其中的未包裹公式
+  // 处理剩余文本
   if (lastIndex < text.length) {
     const remainingText = text.slice(lastIndex);
     if (remainingText.trim() !== '') {
@@ -199,6 +227,26 @@ async function parseMarkdown(content) {
   
   // 初始化机器学习模型
   await formulaModel.init();
+  
+  // 预处理内容，检测空行
+  const lines = content.split('\n');
+  let currentLine = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (line.trim() === '' && currentLine.trim() === '') {
+      // 空行
+      elements.push({
+        type: 'empty_line'
+      });
+    } else if (line.trim() === '') {
+      // 行尾空行，不单独处理
+      currentLine += ' ';
+    } else {
+      currentLine += line + '\n';
+    }
+  }
   
   // 使用marked解析Markdown
   const tokens = marked.lexer(content);
@@ -265,8 +313,10 @@ async function parseMarkdown(content) {
         type: 'hr'
       });
     } else if (token.type === 'space') {
-      // 跳过空格令牌
-      continue;
+      // 处理空行，添加空行元素
+      elements.push({
+        type: 'empty_line'
+      });
     } else if (token.type === 'text') {
       // 处理纯文本，识别并提取未包裹在$中的公式
       const { formulaFragments } = processInlineContent([token]);
@@ -451,6 +501,9 @@ function buildDocxStructure(elements) {
         // 添加分隔线
         docxElements.push(new Paragraph({}));
         docxElements.push(new Paragraph({}));
+      } else if (element.type === 'empty_line') {
+        // 添加空行
+        docxElements.push(new Paragraph({}));
       }
     } catch (error) {
       console.error('创建docx元素失败:', error, '元素类型:', element.type, '元素内容:', element);
@@ -458,6 +511,87 @@ function buildDocxStructure(elements) {
   });
   
   return docxElements;
+}
+
+// 导出processMarkdownWithFormulas函数，统一处理Markdown中的公式
+export function processMarkdownWithFormulas(content) {
+  // 先处理所有公式，将其替换为占位符，避免marked.parse()破坏公式结构
+  let tempContent = content;
+  const formulaMap = new Map();
+  let formulaIndex = 0;
+  
+  // 使用HTML注释作为占位符，确保Markdown解析器不会修改它们
+  // 1. 提取所有块级公式 $$...$$ 和 \[...\]
+  tempContent = tempContent.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
+    const placeholder = `<!-- FORMULA_BLOCK_${formulaIndex} -->`;
+    formulaMap.set(placeholder, {
+      formula: formula,
+      displayMode: true
+    });
+    formulaIndex++;
+    return placeholder;
+  });
+  
+  tempContent = tempContent.replace(/\\\[(.*?)\\\]/gs, (match, formula) => {
+    const placeholder = `<!-- FORMULA_BLOCK_${formulaIndex} -->`;
+    formulaMap.set(placeholder, {
+      formula: formula,
+      displayMode: true
+    });
+    formulaIndex++;
+    return placeholder;
+  });
+  
+  // 2. 提取所有行内公式 $...$ 和 \(...\)
+  tempContent = tempContent.replace(/\$(.*?)\$/gs, (match, formula) => {
+    const placeholder = `<!-- FORMULA_INLINE_${formulaIndex} -->`;
+    formulaMap.set(placeholder, {
+      formula: formula,
+      displayMode: false
+    });
+    formulaIndex++;
+    return placeholder;
+  });
+  
+  tempContent = tempContent.replace(/\\\((.*?)\\\)/gs, (match, formula) => {
+    const placeholder = `<!-- FORMULA_INLINE_${formulaIndex} -->`;
+    formulaMap.set(placeholder, {
+      formula: formula,
+      displayMode: false
+    });
+    formulaIndex++;
+    return placeholder;
+  });
+  
+  // 3. 将处理后的内容转换为HTML
+  let html = marked.parse(tempContent);
+  
+  // 4. 将HTML实体转换回原始字符
+  html = html.replace(/&#39;/g, "'");
+  html = html.replace(/&quot;/g, '"');
+  html = html.replace(/&lt;/g, '<');
+  html = html.replace(/&gt;/g, '>');
+  html = html.replace(/&amp;/g, '&');
+  
+  // 5. 将占位符替换为渲染后的公式
+  formulaMap.forEach((formulaInfo, placeholder) => {
+    try {
+      const renderedFormula = katex.renderToString(formulaInfo.formula, {
+        throwOnError: false,
+        displayMode: formulaInfo.displayMode,
+        trust: true,
+        strict: false
+      });
+      html = html.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), renderedFormula);
+    } catch (e) {
+      console.error(`公式渲染失败 (${formulaInfo.displayMode ? '块级' : '行内'}):`, formulaInfo.formula, e);
+      // 渲染失败时，使用原始公式文本
+      const delimiter = formulaInfo.displayMode ? '$$' : '$';
+      html = html.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), `${delimiter}${formulaInfo.formula}${delimiter}`);
+    }
+  });
+  
+  return html;
 }
 
 // 导出normalizeLatex函数
@@ -482,12 +616,6 @@ export function normalizeLatex(content) {
     // 只匹配单个字符的上下标，或者带括号的上下标
     processed = processed.replace(/([^\\])_([a-zA-Z0-9])/g, '$1_{$2}');
     processed = processed.replace(/([^\\])\\^([a-zA-Z0-9])/g, '$1^{$2}');
-    
-    // 处理导数符号 y'', y''' 等
-    processed = processed.replace(/y''/g, 'y^{\\prime\\prime}');
-    processed = processed.replace(/y'''/g, 'y^{\\prime\\prime\\prime}');
-    processed = processed.replace(/y\\^(\\d+)/g, 'y^{(\\1)}');
-    processed = processed.replace(/f\\^(\\d+)\\(([^)]+)\\)/g, 'f^{(\\1)}(\\2)');
     
     // 处理dydx形式的导数，包括二阶导数
     processed = processed.replace(/d\^2y\/dx\^2/g, '\\frac{d^2y}{dx^2}');
@@ -527,57 +655,85 @@ export function normalizeLatex(content) {
     return processed;
   };
   
-  // 只处理$包裹的内容，其他内容保持不变
+  // 定义所有支持的公式定界符及其处理函数
+  const formulaDelimiters = [
+    {
+      regex: /\\\[(.*?)\\\]/gs,  // \[...\] 块级公式
+      prefix: '\\[',
+      suffix: '\\]'
+    },
+    {
+      regex: /\$\$(.*?)\$\$/gs,  // $$...$$ 块级公式
+      prefix: '$$',
+      suffix: '$$'
+    },
+    {
+      regex: /\\\((.*?)\\\)/gs,  // \(...\) 行内公式
+      prefix: '\\(',
+      suffix: '\\)'
+    },
+    {
+      regex: /\$(.*?)\$/g,       // $...$ 行内公式
+      prefix: '$',
+      suffix: '$'
+    }
+  ];
+  
+  // 收集所有匹配项
+  const allMatches = [];
+  formulaDelimiters.forEach(delimiter => {
+    let match;
+    delimiter.regex.lastIndex = 0;
+    while ((match = delimiter.regex.exec(normalized)) !== null) {
+      allMatches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        content: match[1],
+        prefix: delimiter.prefix,
+        suffix: delimiter.suffix,
+        fullMatch: match[0]
+      });
+    }
+  });
+  
+  // 按起始位置排序
+  allMatches.sort((a, b) => a.start - b.start);
+  
+  // 处理匹配项，避免重叠
+  const validMatches = [];
+  let lastEnd = 0;
+  
+  allMatches.forEach(match => {
+    if (match.start >= lastEnd) {
+      validMatches.push(match);
+      lastEnd = match.end;
+    }
+  });
+  
+  // 构建处理后的内容
   const segments = [];
   let lastIndex = 0;
   
-  // 先处理块级公式 $$...$$
-  const blockFormulaRegex = /\$\$(.*?)\$\$/gs;
-  let blockMatch;
-  
-  while ((blockMatch = blockFormulaRegex.exec(normalized)) !== null) {
-    // 保持$$之前的内容不变
-    if (blockMatch.index > lastIndex) {
-      const preBlockContent = normalized.slice(lastIndex, blockMatch.index);
-      segments.push(preBlockContent);
+  validMatches.forEach(match => {
+    // 保持公式之前的内容不变
+    if (match.start > lastIndex) {
+      const preContent = normalized.slice(lastIndex, match.start);
+      segments.push(preContent);
     }
     
-    // 处理$$包裹的部分
-    const formulaContent = blockMatch[1];
-    const processedFormula = processContentSegment(formulaContent);
-    segments.push('$$' + processedFormula + '$$');
-    lastIndex = blockMatch.index + blockMatch[0].length;
-  }
-  
-  // 从lastIndex开始处理行内公式 $...$
-  const remainingContent = normalized.slice(lastIndex);
-  const inlineSegments = [];
-  let inlineLastIndex = 0;
-  const inlineFormulaRegex = /\$(.*?)\$/g;
-  let inlineMatch;
-  
-  while ((inlineMatch = inlineFormulaRegex.exec(remainingContent)) !== null) {
-    // 保持$之前的内容不变
-    if (inlineMatch.index > inlineLastIndex) {
-      const preInlineContent = remainingContent.slice(inlineLastIndex, inlineMatch.index);
-      inlineSegments.push(preInlineContent);
-    }
+    // 处理公式内容
+    const processedFormula = processContentSegment(match.content);
+    segments.push(match.prefix + processedFormula + match.suffix);
     
-    // 处理$包裹的部分
-    const formulaContent = inlineMatch[1];
-    const processedFormula = processContentSegment(formulaContent);
-    inlineSegments.push('$' + processedFormula + '$');
-    inlineLastIndex = inlineMatch.index + inlineMatch[0].length;
+    lastIndex = match.end;
+  });
+  
+  // 保持最后一个公式之后的内容不变
+  if (lastIndex < normalized.length) {
+    const postContent = normalized.slice(lastIndex);
+    segments.push(postContent);
   }
   
-  // 保持最后一个$之后的内容不变
-  if (inlineLastIndex < remainingContent.length) {
-    const postInlineContent = remainingContent.slice(inlineLastIndex);
-    inlineSegments.push(postInlineContent);
-  }
-  
-  // 合并所有片段
-  segments.push(...inlineSegments);
   normalized = segments.join('');
   
   // 确保所有字符都正确处理，避免乱码
@@ -828,46 +984,8 @@ export async function convertToPdf(content, inputType) {
     tempElement.appendChild(contentContainer);
     
     if (inputType === 'markdown') {
-      // 先转换Markdown为HTML，保留原始公式格式
-      let html = marked.parse(normalizedContent);
-      
-      // 将HTML实体转换回原始字符，避免f'被转义为f&#39;等问题
-      html = html.replace(/&#39;/g, "'");
-      html = html.replace(/&quot;/g, '"');
-      html = html.replace(/&lt;/g, '<');
-      html = html.replace(/&gt;/g, '>');
-      html = html.replace(/&amp;/g, '&');
-      
-      // 渲染块级公式 $$...$$
-      html = html.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
-        try {
-          return katex.renderToString(formula, {
-            throwOnError: false,
-            displayMode: true,
-            trust: true,
-            strict: false
-          });
-        } catch (e) {
-          console.error('块级公式渲染失败:', formula, e);
-          return match;
-        }
-      });
-      
-      // 渲染行内公式 $...$
-      html = html.replace(/\$(.*?)\$/gs, (match, formula) => {
-        try {
-          return katex.renderToString(formula, {
-            throwOnError: false,
-            displayMode: false,
-            trust: true,
-            strict: false
-          });
-        } catch (e) {
-          console.error('行内公式渲染失败:', formula, e);
-          return match;
-        }
-      });
-      
+      // 使用统一的processMarkdownWithFormulas函数处理Markdown内容
+      const html = processMarkdownWithFormulas(normalizedContent);
       contentContainer.innerHTML = html;
     } else {
       // 对于LaTeX输入类型，直接渲染

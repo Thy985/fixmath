@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试LaTeX定界符</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .formula {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>LaTeX定界符测试</h1>
+    
+    <div class="test-section">
+        <h3>1. 使用\( \)的行内公式</h3>
+        <p>这是一个行内公式：\( \frac{1 - \cos x}{x^2} \)，它应该被正确识别。</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 使用\[ \]的块级公式</h3>
+        <p>这是一个块级公式：</p>
+        <div class="formula">\[
+\lim_{x \to 0} \frac{\ln(1 + x)}{\sin x}
+\]</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 混合使用不同定界符</h3>
+        <p>行内公式：\( \int_{0}^{\pi} \sin^2 x \, dx \) 和 $ \frac{dy}{dx} $ 都应该被识别。</p>
+        <div class="formula">\[
+\int_{-1}^{1} \frac{x^2}{\sqrt{1 - x^2}} \, dx
+\]</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. 复杂公式</h3>
+        <p>设函数 \( f(x) = \begin{cases} x^2 \sin\dfrac{1}{x}, & x \neq 0 \\\\ 0, & x = 0 \end{cases} \)，则 \( f(x) \) 在点 \( x = 0 \) 处可导。</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>5. 试卷中的实际公式</h3>
+        <p>1. 当 \( x \to 0 \) 时，函数 \( \frac{1 - \cos x}{x^2} \) 是（ ）</p>
+        <ul>
+            <li>A. 等价无穷小</li>
+            <li>B. 同阶但不等价无穷小</li>
+            <li>C. 高阶无穷小</li>
+            <li>D. 低阶无穷小</li>
+        </ul>
+        
+        <p>2. 极限 \( \lim_{x \to 0} \frac{\ln(1 + x)}{\sin x} = \) __________</p>
+        
+        <p>3. 定积分 \( \int_{0}^{\pi} \sin^2 x \, dx = \) __________</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>6. 试卷中的选择题</h3>
+        <p>1. 设函数 \( f(x) = \begin{cases} x^2 \sin\dfrac{1}{x}, & x \neq 0 \\\\ 0, & x = 0 \end{cases} \)，则 \( f(x) \) 在点 \( x = 0 \) 处（　　）。</p>
+        <ul>
+            <li>A. 不连续</li>
+            <li>B. 连续但不可导</li>
+            <li>C. 可导但导数不连续</li>
+            <li>D. 连续且可导</li>
+        </ul>
+        
+        <p>2. 已知 \( \displaystyle\lim_{x \to 0} \frac{f(x)}{x} = 1 \)，则当 \( x \to 0 \) 时，函数 \( f(x) \) 是无穷小量，且（　　）。</p>
+        <ul>
+            <li>A. 比 \( x \) 高阶</li>
+            <li>B. 比 \( x \) 低阶</li>
+            <li>C. 与 \( x \) 同阶但不等价</li>
+            <li>D. 与 \( x \) 等价</li>
+        </ul>
+    </div>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // 初始化KaTeX自动渲染
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false},
+                    {left: '\\(', right: '\\)', display: false},
+                    {left: '\\[', right: '\\]', display: true}
+                ]
+            });
+            
+            // 检查公式是否正确渲染
+            const resultDiv = document.getElementById('result');
+            const formulas = document.querySelectorAll('.katex');
+            
+            if (formulas.length > 0) {
+                resultDiv.innerHTML = '<p class="success">✓ 成功！所有LaTeX公式已被正确识别和渲染。</p>';
+                resultDiv.innerHTML += `<p>共识别到 ${formulas.length} 个公式。</p>`;
+            } else {
+                resultDiv.innerHTML = '<p class="error">✗ 失败！没有识别到任何LaTeX公式。</p>';
+            }
+        });
+    </script>
+</body>
+</html>

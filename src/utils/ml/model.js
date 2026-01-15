@@ -14,14 +14,26 @@ class FormulaModel {
 
   // 初始化模型
   async init() {
+    // 如果模型已经加载，直接返回
+    if (this.isLoaded) {
+      console.log('模型已经加载，跳过初始化');
+      return;
+    }
+
     try {
       // 检查是否在浏览器环境中
       const isBrowser = typeof window !== 'undefined';
       
       if (isBrowser) {
         // 只在浏览器环境中设置TensorFlow.js后端
-        await tf.setBackend(this.backend);
-        console.log('TensorFlow.js后端设置成功:', this.backend);
+        // 检查后端是否已经设置
+        const currentBackend = tf.getBackend();
+        if (currentBackend !== this.backend) {
+          await tf.setBackend(this.backend);
+          console.log('TensorFlow.js后端设置成功:', this.backend);
+        } else {
+          console.log('TensorFlow.js后端已经设置，跳过设置');
+        }
       } else {
         // 在Node.js环境中，跳过模型初始化
         console.log('在Node.js环境中，跳过模型初始化');
