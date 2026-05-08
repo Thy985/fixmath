@@ -1,0 +1,49 @@
+name: formula_fix
+description: "纯本地 Markdown/LaTeX 编辑器，支持公式渲染与多格式导出"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.2
+
+  # 核心渲染
+  flutter_markdown: ^0.6.18
+  flutter_math_fork: ^0.6.4
+  markdown: ^6.0.2
+
+  # 导出功能
+  pdf: ^3.10.4
+  printing: ^5.11.0
+
+  # 图表渲染 (Mermaid)
+  flutter_inappwebview: ^6.1.5
+
+  # 平台功能
+  path_provider: ^2.1.1
+  file_picker: ^6.1.1
+  share_plus: ^7.0.2
+
+  # 状态管理
+  flutter_riverpod: ^2.4.5
+
+  # 工具库
+  uuid: ^4.2.1
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+    - assets/js/
