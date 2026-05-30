@@ -1,6 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, Math, MathRun, HeadingLevel, AlignmentType } from 'docx';
 import { marked } from 'marked';
-import { formulaModel } from './ml/model.js';
 import html2pdf from 'html2pdf.js';
 import katex from 'katex';
 
@@ -53,10 +52,6 @@ const COMMON_LATEX_COMMANDS = [
   'upsilon', 'phi', 'chi', 'psi', 'omega'
 ];
 
-// 辅助函数：检查字符串是否包含LaTeX命令
-function containsLatexCommand(text) {
-  return COMMON_LATEX_COMMANDS.some(cmd => text.includes(cmd));
-}
 
 // 辅助函数：识别文本中的公式片段（不处理$定界符）
 function extractFormulaFragmentsWithoutDollars(text) {
@@ -224,9 +219,6 @@ function processInlineContent(tokens, normalize = true) {
 // 解析Markdown，提取文本和公式
 async function parseMarkdown(content) {
   const elements = [];
-  
-  // 初始化机器学习模型
-  await formulaModel.init();
   
   // 预处理内容，检测空行
   const lines = content.split('\n');

@@ -53,7 +53,7 @@ export function AppProvider({ children }) {
       
       const url = URL.createObjectURL(blob);
       setDownloadUrl(url);
-      setFilename(`formulafix_${new Date().toISOString().slice(0, 10)}.${ext}`);
+      setFilename(`FixMath_${new Date().toISOString().slice(0, 10)}.${ext}`);
       setStatus('success: 转换完成');
     } catch (error) {
       console.error('转换错误:', error);
