@@ -56,11 +56,11 @@ function App() {
     if (isDragging === 'left') {
       const newLeftWidth = Math.max(15, Math.min(40, widthPercent));
       setLeftWidth(newLeftWidth);
-      setRightWidth(25); // 重置右侧宽度，保持中间宽度自适应
+      setRightWidth(Math.max(15, 100 - newLeftWidth - 50)); // 保持中间面板最小50%
     } else if (isDragging === 'right') {
       const newRightWidth = Math.max(15, Math.min(40, 100 - widthPercent));
       setRightWidth(newRightWidth);
-      setLeftWidth(25); // 重置左侧宽度，保持中间宽度自适应
+      setLeftWidth(Math.max(15, 100 - newRightWidth - 50)); // 保持中间面板最小50%
     }
   };
 
@@ -87,7 +87,7 @@ function App() {
   return (
     <div className="app">
       <div className="app-header">
-        <h1>FormulaFix - LaTeX/Markdown 转 Word/PDF</h1>
+        <h1>FixMath - LaTeX/Markdown 转 Word/PDF</h1>
         <button 
           className="dark-mode-toggle"
           onClick={toggleDarkMode}
