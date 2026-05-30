@@ -1,5 +1,6 @@
-import { Document, Packer, Paragraph, TextRun, Math, MathRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
 import { marked } from 'marked';
+import html2canvas from 'html2canvas';
 import html2pdf from 'html2pdf.js';
 import katex from 'katex';
 
@@ -341,167 +342,186 @@ async function parseLatex(content) {
   return await parseMarkdown(content);
 }
 
-// 将解析后的元素转换为docx.js的文档结构
-function buildDocxStructure(elements) {
-  const docxElements = [];
-  
-  // 辅助函数：处理内容片段，生成docx.js元素
-  const processContentFragments = (fragments) => {
-    const contentElements = [];
-    
-    fragments.forEach(fragment => {
-      if (fragment.type === 'text') {
-        // 纯文本：直接交给Word，设置普通样式
-        const textContent = fragment.content || '';
-        contentElements.push(new TextRun({ text: textContent }));
-      } else if (fragment.type === 'formula') {
-        // 数学公式：使用docx.js的Math和MathRun组件创建公式
-        // 生成符合Office MathML标准的XML结构，确保Word和WPS都能正确识别
-        const formulaContent = fragment.content || '';
-        
-        // 确保公式内容是标准的LaTeX格式，没有多余的空格或格式问题
-        const cleanFormula = formulaContent.trim();
-        
-        try {
-          // 使用MathRun和Math组件创建数学公式
-          // 确保生成的Office MathML结构完整，包含所有必要的元数据
-          const mathRun = new MathRun(cleanFormula);
-          contentElements.push(new Math({ 
-            children: [mathRun],
-            // 添加额外的属性，确保WPS能正确识别
-            attributes: {
-              xmlns: "http://schemas.openxmlformats.org/officeDocument/2006/math"
-            }
-          }));
-        } catch (e) {
-          console.error('创建Math对象失败:', cleanFormula, e);
-          // 出错时添加为普通文本，保留公式格式
-          const delimiter = fragment.displayMode ? '$$' : '$';
-          contentElements.push(new TextRun({ text: `${delimiter}${cleanFormula}${delimiter}` }));
-        }
-      }
+// 将公式渲染为图片（用于嵌入 DOCX）
+async function renderFormulaToImage(formula, displayMode) {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:absolute;left:-9999px;top:-9999px;background:white;padding:8px;';
+
+  try {
+    katex.render(formula, container, {
+      throwOnError: false,
+      displayMode,
+      trust: true,
+      strict: false
     });
-    
-    return contentElements;
-  };
-  
-  elements.forEach(element => {
+
+    document.body.appendChild(container);
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+
+    document.body.removeChild(container);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64 = dataUrl.split(',')[1];
+    return base64;
+  } catch (e) {
+    if (container.parentNode) document.body.removeChild(container);
+    throw e;
+  }
+}
+
+// 解析内容，提取公式位置信息
+async function parseContentForDocx(content, inputType) {
+  // 规范化内容
+  const normalizedContent = normalizeLatex(content);
+
+  // 提取所有公式位置
+  const formulaPlaces = [];
+  const delimiters = [
+    { regex: /\\\[([\s\S]*?)\\\]/g, displayMode: true },
+    { regex: /\$\$([\s\S]*?)\$\$/g, displayMode: true },
+    { regex: /\\\(([\s\S]*?)\\\)/g, displayMode: false },
+    { regex: /\$([^$\n]+?)\$/g, displayMode: false },
+  ];
+
+  for (const d of delimiters) {
+    let match;
+    d.regex.lastIndex = 0;
+    while ((match = d.regex.exec(normalizedContent)) !== null) {
+      formulaPlaces.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        formula: match[1].trim(),
+        displayMode: d.displayMode,
+        fullMatch: match[0]
+      });
+    }
+  }
+
+  // 按位置排序
+  formulaPlaces.sort((a, b) => a.start - b.start);
+
+  // 去重叠：后面的公式截断前面的
+  const validPlaces = [];
+  let lastEnd = 0;
+  for (const fp of formulaPlaces) {
+    if (fp.start >= lastEnd) {
+      validPlaces.push(fp);
+      lastEnd = fp.end;
+    }
+  }
+
+  // 构建段落列表（文本+公式交错）
+  const sections = [];
+  let pos = 0;
+  for (const fp of validPlaces) {
+    if (fp.start > pos) {
+      const text = normalizedContent.slice(pos, fp.start).trim();
+      if (text) sections.push({ type: 'text', content: text });
+    }
+    sections.push({ type: 'formula', formula: fp.formula, displayMode: fp.displayMode });
+    pos = fp.end;
+  }
+  if (pos < normalizedContent.length) {
+    const tail = normalizedContent.slice(pos).trim();
+    if (tail) sections.push({ type: 'text', content: tail });
+  }
+
+  // 分别渲染文本（Markdown/纯文本）
+  let htmlText = '';
+  if (inputType === 'markdown') {
+    htmlText = processMarkdownWithFormulas(normalizedContent);
+  }
+
+  // 渲染所有公式图片
+  const formulaImages = new Map();
+  for (const fp of validPlaces) {
     try {
-      if (element.type === 'heading') {
-        const headingContent = [];
-        
-        // 处理标题中的内容片段（文本和公式）
-        if (Array.isArray(element.content)) {
-          headingContent.push(...processContentFragments(element.content));
-        } else if (element.text) {
-          // 兼容旧格式
-          headingContent.push(new TextRun({ text: element.text }));
-        }
-        
-        docxElements.push(
-          new Paragraph({
-            children: headingContent,
-            heading: element.level === 1 ? HeadingLevel.HEADING_1 :
-                    element.level === 2 ? HeadingLevel.HEADING_2 :
-                    element.level === 3 ? HeadingLevel.HEADING_3 :
-                    HeadingLevel.HEADING_4,
-            alignment: AlignmentType.LEFT
-          })
-        );
-      } else if (element.type === 'paragraph') {
-        const paragraphContent = [];
-        
-        // 确保element.content是数组且不为空
-        if (Array.isArray(element.content) && element.content.length > 0) {
-          paragraphContent.push(...processContentFragments(element.content));
-        }
-        
-        // 添加空数组检查
-        if (paragraphContent.length > 0) {
-          docxElements.push(
-            new Paragraph({
-              children: paragraphContent,
-              alignment: AlignmentType.LEFT
-            })
-          );
-        }
-      } else if (element.type === 'formula') {
-        // 数学公式：使用docx.js的Math和MathRun组件创建公式
-        // 生成符合Office MathML标准的XML结构，确保Word和WPS都能正确识别
-        const formulaContent = element.content || '';
-        
-        // 确保公式内容是标准的LaTeX格式，没有多余的空格或格式问题
-        const cleanFormula = formulaContent.trim();
-        
-        try {
-          // 使用MathRun和Math组件创建数学公式
-          // 确保生成的Office MathML结构完整，包含所有必要的元数据
-          const mathRun = new MathRun(cleanFormula);
-          docxElements.push(
-            new Paragraph({
-              children: [new Math({ 
-                children: [mathRun],
-                // 添加额外的属性，确保WPS能正确识别
-                attributes: {
-                  xmlns: "http://schemas.openxmlformats.org/officeDocument/2006/math"
-                }
-              })],
-              alignment: AlignmentType.CENTER
-            })
-          );
-        } catch (e) {
-          console.error('创建formula段落失败:', cleanFormula, e);
-          // 出错时添加为普通文本，保留公式格式
-          const delimiter = element.displayMode ? '$$' : '$';
-          docxElements.push(
-            new Paragraph({
-              children: [new TextRun({ text: `${delimiter}${cleanFormula}${delimiter}` })],
-              alignment: AlignmentType.CENTER
-            })
-          );
-        }
-      } else if (element.type === 'code') {
-        docxElements.push(
-          new Paragraph({
-            children: [new TextRun({ text: element.content })],
-            alignment: AlignmentType.LEFT,
-            style: 'Code'
-          })
-        );
-      } else if (element.type === 'list_item') {
-        const listItemContent = [];
-        
-        // 处理列表项中的内容片段（文本和公式）
-        if (Array.isArray(element.content)) {
-          listItemContent.push(...processContentFragments(element.content));
-        } else if (element.text) {
-          // 兼容旧格式
-          listItemContent.push(new TextRun({ text: element.text }));
-        } else if (element.content) {
-          // 兼容旧格式（字符串内容）
-          listItemContent.push(new TextRun({ text: element.content }));
-        }
-        
-        docxElements.push(
-          new Paragraph({
-            children: listItemContent,
-            bullet: { level: 0 },
-            alignment: AlignmentType.LEFT
-          })
-        );
-      } else if (element.type === 'hr') {
-        // 添加分隔线
-        docxElements.push(new Paragraph({}));
-        docxElements.push(new Paragraph({}));
-      } else if (element.type === 'empty_line') {
-        // 添加空行
-        docxElements.push(new Paragraph({}));
+      const img = await renderFormulaToImage(fp.formula, fp.displayMode);
+      formulaImages.set(`${fp.formula}|||${fp.displayMode}`, img);
+    } catch (e) {
+      console.error('公式渲染失败:', fp.formula, e);
+    }
+  }
+
+  return { sections, formulaImages, htmlText };
+}
+
+// 将公式图片转为 docx ImageRun
+function makeFormulaImage(section, formulaImages) {
+  const key = `${section.formula}|||${section.displayMode}`;
+  const base64 = formulaImages.get(key);
+  if (!base64) return null;
+
+  const isDisplay = section.displayMode;
+  const widthPx = isDisplay ? 600 : 300;
+  const heightPx = isDisplay ? 120 : 40;
+
+  return new ImageRun({
+    data: Buffer.from(base64, 'base64'),
+    transformation: {
+      width: Math.round(widthPx / 2),   // html2canvas scale=2，所以除2
+      height: Math.round(heightPx / 2),
+    },
+    type: 'png',
+  });
+}
+
+// 将解析后的元素转换为docx.js的文档结构（图片公式版）
+function buildDocxStructureFromSections(sections, formulaImages) {
+  const docxElements = [];
+
+  sections.forEach(section => {
+    if (section.type === 'formula') {
+      const imageRun = makeFormulaImage(section, formulaImages);
+      if (imageRun) {
+        docxElements.push(new Paragraph({
+          children: [imageRun],
+          alignment: AlignmentType.CENTER,
+        }));
       }
-    } catch (error) {
-      console.error('创建docx元素失败:', error, '元素类型:', element.type, '元素内容:', element);
+    } else if (section.type === 'text') {
+      // 把文本按行分割成段落
+      const lines = section.content.split(/\n{2,}/);
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        // 检测是否为 Markdown 标题
+        const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+        if (headingMatch) {
+          const level = headingMatch[1].length;
+          const text = headingMatch[2];
+          docxElements.push(new Paragraph({
+            children: [new TextRun({ text })],
+            heading: level === 1 ? HeadingLevel.HEADING_1 :
+                     level === 2 ? HeadingLevel.HEADING_2 :
+                     level === 3 ? HeadingLevel.HEADING_3 :
+                     HeadingLevel.HEADING_4,
+          }));
+        } else {
+          // 普通段落：去除 Markdown 格式符号
+          const cleanText = trimmed
+            .replace(/\*\*(.+?)\*\*/g, '$1')    // 粗体
+            .replace(/\*(.+?)\*/g, '$1')        // 斜体
+            .replace(/`(.+?)`/g, '$1')           // 行内代码
+            .replace(/^[-*]\s+/, '')            // 无序列表
+            .replace(/^\d+\.\s+/, '');          // 有序列表
+
+          if (cleanText) {
+            docxElements.push(new Paragraph({
+              children: [new TextRun({ text: cleanText })],
+            }));
+          }
+        }
+      });
     }
   });
-  
+
   return docxElements;
 }
 
@@ -1030,67 +1050,29 @@ export async function convertToPdf(content, inputType) {
 // 主转换函数
 export async function convertToDocx(content, inputType) {
   try {
-    // 检查输入内容是否为空
     if (!content || content.trim() === '') {
       throw new Error('输入内容不能为空');
     }
-    
-    console.log('开始转换，输入类型:', inputType);
-    
-    // 解析输入内容
-    const elements = inputType === 'markdown' 
-      ? await parseMarkdown(content) 
-      : await parseLatex(content);
-    
-    console.log('解析完成，生成', elements.length, '个元素');
-    
-    // 构建docx文档结构
-    const docxElements = buildDocxStructure(elements);
-    
+
+    console.log('开始转换DOCX，输入类型:', inputType);
+
+    // 新方案：提取公式 → KaTeX渲染为图片 → ImageRun 嵌入 docx
+    const { sections, formulaImages } = await parseContentForDocx(content, inputType);
+    const docxElements = buildDocxStructureFromSections(sections, formulaImages);
+
     console.log('docx结构构建完成，生成', docxElements.length, '个docx元素');
-    
-    // 创建文档
+
     const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: docxElements,
-        },
-      ],
+      sections: [{ properties: {}, children: docxElements }],
     });
-    
-    // 生成文档并转换为Blob
+
     console.log('开始生成文档...');
-    
-    let blob;
-    if (typeof window !== 'undefined') {
-      // 浏览器环境：使用toBlob方法
-      blob = await Packer.toBlob(doc);
-    } else {
-      // Node.js环境：使用toBuffer方法
-      const buffer = await Packer.toBuffer(doc);
-      blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    }
-    
+    const blob = await Packer.toBlob(doc);
     console.log('文档生成完成，大小:', blob.size, '字节');
-    
+
     return blob;
   } catch (error) {
-    console.error('转换错误:', error);
-    
-    // 提供更详细的错误信息
-    let errorMessage = '文档转换失败';
-    
-    if (error.message.includes('Empty input')) {
-      errorMessage += ': 输入内容不能为空';
-    } else if (error.message.includes('Invalid')) {
-      errorMessage += ': 输入格式无效，请检查LaTeX语法';
-    } else if (error.message.includes('Unexpected')) {
-      errorMessage += ': 遇到意外字符，请检查输入内容';
-    } else {
-      errorMessage += `: ${error.message}`;
-    }
-    
-    throw new Error(errorMessage);
+    console.error('DOCX转换错误:', error);
+    throw new Error(`文档转换失败: ${error.message}`);
   }
 }
