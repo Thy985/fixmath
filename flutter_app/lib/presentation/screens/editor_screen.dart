@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../providers/editor_providers.dart';
@@ -10,10 +11,11 @@ import '../../core/constants/app_constants.dart';
 import '../../data/models/template.dart';
 import '../../domain/services/export_service.dart';
 import '../widgets/preview_content.dart';
-import 'file_manager_screen.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
-  const EditorScreen({super.key});
+  final String? initialPath;
+
+  const EditorScreen({super.key, this.initialPath});
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -26,6 +28,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
+    _controller.text = ref.read(editorContentProvider);
+    if (widget.initialPath != null) {
+      _loadPath(widget.initialPath!);
+    }
     _checkClipboard();
   }
 
@@ -105,15 +111,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _openFileManager() async {
-    final path = await Navigator.push<String>(
-      context,
-      MaterialPageRoute(builder: (_) => const FileManagerScreen()),
-    );
+    final path = await context.push<String>('/files');
     if (path != null && mounted) {
-      try {
-        _controller.text = await File(path).readAsString();
-      } catch (_) {}
+      _loadPath(path);
     }
+  }
+
+  Future<void> _loadPath(String path) async {
+    try {
+      _controller.text = await File(path).readAsString();
+    } catch (_) {}
   }
 
   Future<void> _exportToPdf() async {
