@@ -3,44 +3,35 @@ import 'formula_extractor.dart';
 
 class MarkdownParser {
   static List<DocumentElement> parse(String content) {
+    if (content.isEmpty) return [];
+
     final List<DocumentElement> elements = [];
-
-    if (content.isEmpty) return elements;
-
     final lines = content.split('\n');
-    String currentParagraph = '';
+
     bool inCodeBlock = false;
     String? codeLanguage;
     final List<String> codeLines = [];
 
     void flushCodeBlock() {
-      if (codeLines.isNotEmpty) {
-        final isMermaid = codeLanguage?.toLowerCase() == 'mermaid';
-        elements.add(DocumentElement(
-          type: isMermaid ? ElementType.mermaid : ElementType.code,
-          content: codeLines.join('\n'),
-          attributes: {'language': codeLanguage},
-        ));
-        codeLines.clear();
+      if (codeLines.isEmpty) return;
+      final code = codeLines.join('\n');
+      if (codeLanguage?.toLowerCase() == 'mermaid') {
+        elements.add(MermaidElement(code: code));
+      } else {
+        elements.add(CodeElement(code: code, language: codeLanguage));
       }
-      codeLanguage = null;
+      codeLines.clear();
     }
 
+    ParagraphElement? pendingParagraph;
     void flushParagraph() {
-      if (currentParagraph.trim().isNotEmpty) {
-        final paragraphElements = _parseInlineContent(currentParagraph);
-        elements.add(DocumentElement(
-          type: ElementType.paragraph,
-          content: currentParagraph.trim(),
-          children: paragraphElements,
-        ));
-        currentParagraph = '';
+      if (pendingParagraph != null) {
+        elements.add(pendingParagraph);
+        pendingParagraph = null;
       }
     }
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
+    for (final line in lines) {
       if (line.startsWith('```')) {
         if (!inCodeBlock) {
           flushParagraph();
@@ -60,86 +51,68 @@ class MarkdownParser {
 
       if (line.trim().isEmpty) {
         flushParagraph();
-        elements.add(DocumentElement(
-          type: 'empty_line',
-          content: '',
-        ));
+        elements.add(const EmptyLineElement());
         continue;
       }
 
       if (line.startsWith('#')) {
         flushParagraph();
-        int level = 0;
-        for (int j = 0; j < line.length && line[j] == '#'; j++) {
-          level++;
-        }
-        final headingText = line.substring(level).trim();
-        elements.add(DocumentElement(
-          type: ElementType.heading,
-          content: headingText,
+        int level = 1;
+        for (int i = 0; i < line.length && line[i] == '#'; i++) level++;
+        elements.add(HeadingElement(
           level: level,
+          text: line.substring(level).trim(),
         ));
         continue;
       }
 
       if (line.startsWith('- ') || line.startsWith('* ')) {
         flushParagraph();
-        elements.add(DocumentElement(
-          type: ElementType.list,
-          content: line.substring(2).trim(),
-        ));
+        elements.add(ListElement(text: line.substring(2).trim()));
         continue;
       }
 
       if (RegExp(r'^\d+\.\s').hasMatch(line)) {
         flushParagraph();
-        final listContent = line.replaceFirst(RegExp(r'^\d+\.\s'), '');
-        elements.add(DocumentElement(
-          type: ElementType.list,
-          content: listContent,
-          attributes: {'ordered': true},
+        elements.add(ListElement(
+          text: line.replaceFirst(RegExp(r'^\d+\.\s'), ''),
+          ordered: true,
         ));
         continue;
       }
 
       if (line.startsWith('> ')) {
         flushParagraph();
-        elements.add(DocumentElement(
-          type: ElementType.blockquote,
-          content: line.substring(2).trim(),
-        ));
+        elements.add(BlockquoteElement(text: line.substring(2).trim()));
         continue;
       }
 
       if (line.startsWith('|')) {
         flushParagraph();
-        elements.add(DocumentElement(
-          type: ElementType.table,
-          content: line,
-        ));
+        final table = _parseTableLine(line);
+        if (table != null) elements.add(table);
         continue;
       }
 
-      currentParagraph += line + '\n';
+      pendingParagraph ??= ParagraphElement(children: []);
+      final inline = _parseInline(line);
+      pendingParagraph.children.addAll(inline);
     }
 
-    if (inCodeBlock) {
-      flushCodeBlock();
-    }
+    if (inCodeBlock) flushCodeBlock();
     flushParagraph();
 
     return elements;
   }
 
-  static List<DocumentElement> _parseInlineContent(String text) {
-    final List<DocumentElement> elements = [];
+  static List<InlineElement> _parseInline(String text) {
+    final List<InlineElement> elements = [];
     final formulas = FormulaExtractor.extractFormulas(text);
 
     if (formulas.isEmpty) {
-      elements.add(DocumentElement(
-        type: ElementType.text,
-        content: text.trim(),
-      ));
+      if (text.trim().isNotEmpty) {
+        elements.add(TextElement(text.trim()));
+      }
       return elements;
     }
 
@@ -148,32 +121,29 @@ class MarkdownParser {
       if (formula.start > lastEnd) {
         final textContent = text.substring(lastEnd, formula.start).trim();
         if (textContent.isNotEmpty) {
-          elements.add(DocumentElement(
-            type: ElementType.text,
-            content: textContent,
-          ));
+          elements.add(TextElement(textContent));
         }
       }
-
-      elements.add(DocumentElement(
-        type: ElementType.formula,
-        content: formula.latex,
-        attributes: {'displayMode': formula.displayMode},
+      elements.add(FormulaElement(
+        latex: formula.latex,
+        displayMode: formula.displayMode,
       ));
-
       lastEnd = formula.end;
     }
 
     if (lastEnd < text.length) {
-      final remainingText = text.substring(lastEnd).trim();
-      if (remainingText.isNotEmpty) {
-        elements.add(DocumentElement(
-          type: ElementType.text,
-          content: remainingText,
-        ));
+      final remaining = text.substring(lastEnd).trim();
+      if (remaining.isNotEmpty) {
+        elements.add(TextElement(remaining));
       }
     }
 
     return elements;
+  }
+
+  static TableElement? _parseTableLine(String line) {
+    final cells = line.split('|').where((s) => s.trim().isNotEmpty).toList();
+    if (cells.isEmpty) return null;
+    return TableElement(headers: cells.map((c) => c.trim()).toList(), rows: []);
   }
 }
