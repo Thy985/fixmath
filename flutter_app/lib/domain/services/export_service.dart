@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:pdf/pdf.dart';
@@ -211,14 +212,17 @@ class ExportService {
           TextElement(:final text) => text,
         }).join(''),
         ListElement(:final text) => '• $text',
-        CodeElement(:final code) => '```\n$code\n```',
+        CodeElement(:final code, :final language) => '```${language ?? ''}\n$code\n```',
         BlockquoteElement(:final text) => '> $text',
         MermaidElement(:final code) => '```mermaid\n$code\n```',
         EmptyLineElement() => '',
         _ => '',
       };
-      sb.writeln(line);
+      if (line.isNotEmpty) {
+        sb.writeln(line);
+      }
     }
-    return Uint8List.fromList(sb.toString().codeUnits);
+    final result = sb.toString();
+    return Uint8List.fromList(utf8.encode(result.endsWith('\n') ? result.substring(0, result.length - 1) : result));
   }
 }
