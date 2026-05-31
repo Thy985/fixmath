@@ -5,9 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 
 class FileManagerScreen extends ConsumerStatefulWidget {
-  final Function(String)? onOpenFile;
-
-  const FileManagerScreen({super.key, this.onOpenFile});
+  const FileManagerScreen({super.key});
 
   @override
   ConsumerState<FileManagerScreen> createState() => _FileManagerScreenState();
