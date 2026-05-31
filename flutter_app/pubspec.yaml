@@ -36,6 +36,12 @@ dependencies:
   # 状态管理
   flutter_riverpod: ^2.4.5
 
+  # 持久化
+  shared_preferences: ^2.2.2
+
+  # 路由
+  go_router: ^13.2.0
+
   # 工具库
   uuid: ^4.2.1
   intl: ^0.18.1

@@ -1,6 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/services/prefs_service.dart';
 
-final editorContentProvider = StateProvider<String>((ref) => '');
+final editorContentProvider = StateNotifierProvider<EditorContentNotifier, String>((ref) {
+  return EditorContentNotifier();
+});
+
+class EditorContentNotifier extends StateNotifier<String> {
+  EditorContentNotifier() : super(PrefsService.lastContent);
+
+  @override
+  set state(String value) {
+    PrefsService.lastContent = value;
+    super.state = value;
+  }
+}
 
 final previewModeProvider = StateProvider<bool>((ref) => false);
 
@@ -9,13 +22,12 @@ final darkModeProvider = StateNotifierProvider<DarkModeNotifier, bool>((ref) {
 });
 
 class DarkModeNotifier extends StateNotifier<bool> {
-  DarkModeNotifier() : super(false);
+  DarkModeNotifier() : super(PrefsService.darkMode);
 
-  void toggle() => state = !state;
+  void toggle() {
+    state = !state;
+    PrefsService.darkMode = state;
+  }
 }
 
 final isExportingProvider = StateProvider<bool>((ref) => false);
-
-final clipboardContentProvider = FutureProvider<String?>((ref) async {
-  return null;
-});
