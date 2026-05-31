@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { convertToDocx, convertToPdf } from '../utils/converter.js';
+
+const DARK_MODE_KEY = 'fixmath_dark_mode';
 
 // 创建Context
 const AppContext = createContext();
@@ -12,7 +14,23 @@ export function AppProvider({ children }) {
   const [status, setStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [filename, setFilename] = useState('output.pdf');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem(DARK_MODE_KEY);
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DARK_MODE_KEY, String(isDarkMode));
+    } catch {
+      // localStorage不可用，静默忽略
+    }
+  }, [isDarkMode]);
 
   // 处理输入内容变化
   const handleInputChange = (value) => {
