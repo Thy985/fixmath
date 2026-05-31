@@ -80,5 +80,21 @@ void main() {
       final paragraphs = elements.where((e) => e.type == ElementType.paragraph).toList();
       expect(paragraphs.length, 2);
     });
+
+    test('解析Mermaid代码块', () {
+      final elements = MarkdownParser.parse('```mermaid\ngraph TD\n  A-->B\n```');
+      final mermaidElements = elements.where((e) => e.type == ElementType.mermaid).toList();
+      expect(mermaidElements.length, 1);
+      expect(mermaidElements[0].content, contains('graph TD'));
+      expect(mermaidElements[0].attributes?['language'], 'mermaid');
+    });
+
+    test('代码块多行合并为单个元素', () {
+      final elements = MarkdownParser.parse('```python\nprint("line1")\nprint("line2")\n```');
+      final codeElements = elements.where((e) => e.type == ElementType.code).toList();
+      expect(codeElements.length, 1);
+      expect(codeElements[0].content, contains('line1'));
+      expect(codeElements[0].content, contains('line2'));
+    });
   });
 }

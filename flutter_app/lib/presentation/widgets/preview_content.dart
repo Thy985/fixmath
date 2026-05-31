@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import '../../core/engine/mermaid_engine.dart';
 import '../../core/parser/formula_extractor.dart';
 import '../../core/parser/markdown_parser.dart';
 
@@ -81,6 +82,8 @@ class PreviewContent extends StatelessWidget {
         return _buildList(element);
       case 'code':
         return _buildCode(element);
+      case 'mermaid':
+        return _buildMermaid(element);
       case 'blockquote':
         return _buildBlockquote(element);
       case 'empty_line':
@@ -229,6 +232,20 @@ class PreviewContent extends StatelessWidget {
           fontSize: 14,
           color: isDarkMode ? Colors.white : Colors.black87,
         ),
+      ),
+    );
+  }
+
+  Widget _buildMermaid(element) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: MermaidWidget(code: element.content),
       ),
     );
   }

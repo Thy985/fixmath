@@ -6,8 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/parser/markdown_parser.dart';
+import '../../data/models/template.dart';
 import '../../domain/services/export_service.dart';
 import '../widgets/preview_content.dart';
+import 'file_manager_screen.dart';
 
 final editorProvider = StateProvider<String>((ref) => '');
 
@@ -94,9 +96,26 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final file = File('${dir.path}/formulafix_$timestamp.md');
       await file.writeAsString(content);
-      _showSnackBar('已保存到 ${file.path}');
+      _showSnackBar('已保存');
     } catch (e) {
       _showSnackBar('保存失败: $e');
+    }
+  }
+
+  Future<void> _openFileManager() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final path = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FileManagerScreen(onOpenFile: null),
+      ),
+    );
+    if (path != null) {
+      try {
+        final file = File(path);
+        final content = await file.readAsString();
+        _controller.text = content;
+      } catch (_) {}
     }
   }
 
@@ -187,6 +206,44 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  void _showTemplateMenu() {
+    final templatesByCategory = <String, List<DocumentTemplate>>{};
+    for (final t in TemplateData.templates) {
+      templatesByCategory.putIfAbsent(t.category, () => []).add(t);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('选择模板', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ...templatesByCategory.entries.expand((entry) => [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(entry.key, style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+              ),
+              ...entry.value.map((template) => ListTile(
+                leading: const Icon(Icons.article_outlined),
+                title: Text(template.name),
+                subtitle: Text(template.description, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () {
+                  Navigator.pop(context);
+                  _controller.text = template.content;
+                },
+              )),
+            ]),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPreviewMode = ref.watch(previewModeProvider);
@@ -204,6 +261,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         foregroundColor: appBarFg,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.folder_open),
+            tooltip: '文件管理',
+            onPressed: _openFileManager,
+          ),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: '模板',
+            onPressed: _showTemplateMenu,
+          ),
           IconButton(
             icon: const Icon(Icons.file_open),
             tooltip: '导入文件',
