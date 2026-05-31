@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'presentation/screens/editor_screen.dart';
+import 'core/router/app_router.dart';
 import 'presentation/theme/app_theme.dart';
+import 'providers/editor_providers.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: FormulaFixApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: FormulaFixApp()));
 }
 
-class FormulaFixApp extends StatelessWidget {
+class FormulaFixApp extends ConsumerWidget {
   const FormulaFixApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(darkModeProvider);
+
+    return MaterialApp.router(
       title: 'FormulaFix',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      home: const EditorScreen(),
+      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      routerConfig: appRouter,
     );
   }
 }
