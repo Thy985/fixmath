@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/parser/formula_extractor.dart';
-import 'package:formula_fix/data/models/document.dart';
 
 void main() {
   group('FormulaExtractor', () {

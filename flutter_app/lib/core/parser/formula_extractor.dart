@@ -1,4 +1,16 @@
-import '../models/document.dart';
+class FormulaMatch {
+  final String latex;
+  final int start;
+  final int end;
+  final bool displayMode;
+
+  const FormulaMatch({
+    required this.latex,
+    required this.start,
+    required this.end,
+    required this.displayMode,
+  });
+}
 
 class FormulaExtractor {
   static final List<_FormulaDelimiter> _delimiters = [

@@ -26,17 +26,19 @@ class ParagraphRenderer extends StatelessWidget {
   }
 
   Widget _renderInline(InlineElement child) {
-    return switch (child) {
-      case TextElement(:final text) => Text(
-          text,
-          style: TextStyle(
-            fontSize: AppSpacing.body,
-            height: 1.6,
-            color: isDark ? AppColors.darkText : AppColors.lightText,
-          ),
+    if (child is TextElement) {
+      return Text(
+        child.text,
+        style: TextStyle(
+          fontSize: AppSpacing.body,
+          height: 1.6,
+          color: isDark ? AppColors.darkText : AppColors.lightText,
         ),
-      case FormulaElement(:final latex, :final displayMode) => _buildFormula(latex, displayMode),
-    };
+      );
+    } else if (child is FormulaElement) {
+      return _buildFormula(child.latex, child.displayMode);
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildFormula(String latex, bool displayMode) {
@@ -65,10 +67,10 @@ class ParagraphRenderer extends StatelessWidget {
     );
   }
 
-  Widget Function(MathErrorException) _fallback(String latex) {
+  Widget Function(FlutterMathException) _fallback(String latex) {
     return (_) => Text(
       latex,
-      style: TextStyle(
+      style: const TextStyle(
         color: AppColors.error,
         fontFamily: 'monospace',
       ),

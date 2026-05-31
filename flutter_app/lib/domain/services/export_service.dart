@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:pdf/pdf.dart';
@@ -24,7 +23,7 @@ class ExportService {
         EmptyLineElement() => pw.SizedBox(height: 12),
         _ => pw.SizedBox.shrink(),
       };
-      if (widget != null) body.add(widget);
+      body.add(widget);
     }
 
     pdf.addPage(pw.MultiPage(
@@ -54,7 +53,7 @@ class ExportService {
       return switch (c) {
         FormulaElement(:final latex) => pw.TextSpan(
             text: ' ${FormulaExtractor.normalizeLatex(latex)} ',
-            style: const pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 13)),
+            style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 13)),
         TextElement(:final text) => pw.TextSpan(text: text, style: const pw.TextStyle(fontSize: 13)),
       };
     }).toList();
@@ -83,7 +82,7 @@ class ExportService {
         color: PdfColors.grey100,
         borderRadius: pw.BorderRadius.circular(4),
       ),
-      child: pw.Text(code, style: pw.TextStyle(fontFamily: 'Courier', fontSize: 11)),
+      child: pw.Text(code, style: const pw.TextStyle(fontSize: 11)),
     );
   }
 
@@ -109,7 +108,7 @@ class ExportService {
         children: [
           pw.Text('[Mermaid 图表]', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
           pw.SizedBox(height: 4),
-          pw.Text(code, style: pw.TextStyle(fontFamily: 'Courier', fontSize: 10)),
+          pw.Text(code, style: const pw.TextStyle(fontSize: 10)),
         ],
       ),
     );
