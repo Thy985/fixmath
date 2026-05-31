@@ -1,4 +1,4 @@
-import '../models/document.dart';
+import '../../data/models/document.dart';
 import 'formula_extractor.dart';
 
 class MarkdownParser {
@@ -26,7 +26,7 @@ class MarkdownParser {
     ParagraphElement? pendingParagraph;
     void flushParagraph() {
       if (pendingParagraph != null) {
-        elements.add(pendingParagraph);
+        elements.add(pendingParagraph!);
         pendingParagraph = null;
       }
     }
@@ -57,8 +57,8 @@ class MarkdownParser {
 
       if (line.startsWith('#')) {
         flushParagraph();
-        int level = 1;
-        for (int i = 0; i < line.length && line[i] == '#'; i++) level++;
+        int level = 0;
+        while (level < line.length && line[level] == '#') level++;
         elements.add(HeadingElement(
           level: level,
           text: line.substring(level).trim(),
@@ -96,7 +96,7 @@ class MarkdownParser {
 
       pendingParagraph ??= ParagraphElement(children: []);
       final inline = _parseInline(line);
-      pendingParagraph.children.addAll(inline);
+      pendingParagraph!.children.addAll(inline);
     }
 
     if (inCodeBlock) flushCodeBlock();

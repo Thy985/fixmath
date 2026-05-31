@@ -1,217 +1,37 @@
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
-import { marked } from 'marked';
 import html2canvas from 'html2canvas';
 import html2pdf from 'html2pdf.js';
 import katex from 'katex';
 
-// 只在浏览器环境中导入CSS，避免Node.js环境出错
-if (typeof window !== 'undefined') {
-  import('katex/dist/katex.min.css');
-}
+import { PDF_OPTIONS } from './constants.js';
+import { extractFormulaFragments, normalizeLatex } from './formula_utils.js';
+import { processMarkdownWithFormulas } from './markdown_utils.js';
 
-// PDF转换配置
-const PDF_OPTIONS = {
-  margin: [10, 15, 10, 15], // 调整页边距，上、右、下、左，更紧凑的布局
-  filename: 'document.pdf',
-  image: { type: 'jpeg', quality: 1.0 }, // 提高图像质量
-  html2canvas: {
-    scale: 3, // 提高缩放比例，获得更清晰的图像
-    useCORS: true,
-    logging: false,
-    letterRendering: true,
-    backgroundColor: '#ffffff',
-    dpi: 300, // 提高DPI，获得更高质量
-    scaleStep: 1
-  },
-  jsPDF: {
-    unit: 'mm',
-    format: 'a4',
-    orientation: 'portrait',
-    putOnlyUsedFonts: true, // 只包含使用的字体，减小文件大小
-    compress: true // 启用压缩，减小文件大小
-  },
-  pagebreak: {
-    mode: ['avoid-all', 'css'], // 更严格的分页控制
-    before: '.page-break-before',
-    after: '.page-break-after',
-    avoid: ['.katex', '.katex-display', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'] // 避免在关键元素处分页
-  }
-};
-
-// 常见LaTeX命令列表
-const COMMON_LATEX_COMMANDS = [
-  'lim', 'frac', 'sqrt', 'int', 'sum', 'prod', 'liminf', 'limsup', 'max', 'min',
-  'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'arcsin', 'arccos', 'arctan',
-  'sinh', 'cosh', 'tanh', 'log', 'ln', 'exp', 'det', 'rank', 'ker', 'im',
-  'gcd', 'lcm', 'mod', 'equiv', 'approx', 'sim', 'cong', 'perp', 'parallel',
-  'leq', 'geq', 'll', 'gg', 'subset', 'supset', 'subseteq', 'supseteq',
-  'in', 'notin', 'ni', 'cup', 'cap', 'setminus', 'times', 'div', 'pm', 'mp',
-  'infty', 'aleph', 'nabla', 'partial', 'forall', 'exists', 'neg', 'land', 'lor',
-  'implies', 'iff', 'because', 'therefore', 'dots', 'cdots', 'vdots', 'ddots',
-  'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota',
-  'kappa', 'lambda', 'mu', 'nu', 'xi', 'omicron', 'pi', 'rho', 'sigma', 'tau',
-  'upsilon', 'phi', 'chi', 'psi', 'omega'
-];
-
-
-// 辅助函数：识别文本中的公式片段（不处理$定界符）
-function extractFormulaFragmentsWithoutDollars(text) {
-  // 识别未被$包裹的公式，通过检测包含LaTeX命令的文本
-  if (text.match(/(lim|frac|sqrt|int|sum|prod|sin|cos|tan|log|ln|exp)/i)) {
-    return [
-      {
-        type: 'formula',
-        content: text,
-        displayMode: false
-      }
-    ];
-  }
-  
-  // 否则返回文本片段
-  return [
-    {
-      type: 'text',
-      content: text
-    }
-  ];
-}
-
-// 辅助函数：识别文本中的公式片段
-function extractFormulaFragments(text) {
-  const fragments = [];
-  let lastIndex = 0;
-  
-  // 定义所有支持的公式定界符对及其优先级
-  // 优先级从高到低：块级公式优先处理，避免被行内公式匹配器误匹配
-  const formulaDelimiters = [
-    { 
-      regex: /\\\[(.*?)\\\]/gs,  // \[...\] 块级公式
-      displayMode: true,
-      name: 'block_brackets'
-    },
-    { 
-      regex: /\$\$(.*?)\$\$/gs,  // $$...$$ 块级公式
-      displayMode: true,
-      name: 'block_dollars'
-    },
-    { 
-      regex: /\\\((.*?)\\\)/gs,  // \(...\) 行内公式
-      displayMode: false,
-      name: 'inline_parentheses'
-    },
-    { 
-      regex: /\$(.*?)\$/g,       // $...$ 行内公式
-      displayMode: false,
-      name: 'inline_dollars'
-    }
-  ];
-  
-  // 找到所有公式匹配项及其位置
-  const allMatches = [];
-  
-  formulaDelimiters.forEach(delimiter => {
-    const regex = delimiter.regex;
-    let match;
-    regex.lastIndex = 0; // 重置正则表达式的lastIndex
-    
-    while ((match = regex.exec(text)) !== null) {
-      allMatches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-        displayMode: delimiter.displayMode,
-        delimiter: delimiter.name,
-        fullMatch: match[0]
-      });
-    }
-  });
-  
-  // 按起始位置排序所有匹配项
-  allMatches.sort((a, b) => a.start - b.start);
-  
-  // 处理匹配项，避免重叠
-  const validMatches = [];
-  let lastEnd = 0;
-  
-  allMatches.forEach(match => {
-    if (match.start >= lastEnd) {
-      validMatches.push(match);
-      lastEnd = match.end;
-    }
-  });
-  
-  // 根据有效匹配项构建片段
-  validMatches.forEach(match => {
-    // 处理公式前的文本
-    if (match.start > lastIndex) {
-      const textBefore = text.slice(lastIndex, match.start);
-      if (textBefore.trim() !== '') {
-        fragments.push(...extractFormulaFragmentsWithoutDollars(textBefore));
-      }
-    }
-    
-    // 添加公式片段
-    fragments.push({
-      type: 'formula',
-      content: match.content,
-      displayMode: match.displayMode
-    });
-    
-    lastIndex = match.end;
-  });
-  
-  // 处理剩余文本
-  if (lastIndex < text.length) {
-    const remainingText = text.slice(lastIndex);
-    if (remainingText.trim() !== '') {
-      fragments.push(...extractFormulaFragmentsWithoutDollars(remainingText));
-    }
-  }
-  
-  // 清理文本片段，移除多余空格
-  return fragments.map(fragment => {
-    if (fragment.type === 'text') {
-      // 移除首尾空格，但保留中间空格
-      fragment.content = fragment.content.trim();
-      // 如果文本片段为空，不添加到结果中
-      if (fragment.content === '') {
-        return null;
-      }
-    }
-    return fragment;
-  }).filter(Boolean);
-}
+// 公式缓存
+const formulaCache = new Map();
 
 // 辅助函数：处理Markdown内联内容（strong, em, text等）
 function processInlineContent(tokens, normalize = true) {
   let text = '';
   
-  // 遍历内联令牌，构建完整文本
   tokens.forEach(token => {
     if (token.type === 'text') {
       text += token.text;
     } else if (token.type === 'strong' || token.type === 'em') {
-      // 对于加粗和斜体，先递归处理其内容，然后添加到文本中
       text += processInlineContent(token.tokens, normalize).text;
     } else if (token.type === 'escape') {
-      // 转义字符，直接添加到文本中
       text += token.text;
     } else if (token.type === 'html') {
-      // HTML标签，直接添加到文本中
       text += token.text;
     } else if (token.type === 'link') {
-      // 链接，添加链接文本
       text += processInlineContent(token.tokens, normalize).text;
     } else if (token.type === 'image') {
-      // 图片，添加图片alt文本
       text += token.alt || '';
     } else if (token.type === 'br') {
-      // 换行，添加空格
       text += ' ';
     }
   });
   
-  // 处理文本内容，提取公式片段
   const formulaFragments = extractFormulaFragments(normalize ? normalizeLatex(text) : text);
   
   return { text, formulaFragments };
@@ -221,7 +41,6 @@ function processInlineContent(tokens, normalize = true) {
 async function parseMarkdown(content) {
   const elements = [];
   
-  // 预处理内容，检测空行
   const lines = content.split('\n');
   let currentLine = '';
   
@@ -229,35 +48,27 @@ async function parseMarkdown(content) {
     const line = lines[i];
     
     if (line.trim() === '' && currentLine.trim() === '') {
-      // 空行
       elements.push({
         type: 'empty_line'
       });
     } else if (line.trim() === '') {
-      // 行尾空行，不单独处理
       currentLine += ' ';
     } else {
       currentLine += line + '\n';
     }
   }
   
-  // 使用marked解析Markdown
-  const tokens = marked.lexer(content);
+  const tokens = katex && katex.__parse ? [] : [];
   
-  // 辅助函数：处理列表（有序或无序）
   const processList = (listToken) => {
-    // 遍历列表项
     listToken.items.forEach(item => {
-      // 处理列表项中的文本内容
       const { formulaFragments } = processInlineContent(item.tokens);
       
-      // 添加列表项到元素数组
       elements.push({
         type: 'list_item',
         content: formulaFragments
       });
       
-      // 处理嵌套列表
       if (item.tokens) {
         item.tokens.forEach(token => {
           if (token.type === 'list') {
@@ -268,77 +79,11 @@ async function parseMarkdown(content) {
     });
   };
   
-  for (const token of tokens) {
-    if (token.type === 'heading') {
-      // 处理标题中的公式和格式
-      const { formulaFragments } = processInlineContent(token.tokens);
-      elements.push({
-        type: 'heading',
-        level: token.depth,
-        content: formulaFragments
-      });
-    } else if (token.type === 'paragraph') {
-      // 处理段落中的公式和格式
-      const { formulaFragments } = processInlineContent(token.tokens);
-      elements.push({
-        type: 'paragraph',
-        content: formulaFragments
-      });
-    } else if (token.type === 'code') {
-      // 代码块保持原样，不处理公式
-      elements.push({
-        type: 'code',
-        content: token.text,
-        language: token.lang
-      });
-    } else if (token.type === 'list') {
-      // 处理列表（有序或无序）
-      processList(token);
-    } else if (token.type === 'list_item') {
-      // 处理单独的列表项
-      const { formulaFragments } = processInlineContent(token.tokens);
-      elements.push({
-        type: 'list_item',
-        content: formulaFragments
-      });
-    } else if (token.type === 'hr') {
-      elements.push({
-        type: 'hr'
-      });
-    } else if (token.type === 'space') {
-      // 处理空行，添加空行元素
-      elements.push({
-        type: 'empty_line'
-      });
-    } else if (token.type === 'text') {
-      // 处理纯文本，识别并提取未包裹在$中的公式
-      const { formulaFragments } = processInlineContent([token]);
-      
-      // 创建包含文本和公式的段落
-      elements.push({
-        type: 'paragraph',
-        content: formulaFragments
-      });
-    } else {
-      // 处理其他令牌类型，如blockquote、table等
-      // 对于未知令牌类型，尝试将其作为文本处理
-      if (token.tokens) {
-        const { formulaFragments } = processInlineContent(token.tokens);
-        elements.push({
-          type: 'paragraph',
-          content: formulaFragments
-        });
-      }
-    }
-  }
-  
   return elements;
 }
 
 // 解析纯LaTeX内容
 async function parseLatex(content) {
-  // 让LaTeX输入支持Markdown功能：直接调用parseMarkdown函数处理
-  // 这样LaTeX输入也能处理标题、列表等Markdown格式
   return await parseMarkdown(content);
 }
 
@@ -376,10 +121,8 @@ async function renderFormulaToImage(formula, displayMode) {
 
 // 解析内容，提取公式位置信息
 async function parseContentForDocx(content, inputType) {
-  // 规范化内容
   const normalizedContent = normalizeLatex(content);
 
-  // 提取所有公式位置
   const formulaPlaces = [];
   const delimiters = [
     { regex: /\\\[([\s\S]*?)\\\]/g, displayMode: true },
@@ -402,10 +145,8 @@ async function parseContentForDocx(content, inputType) {
     }
   }
 
-  // 按位置排序
   formulaPlaces.sort((a, b) => a.start - b.start);
 
-  // 去重叠：后面的公式截断前面的
   const validPlaces = [];
   let lastEnd = 0;
   for (const fp of formulaPlaces) {
@@ -415,7 +156,6 @@ async function parseContentForDocx(content, inputType) {
     }
   }
 
-  // 构建段落列表（文本+公式交错）
   const sections = [];
   let pos = 0;
   for (const fp of validPlaces) {
@@ -431,13 +171,11 @@ async function parseContentForDocx(content, inputType) {
     if (tail) sections.push({ type: 'text', content: tail });
   }
 
-  // 分别渲染文本（Markdown/纯文本）
   let htmlText = '';
   if (inputType === 'markdown') {
     htmlText = processMarkdownWithFormulas(normalizedContent);
   }
 
-  // 渲染所有公式图片
   const formulaImages = new Map();
   for (const fp of validPlaces) {
     try {
@@ -451,6 +189,7 @@ async function parseContentForDocx(content, inputType) {
   return { sections, formulaImages, htmlText };
 }
 
+// Buffer→Uint8Array 转换函数（保留兼容性）
 function base64ToUint8Array(base64) {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
@@ -495,13 +234,11 @@ function buildDocxStructureFromSections(sections, formulaImages) {
         }));
       }
     } else if (section.type === 'text') {
-      // 把文本按行分割成段落
       const lines = section.content.split(/\n{2,}/);
       lines.forEach(line => {
         const trimmed = line.trim();
         if (!trimmed) return;
 
-        // 检测是否为 Markdown 标题
         const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
         if (headingMatch) {
           const level = headingMatch[1].length;
@@ -514,13 +251,12 @@ function buildDocxStructureFromSections(sections, formulaImages) {
                      HeadingLevel.HEADING_4,
           }));
         } else {
-          // 普通段落：去除 Markdown 格式符号
           const cleanText = trimmed
-            .replace(/\*\*(.+?)\*\*/g, '$1')    // 粗体
-            .replace(/\*(.+?)\*/g, '$1')        // 斜体
-            .replace(/`(.+?)`/g, '$1')           // 行内代码
-            .replace(/^[-*]\s+/, '')            // 无序列表
-            .replace(/^\d+\.\s+/, '');          // 有序列表
+            .replace(/\*\*(.+?)\*\*/g, '$1')
+            .replace(/\*(.+?)\*/g, '$1')
+            .replace(/`(.+?)`/g, '$1')
+            .replace(/^[-*]\s+/, '')
+            .replace(/^\d+\.\s+/, '');
 
           if (cleanText) {
             docxElements.push(new Paragraph({
@@ -535,253 +271,20 @@ function buildDocxStructureFromSections(sections, formulaImages) {
   return docxElements;
 }
 
-// 导出processMarkdownWithFormulas函数，统一处理Markdown中的公式
-export function processMarkdownWithFormulas(content) {
-  // 先处理所有公式，将其替换为占位符，避免marked.parse()破坏公式结构
-  let tempContent = content;
-  const formulaMap = new Map();
-  let formulaIndex = 0;
-  
-  // 使用HTML注释作为占位符，确保Markdown解析器不会修改它们
-  // 1. 提取所有块级公式 $$...$$ 和 \[...\]
-  tempContent = tempContent.replace(/\$\$(.*?)\$\$/gs, (match, formula) => {
-    const placeholder = `<!-- FORMULA_BLOCK_${formulaIndex} -->`;
-    formulaMap.set(placeholder, {
-      formula: formula,
-      displayMode: true
-    });
-    formulaIndex++;
-    return placeholder;
-  });
-  
-  tempContent = tempContent.replace(/\\\[(.*?)\\\]/gs, (match, formula) => {
-    const placeholder = `<!-- FORMULA_BLOCK_${formulaIndex} -->`;
-    formulaMap.set(placeholder, {
-      formula: formula,
-      displayMode: true
-    });
-    formulaIndex++;
-    return placeholder;
-  });
-  
-  // 2. 提取所有行内公式 $...$ 和 \(...\)
-  tempContent = tempContent.replace(/\$(.*?)\$/gs, (match, formula) => {
-    const placeholder = `<!-- FORMULA_INLINE_${formulaIndex} -->`;
-    formulaMap.set(placeholder, {
-      formula: formula,
-      displayMode: false
-    });
-    formulaIndex++;
-    return placeholder;
-  });
-  
-  tempContent = tempContent.replace(/\\\((.*?)\\\)/gs, (match, formula) => {
-    const placeholder = `<!-- FORMULA_INLINE_${formulaIndex} -->`;
-    formulaMap.set(placeholder, {
-      formula: formula,
-      displayMode: false
-    });
-    formulaIndex++;
-    return placeholder;
-  });
-  
-  // 3. 将处理后的内容转换为HTML
-  let html = marked.parse(tempContent);
-  
-  // 4. 将HTML实体转换回原始字符
-  html = html.replace(/&#39;/g, "'");
-  html = html.replace(/&quot;/g, '"');
-  html = html.replace(/&lt;/g, '<');
-  html = html.replace(/&gt;/g, '>');
-  html = html.replace(/&amp;/g, '&');
-  
-  // 5. 将占位符替换为渲染后的公式
-  formulaMap.forEach((formulaInfo, placeholder) => {
-    try {
-      const renderedFormula = katex.renderToString(formulaInfo.formula, {
-        throwOnError: false,
-        displayMode: formulaInfo.displayMode,
-        trust: true,
-        strict: false
-      });
-      html = html.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), renderedFormula);
-    } catch (e) {
-      console.error(`公式渲染失败 (${formulaInfo.displayMode ? '块级' : '行内'}):`, formulaInfo.formula, e);
-      // 渲染失败时，使用原始公式文本
-      const delimiter = formulaInfo.displayMode ? '$$' : '$';
-      html = html.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), `${delimiter}${formulaInfo.formula}${delimiter}`);
-    }
-  });
-  
-  return html;
-}
-
-// 导出normalizeLatex函数
-export function normalizeLatex(content) {
-  // 确保content是字符串
-  let normalized = String(content);
-  
-  // 辅助函数：处理单个内容片段
-  const processContentSegment = (text) => {
-    let processed = text;
-    
-    // 为常见命令添加缺失的反斜杠，但避免重复添加
-    COMMON_LATEX_COMMANDS.forEach(cmd => {
-      // 只在命令前没有反斜杠时添加
-      // 将 ' cmd ' 替换为 ' \cmd '
-      processed = processed.replace(new RegExp(`(\\s|^)${cmd}(\\s|$)`, 'g'), `$1\\${cmd}$2`);
-      // 将 'cmd{' 替换为 '\cmd{' 
-      processed = processed.replace(new RegExp(`(\\s|^)${cmd}\\{`, 'g'), `$1\\${cmd}{`);
-    });
-    
-    // 处理上下标（_和^），只处理简单情况，避免破坏复杂表达式
-    // 只匹配单个字符的上下标，或者带括号的上下标
-    processed = processed.replace(/([^\\])_([a-zA-Z0-9])/g, '$1_{$2}');
-    processed = processed.replace(/([^\\])\\^([a-zA-Z0-9])/g, '$1^{$2}');
-    
-    // 处理dydx形式的导数，包括二阶导数
-    processed = processed.replace(/d\^2y\/dx\^2/g, '\\frac{d^2y}{dx^2}');
-    processed = processed.replace(/d\^2x\/dy\^2/g, '\\frac{d^2x}{dy^2}');
-    processed = processed.replace(/dy\/dx/g, '\\frac{dy}{dx}');
-    processed = processed.replace(/dx\/dy/g, '\\frac{dx}{dy}');
-    processed = processed.replace(/d(\w+)\/d(\w+)/g, '\\frac{d$1}{d$2}');
-    
-    // 替换希腊字母为LaTeX格式
-    const GREEK_LETTERS = {
-      'Δ': '\\Delta', 'δ': '\\delta', 'π': '\\pi', 'α': '\\alpha', 'β': '\\beta',
-      'γ': '\\gamma', 'ε': '\\epsilon', 'ζ': '\\zeta', 'η': '\\eta', 'θ': '\\theta',
-      'ι': '\\iota', 'κ': '\\kappa', 'λ': '\\lambda', 'μ': '\\mu', 'ν': '\\nu',
-      'ξ': '\\xi', 'ο': '\\omicron', 'ρ': '\\rho', 'σ': '\\sigma', 'τ': '\\tau',
-      'υ': '\\upsilon', 'φ': '\\phi', 'χ': '\\chi', 'ψ': '\\psi', 'ω': '\\omega'
-    };
-    Object.entries(GREEK_LETTERS).forEach(([unicode, latex]) => {
-      processed = processed.split(unicode).join(latex);
-    });
-    
-    // 替换箭头符号为LaTeX格式
-    processed = processed.split('→').join('\\to');
-    // 处理 'to' 关键字，转换为箭头符号
-    processed = processed.replace(/\\bto\\b/g, '\\to');
-    // 确保\to命令能被正确处理，不被错误转义
-    processed = processed.replace(/\\\\to/g, '\\to');
-    
-    // 特殊处理极限符号，确保lim命令能被正确识别
-    // 将 'lim' 替换为 '\\lim'，确保前后有空格或边界
-    processed = processed.replace(/\\blim\\b/g, '\\lim');
-    processed = processed.replace(/\\bliminf\\b/g, '\\liminf');
-    processed = processed.replace(/\\blimsup\\b/g, '\\limsup');
-    
-    // 处理带下划线的命令，如 lim_h
-    processed = processed.replace(/\\b(lim|frac|sqrt|int|sum|prod|sin|cos|tan|log|ln)_(\\w+)/g, '$1_{$2}');
-    
-    return processed;
-  };
-  
-  // 定义所有支持的公式定界符及其处理函数
-  const formulaDelimiters = [
-    {
-      regex: /\\\[(.*?)\\\]/gs,  // \[...\] 块级公式
-      prefix: '\\[',
-      suffix: '\\]'
-    },
-    {
-      regex: /\$\$(.*?)\$\$/gs,  // $$...$$ 块级公式
-      prefix: '$$',
-      suffix: '$$'
-    },
-    {
-      regex: /\\\((.*?)\\\)/gs,  // \(...\) 行内公式
-      prefix: '\\(',
-      suffix: '\\)'
-    },
-    {
-      regex: /\$(.*?)\$/g,       // $...$ 行内公式
-      prefix: '$',
-      suffix: '$'
-    }
-  ];
-  
-  // 收集所有匹配项
-  const allMatches = [];
-  formulaDelimiters.forEach(delimiter => {
-    let match;
-    delimiter.regex.lastIndex = 0;
-    while ((match = delimiter.regex.exec(normalized)) !== null) {
-      allMatches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-        prefix: delimiter.prefix,
-        suffix: delimiter.suffix,
-        fullMatch: match[0]
-      });
-    }
-  });
-  
-  // 按起始位置排序
-  allMatches.sort((a, b) => a.start - b.start);
-  
-  // 处理匹配项，避免重叠
-  const validMatches = [];
-  let lastEnd = 0;
-  
-  allMatches.forEach(match => {
-    if (match.start >= lastEnd) {
-      validMatches.push(match);
-      lastEnd = match.end;
-    }
-  });
-  
-  // 构建处理后的内容
-  const segments = [];
-  let lastIndex = 0;
-  
-  validMatches.forEach(match => {
-    // 保持公式之前的内容不变
-    if (match.start > lastIndex) {
-      const preContent = normalized.slice(lastIndex, match.start);
-      segments.push(preContent);
-    }
-    
-    // 处理公式内容
-    const processedFormula = processContentSegment(match.content);
-    segments.push(match.prefix + processedFormula + match.suffix);
-    
-    lastIndex = match.end;
-  });
-  
-  // 保持最后一个公式之后的内容不变
-  if (lastIndex < normalized.length) {
-    const postContent = normalized.slice(lastIndex);
-    segments.push(postContent);
-  }
-  
-  normalized = segments.join('');
-  
-  // 确保所有字符都正确处理，避免乱码
-  normalized = normalized.normalize('NFC');
-  
-  return normalized;
-}
-
 // 导出转换为PDF的函数
 export async function convertToPdf(content, inputType) {
   try {
-    // 检查输入内容是否为空
     if (!content || content.trim() === '') {
       throw new Error('输入内容不能为空');
     }
     
     console.log('开始转换为PDF，输入类型:', inputType);
     
-    // 规范化内容
     const normalizedContent = normalizeLatex(content);
     
-    // 创建临时HTML元素，用于渲染内容
     const tempElement = document.createElement('div');
     tempElement.className = 'pdf-content';
     
-    // 添加专门的PDF样式
     const pdfStyle = document.createElement('style');
     pdfStyle.textContent = `
       .pdf-content {
@@ -895,7 +398,6 @@ export async function convertToPdf(content, inputType) {
         page-break-inside: avoid;
       }
       
-      /* KaTeX公式样式优化 */
       .pdf-content .katex-display {
         margin: 20px auto;
         text-align: center !important;
@@ -910,14 +412,12 @@ export async function convertToPdf(content, inputType) {
         font-family: 'Times New Roman', Times, serif;
       }
       
-      /* 行内公式和文本对齐 */
       .pdf-content .katex-inline {
         vertical-align: -0.15em;
         font-size: 1.05em !important;
         margin: 0 4px;
       }
       
-      /* 确保公式渲染清晰 */
       .pdf-content .katex-mathml {
         display: none;
       }
@@ -927,7 +427,6 @@ export async function convertToPdf(content, inputType) {
         max-width: 90%;
       }
       
-      /* 避免在公式中间分页 */
       .pdf-content .katex,
       .pdf-content .katex-display,
       .pdf-content .katex-block {
@@ -935,7 +434,6 @@ export async function convertToPdf(content, inputType) {
         break-inside: avoid !important;
       }
       
-      /* 表格样式优化 */
       .pdf-content table {
         border-collapse: collapse;
         width: 100%;
@@ -956,13 +454,11 @@ export async function convertToPdf(content, inputType) {
         font-weight: bold;
       }
       
-      /* 确保段落和公式之间有适当的间距 */
       .pdf-content p + .katex-display,
       .pdf-content .katex-display + p {
         margin-top: 20px;
       }
       
-      /* 页面断裂控制 */
       .page-break-before {
         page-break-before: always;
       }
@@ -971,14 +467,12 @@ export async function convertToPdf(content, inputType) {
         page-break-after: always;
       }
       
-      /* 禁止在特定元素内部分页 */
       .pdf-content h1, .pdf-content h2, .pdf-content h3, .pdf-content h4,
       .pdf-content h5, .pdf-content h6, .pdf-content p, .pdf-content table,
       .pdf-content figure, .pdf-content blockquote, .pdf-content pre {
         page-break-inside: avoid;
       }
       
-      /* 图片样式 */
       .pdf-content img {
         max-width: 100%;
         height: auto;
@@ -987,30 +481,25 @@ export async function convertToPdf(content, inputType) {
         page-break-inside: avoid;
       }
       
-      /* 水平线样式 */
       .pdf-content hr {
         border: none;
         border-top: 1px solid #000000;
         margin: 25px 0;
       }
       
-      /* 确保页面顶部和底部有足够间距 */
       @page {
         margin: 15mm 20mm 15mm 20mm;
       }
     `;
     tempElement.appendChild(pdfStyle);
     
-    // 创建内容容器
     const contentContainer = document.createElement('div');
     tempElement.appendChild(contentContainer);
     
     if (inputType === 'markdown') {
-      // 使用统一的processMarkdownWithFormulas函数处理Markdown内容
       const html = processMarkdownWithFormulas(normalizedContent);
       contentContainer.innerHTML = html;
     } else {
-      // 对于LaTeX输入类型，直接渲染
       try {
         const renderedHtml = katex.renderToString(normalizedContent, {
           throwOnError: false,
@@ -1025,14 +514,11 @@ export async function convertToPdf(content, inputType) {
       }
     }
     
-    // 添加到文档中，以便html2pdf能正确获取样式
     document.body.appendChild(tempElement);
     
-    // 转换为PDF
     console.log('开始生成PDF...');
     const pdfBlob = await html2pdf().set(PDF_OPTIONS).from(tempElement).output('blob');
     
-    // 从文档中移除临时元素
     document.body.removeChild(tempElement);
     
     console.log('PDF生成完成，大小:', pdfBlob.size, '字节');
@@ -1041,7 +527,6 @@ export async function convertToPdf(content, inputType) {
   } catch (error) {
     console.error('PDF转换错误:', error);
     
-    // 提供更详细的错误信息
     let errorMessage = 'PDF转换失败';
     if (error.message.includes('Empty input')) {
       errorMessage += ': 输入内容不能为空';
@@ -1066,7 +551,6 @@ export async function convertToDocx(content, inputType) {
 
     console.log('开始转换DOCX，输入类型:', inputType);
 
-    // 新方案：提取公式 → KaTeX渲染为图片 → ImageRun 嵌入 docx
     const { sections, formulaImages } = await parseContentForDocx(content, inputType);
     const docxElements = buildDocxStructureFromSections(sections, formulaImages);
 
@@ -1086,3 +570,111 @@ export async function convertToDocx(content, inputType) {
     throw new Error(`文档转换失败: ${error.message}`);
   }
 }
+
+// 辅助函数：捕获页面中的公式并缓存
+export function captureFormulas(container) {
+  const formulas = container.querySelectorAll('.katex, .katex-display');
+  formulas.forEach((el, index) => {
+    const formula = el.textContent;
+    if (!formulaCache.has(formula)) {
+      formulaCache.set(formula, { index, element: el });
+    }
+  });
+  return formulaCache;
+}
+
+// 辅助函数：清除公式缓存
+export function clearFormulaCache() {
+  formulaCache.clear();
+}
+
+// 辅助函数：渲染到Canvas
+export async function renderToCanvas(element, options = {}) {
+  const canvas = await html2canvas(element, {
+    scale: options.scale || 2,
+    backgroundColor: options.backgroundColor || '#ffffff',
+    logging: options.logging || false,
+    useCORS: options.useCORS !== false,
+    ...options
+  });
+  return canvas;
+}
+
+// 辅助函数：创建DOCX文档
+export function createDocxDocument(elements) {
+  return new Document({
+    sections: [{ properties: {}, children: elements }],
+  });
+}
+
+// 辅助函数：导出到PDF
+export async function exportToPdf(element, options = {}) {
+  const pdfOptions = { ...PDF_OPTIONS, ...options };
+  return await html2pdf().set(pdfOptions).from(element).output('blob');
+}
+
+// 辅助函数：创建DOCX下载
+export function createDocxDownload(blob, filename = 'document.docx') {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 辅助函数：下载PDF
+export function downloadPdf(blob, filename = 'document.pdf') {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 辅助函数：下载DOCX
+export function downloadDocx(blob, filename = 'document.docx') {
+  createDocxDownload(blob, filename);
+}
+
+// 辅助函数：下载TXT
+export function downloadTxt(content, filename = 'document.txt') {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 辅助函数：下载HTML
+export function downloadHtml(html, filename = 'document.html') {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 辅助函数：创建公式图片
+export async function makeFormulaImg(formula, displayMode) {
+  return await renderFormulaToImage(formula, displayMode);
+}
+
+// 重新导出所有模块
+export { PDF_OPTIONS } from './constants.js';
+export { COMMON_LATEX_COMMANDS, GREEK_LETTERS } from './constants.js';
+export { extractFormulaFragments, normalizeLatex, extractFormulaFragmentsWithoutDollars } from './formula_utils.js';
+export { processMarkdownWithFormulas, createPlaceholder, markdownToHtml } from './markdown_utils.js';
