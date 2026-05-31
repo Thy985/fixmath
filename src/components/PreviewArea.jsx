@@ -9,43 +9,36 @@ function PreviewArea({ content, inputType, outputType, status, downloadUrl, file
   const [previewStyle, setPreviewStyle] = useState('word');
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // 防抖函数
-  const debounce = useCallback((func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func.apply(null, args), delay);
-    };
-  }, []);
-  
-  // 防抖处理内容更新
-  const debouncedUpdate = useCallback(
-    debounce((newContent) => {
-      setDebouncedContent(newContent);
-    }, 300),
-    [debounce]
-  );
-  
-  // 监听原始内容变化，触发防抖更新
-  useEffect(() => {
-    debouncedUpdate(content);
-  }, [content, debouncedUpdate]);
+  const timerRef = useRef(null);
+  const latestContentRef = useRef(content);
 
-  // 渲染预览内容
+  useEffect(() => {
+    latestContentRef.current = content;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 300);
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [content]);
+
   useEffect(() => {
     if (!debouncedContent || !previewRef.current) return;
 
-    // 规范化内容
     const normalizedContent = normalizeLatex(debouncedContent);
-    
+
     if (inputType === 'markdown') {
-      // 使用统一的processMarkdownWithFormulas函数处理Markdown内容
       const html = processMarkdownWithFormulas(normalizedContent);
-      // 渲染结果到预览区域
       previewRef.current.innerHTML = html;
     } else {
-      // 对于LaTeX输入类型，直接渲染，不需要预处理
       try {
         katex.render(normalizedContent, previewRef.current, {
           throwOnError: false,

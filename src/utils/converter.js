@@ -451,7 +451,15 @@ async function parseContentForDocx(content, inputType) {
   return { sections, formulaImages, htmlText };
 }
 
-// 将公式图片转为 docx ImageRun
+function base64ToUint8Array(base64) {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 function makeFormulaImage(section, formulaImages) {
   const key = `${section.formula}|||${section.displayMode}`;
   const base64 = formulaImages.get(key);
@@ -461,10 +469,12 @@ function makeFormulaImage(section, formulaImages) {
   const widthPx = isDisplay ? 600 : 300;
   const heightPx = isDisplay ? 120 : 40;
 
+  const imageData = base64ToUint8Array(base64);
+
   return new ImageRun({
-    data: Buffer.from(base64, 'base64'),
+    data: imageData,
     transformation: {
-      width: Math.round(widthPx / 2),   // html2canvas scale=2，所以除2
+      width: Math.round(widthPx / 2),
       height: Math.round(heightPx / 2),
     },
     type: 'png',
