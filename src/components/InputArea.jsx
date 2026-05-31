@@ -1,33 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MathField from './MathField.jsx';
-import TemplateSelector from './TemplateSelector.jsx';
 
-function InputArea({ input, inputType, outputType, onInputChange, onInputTypeChange, onOutputTypeChange, onConvert, onClear, onSelectTemplate }) {
+function InputArea({ input, inputType, outputType, onInputChange, onInputTypeChange, onOutputTypeChange, onConvert, onClear }) {
   const [wordCount, setWordCount] = useState(0);
   const [formulaCount, setFormulaCount] = useState(0);
   const [imageCount, setImageCount] = useState(0);
   const textareaRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // 处理模板选择
-  const handleSelectTemplate = (content, type) => {
-    onInputChange(content);
-    onInputTypeChange(type);
-  };
-
-  // 计算统计信息
   useEffect(() => {
     if (input) {
-      // 字数统计
       const words = input.trim().split(/\s+/).filter(word => word.length > 0).length;
       setWordCount(words);
 
-      // 公式统计
       const formulaRegex = /(\$\$[^$]+\$\$|\$[^$]+\$|\\\[[^\]]+\\\]|\\\([^\)]+\\\))/g;
       const formulas = input.match(formulaRegex);
       setFormulaCount(formulas ? formulas.length : 0);
 
-      // 图片统计
       const imageRegex = /!\[.*?\]\(.*?\)/g;
       const images = input.match(imageRegex);
       setImageCount(images ? images.length : 0);
@@ -38,7 +27,6 @@ function InputArea({ input, inputType, outputType, onInputChange, onInputTypeCha
     }
   }, [input]);
 
-  // 处理文件拖拽
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -65,12 +53,11 @@ function InputArea({ input, inputType, outputType, onInputChange, onInputTypeCha
     }
   };
 
-  // 处理导入文件
   const handleImportFile = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.md,.tex,.txt';
-    input.onchange = (e) => {
+    const inputEl = document.createElement('input');
+    inputEl.type = 'file';
+    inputEl.accept = '.md,.tex,.txt';
+    inputEl.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
@@ -80,8 +67,29 @@ function InputArea({ input, inputType, outputType, onInputChange, onInputTypeCha
         reader.readAsText(file);
       }
     };
-    input.click();
+    inputEl.click();
   };
+
+  const handleSaveDraft = () => {
+    try {
+      localStorage.setItem('formulafix_draft', input);
+      localStorage.setItem('formulafix_draft_type', inputType);
+      alert('草稿已保存到本地浏览器存储');
+    } catch (e) {
+      alert('保存失败：' + e.message);
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('formulafix_draft');
+      const savedType = localStorage.getItem('formulafix_draft_type');
+      if (saved && !input) {
+        onInputChange(saved);
+        if (savedType) onInputTypeChange(savedType);
+      }
+    } catch (_) {}
+  }, []);
 
   return (
     <div className="input-section">
@@ -108,8 +116,6 @@ function InputArea({ input, inputType, outputType, onInputChange, onInputTypeCha
           </button>
         </div>
       </div>
-      
-      <TemplateSelector onSelectTemplate={handleSelectTemplate} />
       
       {/* 输入编辑区 */}
       <div 
@@ -160,7 +166,7 @@ function InputArea({ input, inputType, outputType, onInputChange, onInputTypeCha
           <button className="btn-secondary" onClick={onClear}>
             🔄 清空
           </button>
-          <button className="btn-secondary" onClick={() => console.log('保存草稿')}>
+          <button className="btn-secondary" onClick={handleSaveDraft}>
             💾 保存草稿
           </button>
         </div>
