@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:archive/archive.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,7 +18,7 @@ class ExportService {
         HeadingElement(:final level, :final text) => _pdfHeading(level, text),
         ParagraphElement(:final children) => _pdfParagraph(children),
         ListElement(:final text) => _pdfList(text),
-        CodeElement(:final code) => _pdfCode(code),
+        CodeElement(:final code, :final language) => _pdfCode(code, language),
         BlockquoteElement(:final text) => _pdfBlockquote(text),
         MermaidElement(:final code) => _pdfMermaid(code),
         EmptyLineElement() => pw.SizedBox(height: 12),
@@ -74,7 +75,7 @@ class ExportService {
     );
   }
 
-  static pw.Widget _pdfCode(String code) {
+  static pw.Widget _pdfCode(String code, String? language) {
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
@@ -82,7 +83,17 @@ class ExportService {
         color: PdfColors.grey100,
         borderRadius: pw.BorderRadius.circular(4),
       ),
-      child: pw.Text(code, style: const pw.TextStyle(fontSize: 11)),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          if (language != null && language.isNotEmpty)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 8),
+              child: pw.Text(language, style: pw.TextStyle(fontSize: 10, color: PdfColors.blue700, fontWeight: pw.FontWeight.bold)),
+            ),
+          pw.Text(code, style: const pw.TextStyle(fontSize: 11)),
+        ],
+      ),
     );
   }
 
@@ -134,7 +145,7 @@ class ExportService {
       HeadingElement(:final level, :final text) => _wordHeading(level, text),
       ParagraphElement(:final children) => _wordParagraph(children),
       ListElement(:final text) => _wordList(text),
-      CodeElement(:final code) => _wordCode(code),
+      CodeElement(:final code, :final language) => _wordCode(code, language),
       BlockquoteElement(:final text) => _wordBlockquote(text),
       MermaidElement(:final code) => _wordMermaid(code),
       EmptyLineElement() => '<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>',
@@ -165,8 +176,11 @@ class ExportService {
   static String _wordList(String text) =>
       '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">• ${_esc(text)}</w:t></w:r></w:p>';
 
-  static String _wordCode(String code) {
-    return '''<w:p><w:pPr><w:shd w:fill="F0F0F0" w:val="clear"/><w:ind w:left="360"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${_esc(code)}</w:t></w:r></w:p>''';
+  static String _wordCode(String code, String? language) {
+    final langTag = (language != null && language.isNotEmpty)
+        ? '<w:r><w:rPr><w:b/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">$language</w:t></w:r><w:r><w:br/></w:r>'
+        : '';
+    return '''<w:p><w:pPr><w:shd w:fill="F0F0F0" w:val="clear"/><w:ind w:left="360"/></w:pPr>$langTag<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${_esc(code)}</w:t></w:r></w:p>''';
   }
 
   static String _wordBlockquote(String text) {
@@ -211,14 +225,17 @@ class ExportService {
           TextElement(:final text) => text,
         }).join(''),
         ListElement(:final text) => '• $text',
-        CodeElement(:final code) => '```\n$code\n```',
+        CodeElement(:final code, :final language) => '```${language ?? ''}\n$code\n```',
         BlockquoteElement(:final text) => '> $text',
         MermaidElement(:final code) => '```mermaid\n$code\n```',
         EmptyLineElement() => '',
         _ => '',
       };
-      sb.writeln(line);
+      if (line.isNotEmpty) {
+        sb.writeln(line);
+      }
     }
-    return Uint8List.fromList(sb.toString().codeUnits);
+    final result = sb.toString();
+    return Uint8List.fromList(utf8.encode(result.endsWith('\n') ? result.substring(0, result.length - 1) : result));
   }
 }
