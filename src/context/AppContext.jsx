@@ -1,18 +1,33 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { convertToDocx, convertToPdf } from '../utils/converter.js';
 
-// 创建Context
+const DARK_MODE_KEY = 'fixmath_dark_mode';
+
 const AppContext = createContext();
 
-// 创建Provider组件
 export function AppProvider({ children }) {
   const [input, setInput] = useState('');
-  const [inputType, setInputType] = useState('markdown'); // 'markdown' or 'latex'
-  const [outputType, setOutputType] = useState('pdf'); // 'docx' or 'pdf', 默认PDF
+  const [inputType, setInputType] = useState('markdown');
+  const [outputType, setOutputType] = useState('pdf');
   const [status, setStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [filename, setFilename] = useState('output.pdf');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem(DARK_MODE_KEY);
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DARK_MODE_KEY, String(isDarkMode));
+    } catch {
+      // localStorage不可用，静默忽略
+    }
+  }, [isDarkMode]);
 
   // 处理输入内容变化
   const handleInputChange = (value) => {
