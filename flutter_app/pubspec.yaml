@@ -14,8 +14,7 @@ dependencies:
 
   # 核心渲染
   flutter_markdown: ^0.6.18
-  flutter_math_fork: ^0.6.4
-  markdown: ^6.0.2
+  flutter_math_fork: ^0.7.4
 
   # 导出功能
   pdf: ^3.10.4
@@ -28,9 +27,19 @@ dependencies:
   path_provider: ^2.1.1
   file_picker: ^6.1.1
   share_plus: ^7.0.2
+  clipboard: ^0.1.3
+
+  # 文档压缩
+  archive: ^3.4.10
 
   # 状态管理
   flutter_riverpod: ^2.4.5
+
+  # 持久化
+  shared_preferences: ^2.2.2
+
+  # 路由
+  go_router: ^13.2.0
 
   # 工具库
   uuid: ^4.2.1
