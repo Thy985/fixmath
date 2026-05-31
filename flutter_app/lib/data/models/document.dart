@@ -6,6 +6,7 @@ class ElementType {
   static const String code = 'code';
   static const String table = 'table';
   static const String blockquote = 'blockquote';
+  static const String mermaid = 'mermaid';
 }
 
 class DocumentElement {

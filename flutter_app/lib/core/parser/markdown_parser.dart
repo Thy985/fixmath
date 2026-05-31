@@ -1,24 +1,37 @@
-import 'package:markdown/markdown.dart' as md;
 import '../models/document.dart';
 import 'formula_extractor.dart';
 
 class MarkdownParser {
   static List<DocumentElement> parse(String content) {
     final List<DocumentElement> elements = [];
-    
+
     if (content.isEmpty) return elements;
 
     final lines = content.split('\n');
     String currentParagraph = '';
     bool inCodeBlock = false;
     String? codeLanguage;
+    final List<String> codeLines = [];
+
+    void flushCodeBlock() {
+      if (codeLines.isNotEmpty) {
+        final isMermaid = codeLanguage?.toLowerCase() == 'mermaid';
+        elements.add(DocumentElement(
+          type: isMermaid ? ElementType.mermaid : ElementType.code,
+          content: codeLines.join('\n'),
+          attributes: {'language': codeLanguage},
+        ));
+        codeLines.clear();
+      }
+      codeLanguage = null;
+    }
 
     void flushParagraph() {
       if (currentParagraph.trim().isNotEmpty) {
         final paragraphElements = _parseInlineContent(currentParagraph);
         elements.add(DocumentElement(
           type: ElementType.paragraph,
-          content: currentParagraph,
+          content: currentParagraph.trim(),
           children: paragraphElements,
         ));
         currentParagraph = '';
@@ -35,17 +48,13 @@ class MarkdownParser {
           codeLanguage = line.substring(3).trim();
         } else {
           inCodeBlock = false;
-          codeLanguage = null;
+          flushCodeBlock();
         }
         continue;
       }
 
       if (inCodeBlock) {
-        elements.add(DocumentElement(
-          type: ElementType.code,
-          content: line,
-          attributes: {'language': codeLanguage},
-        ));
+        codeLines.add(line);
         continue;
       }
 
@@ -84,10 +93,10 @@ class MarkdownParser {
 
       if (RegExp(r'^\d+\.\s').hasMatch(line)) {
         flushParagraph();
-        final content = line.replaceFirst(RegExp(r'^\d+\.\s'), '');
+        final listContent = line.replaceFirst(RegExp(r'^\d+\.\s'), '');
         elements.add(DocumentElement(
           type: ElementType.list,
-          content: content,
+          content: listContent,
           attributes: {'ordered': true},
         ));
         continue;
@@ -103,6 +112,7 @@ class MarkdownParser {
       }
 
       if (line.startsWith('|')) {
+        flushParagraph();
         elements.add(DocumentElement(
           type: ElementType.table,
           content: line,
@@ -113,6 +123,9 @@ class MarkdownParser {
       currentParagraph += line + '\n';
     }
 
+    if (inCodeBlock) {
+      flushCodeBlock();
+    }
     flushParagraph();
 
     return elements;

@@ -115,6 +115,25 @@ class ExportService {
             ),
           ),
         );
+      } else if (element.type == ElementType.mermaid) {
+        pageChildren.add(
+          pw.Container(
+            margin: const pw.EdgeInsets.symmetric(vertical: 8),
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('[Mermaid 图表]', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+                pw.SizedBox(height: 4),
+                pw.Text(element.content, style: pw.TextStyle(fontFamily: 'Courier', fontSize: 10)),
+              ],
+            ),
+          ),
+        );
       } else if (element.type == 'empty_line') {
         pageChildren.add(pw.SizedBox(height: 12));
       }
@@ -162,6 +181,8 @@ class ExportService {
         bodyXml.writeln(_buildCodeXml(element));
       } else if (element.type == ElementType.blockquote) {
         bodyXml.writeln(_buildBlockquoteXml(element));
+      } else if (element.type == ElementType.mermaid) {
+        bodyXml.writeln(_buildMermaidXml(element));
       } else if (element.type == 'empty_line') {
         bodyXml.writeln('<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>');
       }
@@ -277,6 +298,37 @@ ${runs.toString()}</w:p>''';
     <w:rPr>
       <w:i/>
       <w:sz w:val="24"/>
+    </w:rPr>
+    <w:t xml:space="preserve">$escapedContent</w:t>
+  </w:r>
+</w:p>''';
+  }
+
+  static String _buildMermaidXml(DocumentElement element) {
+    final escapedContent = _escapeXml(element.content);
+    return '''<w:p>
+  <w:pPr>
+    <w:shd w:fill="F0F0F0" w:val="clear"/>
+    <w:bdr>
+      <w:top w:val="single" w:sz="4" w:space="4" w:color="CCCCCC"/>
+      <w:bottom w:val="single" w:sz="4" w:space="4" w:color="CCCCCC"/>
+    </w:bdr>
+  </w:pPr>
+  <w:r>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="20"/>
+    </w:rPr>
+    <w:t xml:space="preserve">[Mermaid 图表]</w:t>
+  </w:r>
+  <w:r>
+    <w:br/>
+  </w:r>
+  <w:r>
+    <w:rPr>
+      <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>
+      <w:sz w:val="18"/>
+      <w:color w:val="888888"/>
     </w:rPr>
     <w:t xml:space="preserve">$escapedContent</w:t>
   </w:r>
