@@ -3,18 +3,15 @@ import { convertToDocx, convertToPdf } from '../utils/converter.js';
 
 const DARK_MODE_KEY = 'fixmath_dark_mode';
 
-// 创建Context
 const AppContext = createContext();
 
-// 创建Provider组件
 export function AppProvider({ children }) {
   const [input, setInput] = useState('');
-  const [inputType, setInputType] = useState('markdown'); // 'markdown' or 'latex'
-  const [outputType, setOutputType] = useState('pdf'); // 'docx' or 'pdf', 默认PDF
+  const [inputType, setInputType] = useState('markdown');
+  const [outputType, setOutputType] = useState('pdf');
   const [status, setStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [filename, setFilename] = useState('output.pdf');
-  
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const stored = localStorage.getItem(DARK_MODE_KEY);

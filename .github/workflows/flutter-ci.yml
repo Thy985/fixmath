@@ -2,95 +2,159 @@ name: Flutter CI
 
 on:
   push:
-    branches: [main, master, 'release/**']
+    branches: [main, develop]
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/flutter-ci.yml'
   pull_request:
-    branches: [main, master]
+    branches: [main, develop]
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/flutter-ci.yml'
+
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  flutter-test:
-    name: Flutter Unit Tests
+  analyze:
+    name: Flutter Analyze
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.44.0'
           channel: 'stable'
-          cache: true
-          cache-key: 'flutter-${{ runner.os }}-${{ hashFiles("**/pubspec.lock") }}'
 
-      - name: Install Flutter dependencies
-        working-directory: flutter_app
-        run: flutter pub get
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+            flutter_app/.flutter-plugins
+            flutter_app/.flutter-plugins-dependencies
+          key: ${{ runner.os }}-flutter-deps-${{ hashFiles('flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-deps-
 
-      - name: Run Flutter analyze
-        working-directory: flutter_app
-        run: flutter analyze --no-fatal-infos
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
 
-      - name: Run Flutter tests
-        working-directory: flutter_app
-        run: flutter test --reporter compact
+      - name: Flutter Analyze
+        run: cd flutter_app && flutter analyze
 
-  flutter-build-android:
+  test:
+    name: Flutter Tests
+    runs-on: ubuntu-latest
+    needs: analyze
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.0'
+          channel: 'stable'
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+            flutter_app/.flutter-plugins
+            flutter_app/.flutter-plugins-dependencies
+          key: ${{ runner.os }}-flutter-deps-${{ hashFiles('flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-deps-
+
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      - name: Run unit tests
+        run: cd flutter_app && flutter test
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: flutter_app/test_results/
+
+  build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
-    needs: flutter-test
-    
+    needs: analyze
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.44.0'
           channel: 'stable'
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+            flutter_app/.flutter-plugins
+            flutter_app/.flutter-plugins-dependencies
+          key: ${{ runner.os }}-flutter-deps-${{ hashFiles('flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-deps-
 
-      - name: Install Flutter dependencies
-        working-directory: flutter_app
-        run: flutter pub get
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Build debug APK
-        working-directory: flutter_app
-        run: flutter build apk --debug
+        run: cd flutter_app && flutter build apk --debug
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: flutter-debug-apk
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 7
 
-  flutter-build-ios:
-    name: Build iOS (simulator)
+  build-ios:
+    name: Build iOS (Simulator)
     runs-on: macos-latest
-    needs: flutter-test
-    if: false # Disable iOS build as it requires signing certificate
-    
+    needs: analyze
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.44.0'
           channel: 'stable'
+          xcode-version: '15.0'
 
-      - name: Install Flutter dependencies
-        working-directory: flutter_app
-        run: flutter pub get
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+            flutter_app/.flutter-plugins
+            flutter_app/.flutter-plugins-dependencies
+          key: ${{ runner.os }}-flutter-deps-${{ hashFiles('flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-deps-
 
-      - name: Build iOS simulator
-        working-directory: flutter_app
-        run: flutter build ios --simulator --no-codesign
+      - name: Install dependencies
+        run: cd flutter_app && flutter pub get
+
+      - name: Build iOS for simulator
+        run: cd flutter_app && flutter build ios --simulator --no-codesign
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-ios-build
+          path: flutter_app/build/ios/iphonesimulator/
