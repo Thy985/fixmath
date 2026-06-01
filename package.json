@@ -13,18 +13,22 @@
     "deploy": "gh-pages -d dist",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "docx": "^9.5.1",
     "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.12.1",
+    "html2pdf.js": "^0.14.0",
+    "jspdf": "^4.2.1",
     "katex": "^0.16.8",
     "marked": "^12.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.2.66",
