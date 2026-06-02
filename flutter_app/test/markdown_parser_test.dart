@@ -56,6 +56,21 @@ void main() {
       expect(codeElements[0].language, 'dart');
     });
 
+    test('代码块多行合并为单个元素', () {
+      final elements = MarkdownParser.parse('```python\nprint("line1")\nprint("line2")\n```');
+      final codeElements = elements.whereType<CodeElement>().toList();
+      expect(codeElements.length, 1);
+      expect(codeElements[0].code, contains('line1'));
+      expect(codeElements[0].code, contains('line2'));
+    });
+
+    test('解析Mermaid代码块', () {
+      final elements = MarkdownParser.parse('```mermaid\ngraph TD\n  A-->B\n```');
+      final mermaidElements = elements.whereType<MermaidElement>().toList();
+      expect(mermaidElements.length, 1);
+      expect(mermaidElements[0].code, contains('graph TD'));
+    });
+
     test('解析包含行内公式的段落', () {
       final elements = MarkdownParser.parse('这是一段包含 \$E=mc^2\$ 的文本');
       final paragraphs = elements.whereType<ParagraphElement>().toList();
@@ -74,19 +89,84 @@ void main() {
       expect(hasDisplayFormula, true);
     });
 
-    test('代码块多行合并为单个元素', () {
-      final elements = MarkdownParser.parse('```python\nprint("line1")\nprint("line2")\n```');
-      final codeElements = elements.whereType<CodeElement>().toList();
-      expect(codeElements.length, 1);
-      expect(codeElements[0].code, contains('line1'));
-      expect(codeElements[0].code, contains('line2'));
+    group('表格解析', () {
+      test('解析简单表格', () {
+        final elements = MarkdownParser.parse(
+          '| 列1 | 列2 |\n| --- | --- |\n| A | B |',
+        );
+        final tables = elements.whereType<TableElement>().toList();
+        expect(tables.length, 1);
+        expect(tables[0].headers, ['列1', '列2']);
+        expect(tables[0].rows.length, 1);
+        expect(tables[0].rows[0], ['A', 'B']);
+      });
+
+      test('解析多行表格', () {
+        final elements = MarkdownParser.parse(
+          '| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |',
+        );
+        final tables = elements.whereType<TableElement>().toList();
+        expect(tables.length, 1);
+        expect(tables[0].headers, ['A', 'B']);
+        expect(tables[0].rows.length, 2);
+      });
+
+      test('忽略表格分隔行', () {
+        final elements = MarkdownParser.parse(
+          '| A | B |\n| - | - |\n| C | D |',
+        );
+        final tables = elements.whereType<TableElement>().toList();
+        expect(tables.length, 1);
+        expect(tables[0].rows.length, 1);
+      });
     });
 
-    test('解析Mermaid代码块', () {
-      final elements = MarkdownParser.parse('```mermaid\ngraph TD\n  A-->B\n```');
-      final mermaidElements = elements.whereType<MermaidElement>().toList();
-      expect(mermaidElements.length, 1);
-      expect(mermaidElements[0].code, contains('graph TD'));
+    group('列表嵌套', () {
+      test('解析嵌套列表', () {
+        final elements = MarkdownParser.parse(
+          '- 水果\n  - 苹果\n  - 香蕉',
+        );
+        final items = elements.whereType<ListElement>().toList();
+        expect(items.length, 1);
+        expect(items[0].text, contains('苹果'));
+        expect(items[0].indent, 1);
+      });
+
+      test('解析有序嵌套列表', () {
+        final elements = MarkdownParser.parse(
+          '1. 项目\n  1. 子项目',
+        );
+        final items = elements.whereType<ListElement>().toList();
+        expect(items.length, 1);
+        expect(items[0].ordered, true);
+      });
+    });
+
+    group('代码块边界情况', () {
+      test('处理未闭合的代码块', () {
+        final elements = MarkdownParser.parse(
+          '```python\nprint("未闭合"\n继续文本',
+        );
+        expect(elements.isNotEmpty, true);
+      });
+
+      test('处理多个代码块', () {
+        final elements = MarkdownParser.parse(
+          '```js\nconsole.log("first")\n```\n\n中间文本\n\n```dart\nvoid main() {}\n```',
+        );
+        final codeElements = elements.whereType<CodeElement>().toList();
+        expect(codeElements.length, 2);
+        expect(codeElements[0].language, 'js');
+        expect(codeElements[1].language, 'dart');
+      });
+    });
+
+    group('空行处理', () {
+      test('空行生成EmptyLineElement', () {
+        final elements = MarkdownParser.parse('文本\n\n更多文本');
+        final emptyLines = elements.whereType<EmptyLineElement>().toList();
+        expect(emptyLines.length, 1);
+      });
     });
   });
 }

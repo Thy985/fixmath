@@ -6,19 +6,24 @@
 // @dart = 3.0
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart' as flutter_inappwebview_android;
 import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
 import 'package:shared_preferences_android/shared_preferences_android.dart' as shared_preferences_android;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter_inappwebview_ios/flutter_inappwebview_ios.dart' as flutter_inappwebview_ios;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_linux;
 import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:shared_preferences_linux/shared_preferences_linux.dart' as shared_preferences_linux;
 import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter_inappwebview_macos/flutter_inappwebview_macos.dart' as flutter_inappwebview_macos;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:flutter_inappwebview_windows/flutter_inappwebview_windows.dart' as flutter_inappwebview_windows;
 import 'package:path_provider_windows/path_provider_windows.dart' as path_provider_windows;
 import 'package:share_plus/share_plus.dart' as share_plus;
@@ -31,6 +36,15 @@ class _PluginRegistrant {
   @pragma('vm:entry-point')
   static void register() {
     if (Platform.isAndroid) {
+      try {
+        file_picker.FilePickerIO.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         flutter_inappwebview_android.AndroidInAppWebViewPlatform.registerWith();
       } catch (err) {
@@ -60,6 +74,15 @@ class _PluginRegistrant {
 
     } else if (Platform.isIOS) {
       try {
+        file_picker.FilePickerIO.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         flutter_inappwebview_ios.IOSInAppWebViewPlatform.registerWith();
       } catch (err) {
         print(
@@ -87,6 +110,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isLinux) {
+      try {
+        file_picker.FilePickerLinux.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         path_provider_linux.PathProviderLinux.registerWith();
       } catch (err) {
@@ -125,6 +157,15 @@ class _PluginRegistrant {
 
     } else if (Platform.isMacOS) {
       try {
+        file_picker.FilePickerMacOS.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         flutter_inappwebview_macos.MacOSInAppWebViewPlatform.registerWith();
       } catch (err) {
         print(
@@ -152,6 +193,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isWindows) {
+      try {
+        file_picker.FilePickerWindows.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         flutter_inappwebview_windows.WindowsInAppWebViewPlatform.registerWith();
       } catch (err) {

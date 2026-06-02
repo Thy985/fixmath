@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter doctor *)",
+      "mcp__ide__getDiagnostics",
+      "Bash(flutter build *)",
+      "Bash(flutter pub *)",
+      "Bash(export PUB_HOSTED_URL=https://pub.flutter-io.cn)",
+      "Bash(export FLUTTER_STORAGE_BASE_URL=https://pub.flutter-io.cn)",
+      "Bash(flutter config *)",
+      "Bash(flutter create *)",
+      "Bash(flutter devices *)",
+      "Bash(flutter run *)",
+      "Bash(flutter clean *)"
+    ]
+  }
+}

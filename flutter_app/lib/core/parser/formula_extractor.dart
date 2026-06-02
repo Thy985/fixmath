@@ -13,69 +13,118 @@ class FormulaMatch {
 }
 
 class FormulaExtractor {
-  static final List<_FormulaDelimiter> _delimiters = [
-    _FormulaDelimiter(r'\$\$\s*([\s\S]*?)\s*\$\$', true),
-    _FormulaDelimiter(r'\\\[\s*([\s\S]*?)\s*\\\]', true),
-    _FormulaDelimiter(r'\\\((.*?)\\\)', false),
-    _FormulaDelimiter(r'\$([^\$\n]+?)\$', false),
-  ];
-
-  static final List<String> _commonCommands = [
-    'lim', 'frac', 'sqrt', 'int', 'sum', 'prod', 'liminf', 'limsup', 'max', 'min',
-    'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'arcsin', 'arccos', 'arctan',
-    'sinh', 'cosh', 'tanh', 'log', 'ln', 'exp', 'det', 'rank', 'ker',
-    'gcd', 'lcm', 'mod', 'equiv', 'approx', 'sim', 'cong', 'perp', 'parallel',
-    'leq', 'geq', 'll', 'gg', 'subset', 'supset', 'subseteq', 'supseteq',
-    'in', 'notin', 'ni', 'cup', 'cap', 'setminus', 'times', 'div', 'pm', 'mp',
-    'infty', 'aleph', 'nabla', 'partial', 'forall', 'exists', 'neg', 'land', 'lor',
-    'implies', 'iff', 'because', 'therefore', 'dots', 'cdots', 'vdots', 'ddots',
-    'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota',
-    'kappa', 'lambda', 'mu', 'nu', 'xi', 'omicron', 'pi', 'rho', 'sigma', 'tau',
-    'upsilon', 'phi', 'chi', 'psi', 'omega',
-  ];
-
-  static final Map<String, String> _greekLetters = {
-    'Δ': r'\Delta', 'δ': r'\delta', 'π': r'\pi', 'α': r'\alpha',
-    'β': r'\beta', 'γ': r'\gamma', 'ε': r'\epsilon', 'ζ': r'\zeta',
-    'η': r'\eta', 'θ': r'\theta', 'ι': r'\iota', 'κ': r'\kappa',
-    'λ': r'\lambda', 'μ': r'\mu', 'ν': r'\nu', 'ξ': r'\xi',
-    'ρ': r'\rho', 'σ': r'\sigma', 'τ': r'\tau', 'υ': r'\upsilon',
-    'φ': r'\phi', 'χ': r'\chi', 'ψ': r'\psi', 'ω': r'\omega',
-  };
-
   static List<FormulaMatch> extractFormulas(String text) {
     final List<FormulaMatch> results = [];
-
-    for (final delimiter in _delimiters) {
-      final matches = delimiter.regex.allMatches(text);
-      for (final match in matches) {
-        results.add(FormulaMatch(
-          latex: match.group(1) ?? '',
-          start: match.start,
-          end: match.end,
-          displayMode: delimiter.displayMode,
-        ));
+    
+    int i = 0;
+    while (i < text.length) {
+      if (i < text.length - 1 && text[i] == '\\' && 
+          (text[i + 1] == r'$' || text[i + 1] == '\\')) {
+        i += 2;
+        continue;
       }
+      
+      if (i < text.length - 1 && text[i] == r'$' && text[i + 1] == r'$') {
+        final end = _findMatchingDelimiter(text, i + 2);
+        if (end != -1) {
+          results.add(FormulaMatch(
+            latex: text.substring(i + 2, end),
+            start: i,
+            end: end + 2,
+            displayMode: true,
+          ));
+          i = end + 2;
+          continue;
+        }
+      }
+      
+      if (text[i] == r'$' && !_isEscaped(text, i)) {
+        final end = _findInlineFormulaEnd(text, i + 1);
+        if (end != -1) {
+          results.add(FormulaMatch(
+            latex: text.substring(i + 1, end),
+            start: i,
+            end: end + 1,
+            displayMode: false,
+          ));
+          i = end + 1;
+          continue;
+        }
+      }
+      
+      i++;
     }
 
-    results.sort((a, b) => a.start.compareTo(b.start));
+    return results;
+  }
 
-    final List<FormulaMatch> filtered = [];
-    int lastEnd = 0;
-    for (final match in results) {
-      if (match.start >= lastEnd) {
-        filtered.add(match);
-        lastEnd = match.end;
+  static int _findMatchingDelimiter(String text, int start) {
+    int i = start;
+    while (i < text.length) {
+      if (i < text.length - 1 && text[i] == '\\' && 
+          (text[i + 1] == r'$' || text[i + 1] == '\\')) {
+        i += 2;
+        continue;
       }
+      
+      if (i < text.length - 1 && text[i] == r'$' && text[i + 1] == r'$') {
+        return i;
+      }
+      i++;
     }
+    return -1;
+  }
 
-    return filtered;
+  static int _findInlineFormulaEnd(String text, int start) {
+    int i = start;
+    while (i < text.length) {
+      if (text[i] == '\\') {
+        i += 2;
+        continue;
+      }
+      
+      if (text[i] == r'$') {
+        return i;
+      }
+      
+      if (text[i] == '\n') {
+        return -1;
+      }
+      i++;
+    }
+    return -1;
+  }
+
+  static bool _isEscaped(String text, int index) {
+    if (index == 0) return false;
+    int backslashCount = 0;
+    for (int i = index - 1; i >= 0 && text[i] == '\\'; i--) {
+      backslashCount++;
+    }
+    return backslashCount % 2 == 1;
   }
 
   static String normalizeLatex(String input) {
     String result = input;
 
-    _greekLetters.forEach((unicode, latex) {
+    result = result.replaceAll('→', r'\to');
+    result = result.replaceAll('←', r'\gets');
+    result = result.replaceAll('↔', r'\leftrightarrow');
+    result = result.replaceAll('⇒', r'\Rightarrow');
+    result = result.replaceAll('⇔', r'\Leftrightarrow');
+
+    final greekLetters = {
+      'Δ': r'\Delta', 'δ': r'\delta', 'π': r'\pi', 'α': r'\alpha',
+      'β': r'\beta', 'γ': r'\gamma', 'ε': r'\epsilon', 'ζ': r'\zeta',
+      'η': r'\eta', 'θ': r'\theta', 'ι': r'\iota', 'κ': r'\kappa',
+      'λ': r'\lambda', 'μ': r'\mu', 'ν': r'\nu', 'ξ': r'\xi',
+      'ρ': r'\rho', 'σ': r'\sigma', 'τ': r'\tau', 'υ': r'\upsilon',
+      'φ': r'\phi', 'χ': r'\chi', 'ψ': r'\psi', 'ω': r'\omega',
+      'Γ': r'\Gamma', 'Θ': r'\Theta', 'Λ': r'\Lambda', 'Ξ': r'\Xi',
+      'Π': r'\Pi', 'Σ': r'\Sigma', 'Φ': r'\Phi', 'Ψ': r'\Psi', 'Ω': r'\Omega',
+    };
+
+    greekLetters.forEach((unicode, latex) {
       result = result.replaceAll(unicode, latex);
     });
 
@@ -84,7 +133,7 @@ class FormulaExtractor {
       (_) => r'\frac{dy}{dx}',
     );
     result = result.replaceAllMapped(
-      RegExp(r'd^2y/dx^2'),
+      RegExp(r'd\^2y/dx\^2'),
       (_) => r'\frac{d^2y}{dx^2}',
     );
     result = result.replaceAllMapped(
@@ -92,48 +141,6 @@ class FormulaExtractor {
       (m) => '\\frac{d${m.group(1)}}{d${m.group(2)}}',
     );
 
-    for (final cmd in _commonCommands) {
-      result = result.replaceAllMapped(
-        RegExp('(\\s|^)$cmd(\\s|\$)'),
-        (m) => '${m.group(1)}\\$cmd${m.group(2)}',
-      );
-      result = result.replaceAllMapped(
-        RegExp('(\\s|^)$cmd\\{'),
-        (m) => '${m.group(1)}\\$cmd{',
-      );
-    }
-
-    result = result.replaceAll('→', r'\to');
-
-    result = result.replaceAllMapped(
-      RegExp(r'([^\\])_([a-zA-Z0-9])'),
-      (m) => '${m.group(1)}_{${m.group(2)}}',
-    );
-    result = result.replaceAllMapped(
-      RegExp(r'([^\\])\^([a-zA-Z0-9])'),
-      (m) => '${m.group(1)}^{${m.group(2)}}',
-    );
-
-    for (final cmd in ['lim', 'frac', 'sqrt', 'int', 'sum', 'prod', 'sin', 'cos', 'tan', 'log', 'ln']) {
-      result = result.replaceAllMapped(
-        RegExp('\\b$cmd\\b'),
-        (m) => '\\$cmd',
-      );
-    }
-
-    result = result.replaceAllMapped(
-      RegExp(r'\b(lim|frac|sqrt|int|sum|prod|sin|cos|tan|log|ln)_(\w+)'),
-      (m) => '${m.group(1)}_{${m.group(2)}}',
-    );
-
     return result;
   }
-}
-
-class _FormulaDelimiter {
-  final RegExp regex;
-  final bool displayMode;
-
-  _FormulaDelimiter(String pattern, this.displayMode)
-      : regex = RegExp(pattern);
 }

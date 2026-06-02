@@ -12,6 +12,8 @@ class MarkdownParser {
     String? codeLanguage;
     final List<String> codeLines = [];
 
+    final List<ListElement> pendingListItems = [];
+
     void flushCodeBlock() {
       if (codeLines.isEmpty) return;
       final code = codeLines.join('\n');
@@ -31,15 +33,50 @@ class MarkdownParser {
       }
     }
 
-    for (final line in lines) {
+    void flushListItems() {
+      if (pendingListItems.isEmpty) return;
+      for (final item in pendingListItems) {
+        elements.add(item);
+      }
+      pendingListItems.clear();
+    }
+
+    int getIndent(String line) {
+      int indent = 0;
+      for (int i = 0; i < line.length; i++) {
+        if (line[i] == ' ') {
+          indent++;
+        } else if (line[i] == '\t') {
+          indent += 4;
+        } else {
+          break;
+        }
+      }
+      return indent ~/ 2;
+    }
+
+    TableElement? currentTable;
+    void flushTable() {
+      if (currentTable != null) {
+        elements.add(currentTable!);
+        currentTable = null;
+      }
+    }
+
+    for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+      final line = lines[lineIndex];
+
       if (line.startsWith('```')) {
         if (!inCodeBlock) {
           flushParagraph();
+          flushListItems();
+          flushTable();
           inCodeBlock = true;
-          codeLanguage = line.substring(3).trim();
+          codeLanguage = line.length > 3 ? line.substring(3).trim() : '';
         } else {
           inCodeBlock = false;
           flushCodeBlock();
+          codeLanguage = null;
         }
         continue;
       }
@@ -51,14 +88,22 @@ class MarkdownParser {
 
       if (line.trim().isEmpty) {
         flushParagraph();
+        flushListItems();
+        flushTable();
         elements.add(const EmptyLineElement());
         continue;
       }
 
       if (line.startsWith('#')) {
         flushParagraph();
+        flushListItems();
+        flushTable();
         int level = 0;
-        while (level < line.length && line[level] == '#') level++;
+        int i = 0;
+        while (i < line.length && line[i] == '#') {
+          level++;
+          i++;
+        }
         elements.add(HeadingElement(
           level: level,
           text: line.substring(level).trim(),
@@ -66,43 +111,99 @@ class MarkdownParser {
         continue;
       }
 
-      if (line.startsWith('- ') || line.startsWith('* ')) {
+      final trimmedLine = line.trim();
+      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || 
+          trimmedLine.startsWith('+ ') || RegExp(r'^\d+\.\s').hasMatch(trimmedLine)) {
         flushParagraph();
-        elements.add(ListElement(text: line.substring(2).trim()));
+        flushTable();
+        
+        final indent = getIndent(line);
+        final isOrdered = RegExp(r'^\d+\.\s').hasMatch(trimmedLine);
+        String itemText;
+        
+        if (isOrdered) {
+          itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s'), '');
+        } else {
+          itemText = trimmedLine.substring(2);
+        }
+        
+        if (indent > 0 && pendingListItems.isNotEmpty) {
+          final lastItem = pendingListItems.removeLast();
+          itemText = '${lastItem.text}\n${'  ' * indent}$itemText';
+          pendingListItems.add(ListElement(text: itemText, ordered: lastItem.ordered, indent: indent));
+        } else {
+          pendingListItems.add(ListElement(text: itemText, ordered: isOrdered, indent: indent));
+        }
         continue;
       }
 
-      if (RegExp(r'^\d+\.\s').hasMatch(line)) {
+      if (trimmedLine.startsWith('> ')) {
         flushParagraph();
-        elements.add(ListElement(
-          text: line.replaceFirst(RegExp(r'^\d+\.\s'), ''),
-          ordered: true,
-        ));
+        flushListItems();
+        flushTable();
+        elements.add(BlockquoteElement(text: trimmedLine.substring(2).trim()));
         continue;
       }
 
-      if (line.startsWith('> ')) {
+      if (trimmedLine.startsWith('|')) {
         flushParagraph();
-        elements.add(BlockquoteElement(text: line.substring(2).trim()));
+        flushListItems();
+        
+        if (_isTableSeparatorRow(trimmedLine)) {
+          continue;
+        }
+        
+        final cells = _parseTableRow(trimmedLine);
+        if (cells != null && cells.isNotEmpty) {
+          if (currentTable == null) {
+            currentTable = TableElement(headers: cells, rows: []);
+          } else {
+            currentTable!.rows.add(cells);
+          }
+        }
         continue;
-      }
-
-      if (line.startsWith('|')) {
-        flushParagraph();
-        final table = _parseTableLine(line);
-        if (table != null) elements.add(table);
-        continue;
+      } else if (currentTable != null) {
+        flushTable();
       }
 
       pendingParagraph ??= ParagraphElement(children: []);
-      final inline = _parseInline(line);
+      final inline = _parseInline(trimmedLine);
       pendingParagraph!.children.addAll(inline);
     }
 
-    if (inCodeBlock) flushCodeBlock();
+    if (inCodeBlock && codeLines.isNotEmpty) {
+      elements.add(CodeElement(code: codeLines.join('\n'), language: codeLanguage));
+    }
     flushParagraph();
+    flushListItems();
+    flushTable();
 
     return elements;
+  }
+
+  static bool _isTableSeparatorRow(String line) {
+    final inner = line.substring(1, line.length - 1);
+    final cells = inner.split('|');
+    for (final cell in cells) {
+      final trimmed = cell.trim();
+      if (trimmed.isEmpty) continue;
+      if (!RegExp(r'^[-:]+$').hasMatch(trimmed)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static List<String>? _parseTableRow(String line) {
+    if (!line.startsWith('|') || !line.endsWith('|')) return null;
+    
+    final inner = line.substring(1, line.length - 1);
+    if (inner.trim().isEmpty) return null;
+    
+    final cells = inner.split('|').map((s) => s.trim()).toList();
+    if (cells.isEmpty || (cells.length == 1 && cells[0].isEmpty)) return null;
+    
+    return cells;
   }
 
   static List<InlineElement> _parseInline(String text) {
@@ -139,11 +240,5 @@ class MarkdownParser {
     }
 
     return elements;
-  }
-
-  static TableElement? _parseTableLine(String line) {
-    final cells = line.split('|').where((s) => s.trim().isNotEmpty).toList();
-    if (cells.isEmpty) return null;
-    return TableElement(headers: cells.map((c) => c.trim()).toList(), rows: []);
   }
 }
