@@ -29,8 +29,9 @@ class ParagraphElement extends DocumentElement {
 class ListElement extends DocumentElement {
   final String text;
   final bool ordered;
+  final int indent;
 
-  const ListElement({required this.text, this.ordered = false});
+  const ListElement({required this.text, this.ordered = false, this.indent = 0});
 }
 
 class CodeElement extends DocumentElement {
@@ -77,4 +78,36 @@ class FormulaElement extends InlineElement {
   final bool displayMode;
 
   const FormulaElement({required this.latex, this.displayMode = false});
+}
+
+class Document {
+  final String id;
+  final String title;
+  final String content;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const Document({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  Document copyWith({
+    String? id,
+    String? title,
+    String? content,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Document(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

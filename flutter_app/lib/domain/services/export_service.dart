@@ -4,7 +4,6 @@ import 'package:archive/archive.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../core/parser/markdown_parser.dart';
-import '../../core/parser/formula_extractor.dart';
 import '../../data/models/document.dart';
 
 class ExportService {
@@ -14,26 +13,42 @@ class ExportService {
     final List<pw.Widget> body = [];
 
     for (final element in elements) {
-      final widget = switch (element) {
-        HeadingElement(:final level, :final text) => _pdfHeading(level, text),
-        ParagraphElement(:final children) => _pdfParagraph(children),
-        ListElement(:final text) => _pdfList(text),
-        CodeElement(:final code, :final language) => _pdfCode(code, language),
-        BlockquoteElement(:final text) => _pdfBlockquote(text),
-        MermaidElement(:final code) => _pdfMermaid(code),
-        EmptyLineElement() => pw.SizedBox(height: 12),
-        _ => pw.SizedBox.shrink(),
-      };
-      body.add(widget);
+      final widget = _elementToPdfWidget(element);
+      if (widget != null) {
+        body.add(widget);
+      }
     }
 
-    pdf.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.all(40),
-      build: (_) => body,
-    ));
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(40),
+        build: (_) => body,
+      ),
+    );
 
     return pdf.save();
+  }
+
+  static pw.Widget? _elementToPdfWidget(DocumentElement element) {
+    if (element is HeadingElement) {
+      return _pdfHeading(element.level, element.text);
+    } else if (element is ParagraphElement) {
+      return _pdfParagraph(element.children);
+    } else if (element is ListElement) {
+      return _pdfList(element.text, element.indent, element.ordered);
+    } else if (element is CodeElement) {
+      return _pdfCode(element.code, element.language);
+    } else if (element is BlockquoteElement) {
+      return _pdfBlockquote(element.text);
+    } else if (element is MermaidElement) {
+      return _pdfMermaid(element.code);
+    } else if (element is TableElement) {
+      return _pdfTable(element.headers, element.rows);
+    } else if (element is EmptyLineElement) {
+      return pw.SizedBox(height: 12);
+    }
+    return null;
   }
 
   static pw.Widget _pdfHeading(int level, String text) {
@@ -45,18 +60,33 @@ class ExportService {
     };
     return pw.Padding(
       padding: const pw.EdgeInsets.only(top: 16, bottom: 8),
-      child: pw.Text(text, style: pw.TextStyle(fontSize: size, fontWeight: pw.FontWeight.bold)),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: size,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ),
     );
   }
 
   static pw.Widget _pdfParagraph(List<InlineElement> children) {
     final spans = children.map((c) {
-      return switch (c) {
-        FormulaElement(:final latex) => pw.TextSpan(
-            text: ' ${FormulaExtractor.normalizeLatex(latex)} ',
-            style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 13)),
-        TextElement(:final text) => pw.TextSpan(text: text, style: const pw.TextStyle(fontSize: 13)),
-      };
+      if (c is FormulaElement) {
+        return pw.TextSpan(
+          text: ' ${c.latex} ',
+          style: pw.TextStyle(
+            fontStyle: pw.FontStyle.italic,
+            fontSize: 13,
+          ),
+        );
+      } else if (c is TextElement) {
+        return pw.TextSpan(
+          text: c.text,
+          style: const pw.TextStyle(fontSize: 13),
+        );
+      }
+      return pw.TextSpan(text: '');
     }).toList();
 
     return pw.Padding(
@@ -65,19 +95,23 @@ class ExportService {
     );
   }
 
-  static pw.Widget _pdfList(String text) {
+  static pw.Widget _pdfList(String text, int indent, bool ordered) {
+    final prefix = ordered ? '${indent + 1}. ' : '• ';
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      padding: pw.EdgeInsets.only(left: indent * 16.0, top: 2, bottom: 2),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [pw.Text('  •  '), pw.Expanded(child: pw.Text(text))],
+        children: [
+          pw.Text(prefix),
+          pw.Expanded(child: pw.Text(text)),
+        ],
       ),
     );
   }
 
   static pw.Widget _pdfCode(String code, String? language) {
     return pw.Container(
-      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      margin: const pw.EdgeInsets.only(top: 8, bottom: 8),
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: PdfColors.grey100,
@@ -89,7 +123,14 @@ class ExportService {
           if (language != null && language.isNotEmpty)
             pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 8),
-              child: pw.Text(language, style: pw.TextStyle(fontSize: 10, color: PdfColors.blue700, fontWeight: pw.FontWeight.bold)),
+              child: pw.Text(
+                language,
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.blue700,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
             ),
           pw.Text(code, style: const pw.TextStyle(fontSize: 11)),
         ],
@@ -99,28 +140,74 @@ class ExportService {
 
   static pw.Widget _pdfBlockquote(String text) {
     return pw.Container(
-      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      margin: const pw.EdgeInsets.only(top: 8, bottom: 8),
       padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        border: pw.Border(left: pw.BorderSide(color: PdfColors.blue, width: 4)),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(
+          left: pw.BorderSide(color: PdfColors.blue, width: 4),
+        ),
         color: PdfColors.grey100,
       ),
-      child: pw.Text(text, style: pw.TextStyle(fontStyle: pw.FontStyle.italic)),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+      ),
     );
   }
 
   static pw.Widget _pdfMermaid(String code) {
     return pw.Container(
-      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      margin: const pw.EdgeInsets.only(top: 8, bottom: 8),
       padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(color: PdfColors.grey100, borderRadius: pw.BorderRadius.circular(4)),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: pw.BorderRadius.circular(4),
+      ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('[Mermaid 图表]', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+          pw.Text(
+            '[Mermaid 图表]',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
+          ),
           pw.SizedBox(height: 4),
           pw.Text(code, style: const pw.TextStyle(fontSize: 10)),
         ],
+      ),
+    );
+  }
+
+  static pw.Widget _pdfTable(List<String> headers, List<List<String>> rows) {
+    if (headers.isEmpty) return pw.SizedBox();
+
+    final tableRows = <pw.TableRow>[
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        children: headers
+            .map((h) => pw.Padding(
+                  padding: const pw.EdgeInsets.all(8),
+                  child: pw.Text(
+                    h,
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  ),
+                ))
+            .toList(),
+      ),
+      ...rows.map((row) => pw.TableRow(
+            children: row
+                .map((cell) => pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(cell),
+                    ))
+                .toList(),
+          )),
+    ];
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 8, bottom: 8),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey300),
+        children: tableRows,
       ),
     );
   }
@@ -129,9 +216,10 @@ class ExportService {
     final elements = MarkdownParser.parse(markdown);
     final archive = Archive();
 
-    archive.addFile(ArchiveFile('[Content_Types].xml',
-        _contentTypesXml.length, _contentTypesXml));
-    archive.addFile(ArchiveFile('_rels/.rels', _relsXml.length, _relsXml));
+    archive.addFile(ArchiveFile(
+        '[Content_Types].xml', _contentTypesXml.length, _contentTypesXml));
+    archive.addFile(
+        ArchiveFile('_rels/.rels', _relsXml.length, _relsXml));
     archive.addFile(ArchiveFile('word/document.xml',
         _buildDocXml(elements).length, _buildDocXml(elements)));
     archive.addFile(ArchiveFile('word/_rels/document.xml.rels',
@@ -141,40 +229,69 @@ class ExportService {
   }
 
   static String _buildDocXml(List<DocumentElement> elements) {
-    final body = elements.map((e) => switch (e) {
-      HeadingElement(:final level, :final text) => _wordHeading(level, text),
-      ParagraphElement(:final children) => _wordParagraph(children),
-      ListElement(:final text) => _wordList(text),
-      CodeElement(:final code, :final language) => _wordCode(code, language),
-      BlockquoteElement(:final text) => _wordBlockquote(text),
-      MermaidElement(:final code) => _wordMermaid(code),
-      EmptyLineElement() => '<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>',
-      _ => '',
-    }).join('\n');
+    final buffer = StringBuffer();
+    
+    for (final element in elements) {
+      buffer.write(_elementToWordXml(element));
+      buffer.write('\n');
+    }
 
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <w:body>$body</w:body>
+  <w:body>$buffer</w:body>
 </w:document>''';
+  }
+
+  static String _elementToWordXml(DocumentElement element) {
+    if (element is HeadingElement) {
+      return _wordHeading(element.level, element.text);
+    } else if (element is ParagraphElement) {
+      return _wordParagraph(element.children);
+    } else if (element is ListElement) {
+      return _wordList(element.text, element.indent, element.ordered);
+    } else if (element is CodeElement) {
+      return _wordCode(element.code, element.language);
+    } else if (element is BlockquoteElement) {
+      return _wordBlockquote(element.text);
+    } else if (element is MermaidElement) {
+      return _wordMermaid(element.code);
+    } else if (element is TableElement) {
+      return _wordTable(element.headers, element.rows);
+    } else if (element is EmptyLineElement) {
+      return '<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>';
+    }
+    return '';
   }
 
   static String _wordHeading(int level, String text) {
     final escaped = _esc(text);
-    final sz = switch (level) { 1 => 36, 2 => 32, 3 => 28, _ => 24 };
+    final sz = switch (level) {
+      1 => 36,
+      2 => 32,
+      3 => 28,
+      _ => 24,
+    };
     return '''<w:p><w:pPr><w:pStyle w:val="Heading$level"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="$sz"/></w:rPr><w:t xml:space="preserve">$escaped</w:t></w:r></w:p>''';
   }
 
   static String _wordParagraph(List<InlineElement> children) {
-    final runs = children.map((c) => switch (c) {
-      FormulaElement(:final latex) => '''<w:r><w:rPr><w:i/><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve"> ${FormulaExtractor.normalizeLatex(latex)} </w:t></w:r>''',
-      TextElement(:final text) => '''<w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_esc(text)}</w:t></w:r>''',
+    final runs = children.map((c) {
+      if (c is FormulaElement) {
+        return '''<w:r><w:rPr><w:i/><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve"> ${c.latex} </w:t></w:r>''';
+      } else if (c is TextElement) {
+        return '''<w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''';
+      }
+      return '';
     }).join('\n');
     return '<w:p>$runs</w:p>';
   }
 
-  static String _wordList(String text) =>
-      '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">• ${_esc(text)}</w:t></w:r></w:p>';
+  static String _wordList(String text, int indent, bool ordered) {
+    final prefix = ordered ? '${indent + 1}. ' : '• ';
+    final leftIndent = 360 + (indent * 360);
+    return '''<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:ind w:left="$leftIndent"/></w:pPr><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">$prefix${_esc(text)}</w:t></w:r></w:p>''';
+  }
 
   static String _wordCode(String code, String? language) {
     final langTag = (language != null && language.isNotEmpty)
@@ -191,9 +308,31 @@ class ExportService {
     return '''<w:p><w:pPr><w:shd w:fill="F0F0F0" w:val="clear"/><w:bdr><w:top w:val="single" w:sz="4" w:space="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:space="4" w:color="CCCCCC"/></w:bdr></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">[Mermaid 图表]</w:t></w:r><w:r><w:br/></w:r><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/><w:color w:val="888888"/></w:rPr><w:t xml:space="preserve">${_esc(code)}</w:t></w:r></w:p>''';
   }
 
-  static String _esc(String s) =>
-      s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
-       .replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+  static String _wordTable(List<String> headers, List<List<String>> rows) {
+    if (headers.isEmpty) return '<w:p/>';
+    
+    final headerCells = headers
+        .map((h) => '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders><w:shd w:val="clear" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${_esc(h)}</w:t></w:r></w:p></w:tc>''')
+        .join('');
+    
+    final dataRows = rows.map((row) {
+      final cells = row
+          .map((cell) => '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders></w:tcPr><w:p><w:r><w:t>${_esc(cell)}</w:t></w:r></w:p></w:tc>''')
+          .join('');
+      return '<w:tr>$cells</w:tr>';
+    }).join('');
+
+    return '''<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tr>$headerCells</w:tr>$dataRows</w:tbl>''';
+  }
+
+  static String _esc(String s) {
+    return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
+  }
 
   static const String _contentTypesXml =
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -217,25 +356,47 @@ class ExportService {
   static Future<Uint8List> exportToTxt(String markdown) async {
     final elements = MarkdownParser.parse(markdown);
     final sb = StringBuffer();
+    
     for (final element in elements) {
-      final line = switch (element) {
-        HeadingElement(:final level, :final text) => '${'#' * level} $text',
-        ParagraphElement(:final children) => children.map((c) => switch (c) {
-          FormulaElement(:final latex) => latex,
-          TextElement(:final text) => text,
-        }).join(''),
-        ListElement(:final text) => '• $text',
-        CodeElement(:final code, :final language) => '```${language ?? ''}\n$code\n```',
-        BlockquoteElement(:final text) => '> $text',
-        MermaidElement(:final code) => '```mermaid\n$code\n```',
-        EmptyLineElement() => '',
-        _ => '',
-      };
+      final line = _elementToText(element);
       if (line.isNotEmpty) {
         sb.writeln(line);
       }
     }
+    
     final result = sb.toString();
-    return Uint8List.fromList(utf8.encode(result.endsWith('\n') ? result.substring(0, result.length - 1) : result));
+    final trimmed = result.endsWith('\n') 
+        ? result.substring(0, result.length - 1) 
+        : result;
+    return Uint8List.fromList(utf8.encode(trimmed));
+  }
+
+  static String _elementToText(DocumentElement element) {
+    if (element is HeadingElement) {
+      return '${'#' * element.level} ${element.text}';
+    } else if (element is ParagraphElement) {
+      return element.children.map((c) {
+        if (c is FormulaElement) return c.latex;
+        if (c is TextElement) return c.text;
+        return '';
+      }).join('');
+    } else if (element is ListElement) {
+      return '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}${element.text}';
+    } else if (element is CodeElement) {
+      return '```${element.language ?? ''}\n${element.code}\n```';
+    } else if (element is BlockquoteElement) {
+      return '> ${element.text}';
+    } else if (element is MermaidElement) {
+      return '```mermaid\n${element.code}\n```';
+    } else if (element is TableElement) {
+      final lines = <String>[];
+      lines.add('| ${element.headers.join(' | ')} |');
+      lines.add('| ${element.headers.map((_) => '---').join(' | ')} |');
+      for (final row in element.rows) {
+        lines.add('| ${row.join(' | ')} |');
+      }
+      return lines.join('\n');
+    }
+    return '';
   }
 }
