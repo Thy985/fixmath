@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/parser/markdown_parser.dart';
+import '../../core/services/mermaid_renderer.dart';
+import '../../core/services/mermaid_service.dart';
 import '../../data/models/document.dart';
 import 'heading_renderer.dart';
 import 'paragraph_renderer.dart';
@@ -8,7 +10,6 @@ import 'list_renderer.dart';
 import 'code_renderer.dart';
 import 'blockquote_renderer.dart';
 import 'table_renderer.dart';
-import 'mermaid_renderer.dart';
 
 class PreviewContent extends StatelessWidget {
   final String content;
@@ -60,7 +61,10 @@ class PreviewContent extends StatelessWidget {
       CodeElement(:final code) => CodeRenderer(code: code, isDark: isDark),
       BlockquoteElement(:final text) => BlockquoteRenderer(
           text: text, isDark: isDark),
-      MermaidElement(:final code) => MermaidRenderer(code: code, isDark: isDark),
+      MermaidElement(:final code) => MermaidElementWidget(
+          code: code,
+          theme: isDark ? MermaidTheme.dark : MermaidTheme.light,
+        ),
       TableElement(:final headers, :final rows) => TableRenderer(
           headers: headers, rows: rows, isDark: isDark),
       EmptyLineElement() => const SizedBox(height: AppSpacing.lg),

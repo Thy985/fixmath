@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/services/mermaid_service.dart';
 import 'presentation/theme/app_theme.dart';
+import 'presentation/widgets/mermaid_host.dart';
 import 'providers/editor_providers.dart';
 
-void main() {
-  runApp(const ProviderScope(child: FormulaFixApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MermaidService.init();
+  runApp(
+    ProviderScope(
+      child: FormulaFixApp(),
+    ),
+  );
 }
 
 class FormulaFixApp extends ConsumerWidget {
@@ -22,6 +30,18 @@ class FormulaFixApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       routerConfig: appRouter,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            if (child != null) child,
+            const Positioned(
+              left: -10000,
+              top: -10000,
+              child: MermaidRendererHost(),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/parser/markdown_parser.dart';
@@ -131,7 +132,7 @@ def hello():
         const markdown = '# 标题\n\n这是一段文本。';
         final txtBytes = await ExportService.exportToTxt(markdown);
         expect(txtBytes.isNotEmpty, true);
-        final content = String.fromCharCodes(txtBytes);
+        final content = utf8.decode(txtBytes);
         expect(content.contains('标题'), true);
         expect(content.contains('文本'), true);
       });
@@ -149,7 +150,7 @@ def hello():
 ''';
         final txtBytes = await ExportService.exportToTxt(markdown);
         expect(txtBytes.isNotEmpty, true);
-        final content = String.fromCharCodes(txtBytes);
+        final content = utf8.decode(txtBytes);
         expect(content.contains('# 主标题'), true);
         expect(content.contains('- 列表项'), true);
         expect(content.contains('```'), true);

@@ -1,168 +1,162 @@
-import 'dart:async';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter_svg/flutter_svg.dart';
+import 'mermaid_service.dart';
 
-class MermaidRenderer {
-  static String? _cachedWebViewContent;
-  static InAppWebViewController? _controller;
-  static Completer<Uint8List?>? _activeRender;
+class MermaidSvgWidget extends StatelessWidget {
+  final String svg;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
 
-  static Future<Uint8List?> renderMermaidToImage(
-    String mermaidCode, {
-    double width = 600,
-    double height = 400,
-  }) async {
-    if (mermaidCode.trim().isEmpty) return null;
+  const MermaidSvgWidget({
+    super.key,
+    required this.svg,
+    this.width,
+    this.height,
+    this.fit = BoxFit.contain,
+  });
 
-    try {
-      final boundaryKey = GlobalKey();
-      final completer = Completer<Uint8List?>();
-
-      final htmlContent = _buildMermaidHtml(mermaidCode);
-
-      final app = MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: RepaintBoundary(
-              key: boundaryKey,
-              child: Container(
-                width: width,
-                height: height,
-                color: Colors.white,
-                child: InAppWebView(
-                  initialData: InAppWebViewInitialData(
-                    data: htmlContent,
-                    mimeType: 'text/html',
-                    encoding: 'utf-8',
-                  ),
-                  initialOptions: InAppWebViewGroupOptions(
-                    crossPlatform: InAppWebViewOptions(
-                      javaScriptEnabled: true,
-                      transparentBackground: true,
-                    ),
-                  ),
-                  onWebViewCreated: (controller) {
-                    _controller = controller;
-                  },
-                  onLoadStop: (controller, url) async {
-                    await Future.delayed(const Duration(milliseconds: 500));
-                    if (!completer.isCompleted) {
-                      try {
-                        final boundary = boundaryKey.currentContext
-                            ?.findRenderObject() as RenderRepaintBoundary?;
-                        if (boundary != null) {
-                          final image = await boundary.toImage(
-                            pixelRatio: 2.0,
-                          );
-                          final byteData = await image.toByteData(
-                            format: ui.ImageByteFormat.png,
-                          );
-                          final bytes = byteData?.buffer.asUint8List();
-                          image.dispose();
-                          completer.complete(bytes);
-                        } else {
-                          completer.complete(null);
-                        }
-                      } catch (e) {
-                        completer.complete(null);
-                      }
-                    }
-                  },
-                  onLoadError: (controller, url, code, message) {
-                    if (!completer.isCompleted) completer.complete(null);
-                  },
-                ),
-              ),
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.string(
+      svg,
+      width: width,
+      height: height,
+      fit: fit,
+      placeholderBuilder: (context) => Container(
+        width: width,
+        height: height,
+        color: Colors.transparent,
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
         ),
-      );
+      ),
+    );
+  }
+}
 
-      runApp(app);
+class MermaidElementWidget extends StatefulWidget {
+  final String code;
+  final MermaidTheme theme;
+  final double? maxWidth;
+  final double? maxHeight;
 
-      return await completer.future.timeout(
-        const Duration(seconds: 8),
-        onTimeout: () => null,
-      );
-    } catch (e) {
-      return null;
+  const MermaidElementWidget({
+    super.key,
+    required this.code,
+    this.theme = MermaidTheme.light,
+    this.maxWidth,
+    this.maxHeight,
+  });
+
+  @override
+  State<MermaidElementWidget> createState() => _MermaidElementWidgetState();
+}
+
+class _MermaidElementWidgetState extends State<MermaidElementWidget> {
+  String? _svg;
+  String? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _render();
+  }
+
+  @override
+  void didUpdateWidget(MermaidElementWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.code != widget.code || oldWidget.theme != widget.theme) {
+      _render();
     }
   }
 
-  static String _buildMermaidHtml(String mermaidCode) {
-    final escapedCode = _escapeHtml(mermaidCode);
-    return '''<!DOCTYPE html>
-<html>
-<head>
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<style>
-body { margin: 0; padding: 16px; background: white; font-family: sans-serif; }
-.mermaid { display: flex; justify-content: center; }
-</style>
-</head>
-<body>
-<div class="mermaid">
-$escapedCode
-</div>
-<script>
-mermaid.initialize({ 
-  startOnLoad: true,
-  theme: 'default',
-  flowchart: { useMaxWidth: true }
-});
-</script>
-</body>
-</html>''';
+  Future<void> _render() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final svg = await MermaidService.renderToSvg(
+        widget.code,
+        theme: widget.theme,
+      );
+      if (mounted) {
+        setState(() {
+          _svg = svg;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
   }
 
-  static String _escapeHtml(String input) {
-    return input
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
-  }
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
 
-  static Future<Uint8List?> renderMermaidToSvg(String mermaidCode) async {
-    if (mermaidCode.trim().isEmpty) return null;
-    return null;
-  }
-
-  static pw.Widget buildFallback(String mermaidCode) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.symmetric(vertical: 8),
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
-        borderRadius: pw.BorderRadius.circular(4),
-        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            '[Mermaid 图表 - PDF不支持实时渲染]',
-            style: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.grey700,
+    if (_error != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.red.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Mermaid 渲染失败',
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            mermaidCode,
-            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
-          ),
-        ],
-      ),
+            const SizedBox(height: 8),
+            Text(
+              widget.code,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return MermaidSvgWidget(
+      svg: _svg!,
+      width: widget.maxWidth,
+      height: widget.maxHeight,
     );
   }
 }
