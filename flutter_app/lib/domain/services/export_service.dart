@@ -145,7 +145,7 @@ class ExportService {
         fontSize: 13,
       );
     } else if (element is ListElement) {
-      return _pdfList(element.text, element.indent, element.ordered);
+      return _pdfList(_inlineToText(element.children), element.indent, element.ordered);
     } else if (element is CodeElement) {
       return _pdfCode(element.code, element.language);
     } else if (element is BlockquoteElement) {
@@ -158,6 +158,18 @@ class ExportService {
       return pw.SizedBox(height: 6);
     }
     return null;
+  }
+
+  static String _inlineToText(List<InlineElement> children) {
+    final buf = StringBuffer();
+    for (final c in children) {
+      if (c is TextElement) {
+        buf.write(c.text);
+      } else if (c is FormulaElement) {
+        buf.write(' [${c.latex}] ');
+      }
+    }
+    return buf.toString();
   }
 
   static pw.Widget _pdfHeading(int level, String text) {
@@ -500,7 +512,7 @@ class ExportService {
     } else if (element is ParagraphElement) {
       return _wordParagraph(element.children);
     } else if (element is ListElement) {
-      return _wordList(element.text, element.indent, element.ordered);
+      return _wordList(_inlineToText(element.children), element.indent, element.ordered);
     } else if (element is CodeElement) {
       return _wordCode(element.code, element.language);
     } else if (element is BlockquoteElement) {
@@ -638,7 +650,8 @@ class ExportService {
         return '';
       }).join('');
     } else if (element is ListElement) {
-      return '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}${element.text}';
+      final text = _inlineToText(element.children);
+      return '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}$text';
     } else if (element is CodeElement) {
       return '```${element.language ?? ''}\n${element.code}\n```';
     } else if (element is BlockquoteElement) {

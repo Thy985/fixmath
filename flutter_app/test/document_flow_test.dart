@@ -237,7 +237,7 @@ print("第二个代码块")
     test('DocumentElement 类型检查', () {
       const heading = HeadingElement(level: 1, text: '标题');
       const paragraph = ParagraphElement(children: []);
-      const list = ListElement(text: '列表项');
+      const list = ListElement(children: [TextElement('列表项')]);
       const code = CodeElement(code: 'code');
       const table = TableElement(headers: ['A'], rows: []);
       const blockquote = BlockquoteElement(text: '引用');
@@ -273,9 +273,9 @@ print("第二个代码块")
     });
 
     test('ListElement 属性', () {
-      const unorderedList = ListElement(text: 'item', ordered: false);
-      const orderedList = ListElement(text: 'item', ordered: true);
-      const nestedList = ListElement(text: 'nested', indent: 2, ordered: false);
+      const unorderedList = ListElement(children: [TextElement('item')], ordered: false);
+      const orderedList = ListElement(children: [TextElement('item')], ordered: true);
+      const nestedList = ListElement(children: [TextElement('nested')], indent: 2, ordered: false);
 
       expect(unorderedList.ordered, false);
       expect(orderedList.ordered, true);

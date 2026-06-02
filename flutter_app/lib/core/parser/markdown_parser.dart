@@ -112,27 +112,52 @@ class MarkdownParser {
       }
 
       final trimmedLine = line.trim();
-      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || 
+      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') ||
           trimmedLine.startsWith('+ ') || RegExp(r'^\d+\.\s').hasMatch(trimmedLine)) {
         flushParagraph();
         flushTable();
-        
+
         final indent = getIndent(line);
         final isOrdered = RegExp(r'^\d+\.\s').hasMatch(trimmedLine);
         String itemText;
-        
+
         if (isOrdered) {
-          itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s'), '');
+          itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+\d+\.\s+'), '');
+          if (itemText == trimmedLine) {
+            itemText = trimmedLine.replaceFirst(RegExp(r'^\d+\.\s+'), '');
+          }
         } else {
           itemText = trimmedLine.substring(2);
         }
-        
+
+        final inlineChildren = _parseInline(itemText);
+
         if (indent > 0 && pendingListItems.isNotEmpty) {
           final lastItem = pendingListItems.removeLast();
-          itemText = '${lastItem.text}\n${'  ' * indent}$itemText';
-          pendingListItems.add(ListElement(text: itemText, ordered: lastItem.ordered, indent: indent));
+          final mergedText = lastItem.children
+              .where((c) => c is TextElement)
+              .map((c) => (c as TextElement).text)
+              .join();
+          final lastInlineText = mergedText.isEmpty
+              ? ''
+              : '$mergedText\n${'  ' * indent}${inlineChildren
+                  .where((c) => c is TextElement)
+                  .map((c) => (c as TextElement).text)
+                  .join()}';
+          final reParsed = lastInlineText.isEmpty
+              ? <InlineElement>[]
+              : _parseInline(lastInlineText);
+          pendingListItems.add(ListElement(
+            children: reParsed,
+            ordered: lastItem.ordered,
+            indent: indent,
+          ));
         } else {
-          pendingListItems.add(ListElement(text: itemText, ordered: isOrdered, indent: indent));
+          pendingListItems.add(ListElement(
+            children: inlineChildren,
+            ordered: isOrdered,
+            indent: indent,
+          ));
         }
         continue;
       }

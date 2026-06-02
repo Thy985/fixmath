@@ -235,35 +235,80 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   AppBar _buildAppBar(Color appBarBg, bool isDark) {
     return AppBar(
-      title: const Text('FormulaFix'),
+      title: const Text(
+        'FormulaFix',
+        overflow: TextOverflow.fade,
+        softWrap: false,
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
       backgroundColor: appBarBg,
       foregroundColor: isDark ? Colors.white : Colors.black,
       elevation: 0,
+      titleSpacing: 8,
       actions: [
         IconButton(
-          icon: const Icon(Icons.folder_open),
+          icon: const Icon(Icons.folder_open_outlined),
           tooltip: '文件管理',
+          visualDensity: VisualDensity.compact,
           onPressed: _openFileManager,
         ),
         IconButton(
-          icon: const Icon(Icons.auto_awesome),
+          icon: const Icon(Icons.auto_awesome_outlined),
           tooltip: '模板',
+          visualDensity: VisualDensity.compact,
           onPressed: _showTemplateMenu,
         ),
-        IconButton(
-          icon: const Icon(Icons.file_open),
-          tooltip: '导入',
-          onPressed: _importFile,
-        ),
-        IconButton(
-          icon: const Icon(Icons.save),
-          tooltip: '保存',
-          onPressed: _saveToFile,
-        ),
-        IconButton(
-          icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-          tooltip: '主题',
-          onPressed: () => ref.read(darkModeProvider.notifier).toggle(),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: '更多',
+          onSelected: (value) {
+            switch (value) {
+              case 'import':
+                _importFile();
+                break;
+              case 'save':
+                _saveToFile();
+                break;
+              case 'theme':
+                ref.read(darkModeProvider.notifier).toggle();
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'import',
+              child: Row(
+                children: [
+                  Icon(Icons.file_open_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('导入'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'save',
+              child: Row(
+                children: [
+                  Icon(Icons.save_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text('保存'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'theme',
+              child: Row(
+                children: [
+                  Icon(
+                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(isDark ? '浅色模式' : '深色模式'),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
