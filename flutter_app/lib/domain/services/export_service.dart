@@ -6,7 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../core/parser/markdown_parser.dart';
 import '../../core/services/formula_pdf_renderer.dart';
-import '../../core/services/mermaid_renderer.dart';
+import '../../core/services/mermaid_service.dart';
 import '../../data/models/document.dart';
 
 class ExportException implements Exception {
@@ -284,69 +284,127 @@ class ExportService {
   }
 
   static Future<pw.Widget> _pdfMermaid(String code) async {
-    final bytes = await MermaidRenderer.renderMermaidToImage(code);
-    if (bytes != null && bytes.isNotEmpty) {
-      return pw.Container(
-        margin: const pw.EdgeInsets.symmetric(vertical: 10),
-        padding: const pw.EdgeInsets.all(12),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.grey50,
-          borderRadius: pw.BorderRadius.circular(4),
-          border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 8),
-              child: pw.Row(
-                children: [
-                  pw.Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const pw.BoxDecoration(
-                      color: PdfColors.green700,
-                      shape: pw.BoxShape.circle,
+    String? svg;
+    try {
+      svg = await MermaidService.renderToSvg(code);
+    } catch (e) {
+      svg = null;
+    }
+
+    if (svg != null && svg.isNotEmpty) {
+      try {
+        final svgString = svg;
+        return pw.Container(
+          margin: const pw.EdgeInsets.symmetric(vertical: 10),
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            color: PdfColors.grey50,
+            borderRadius: pw.BorderRadius.circular(4),
+            border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(bottom: 8),
+                child: pw.Row(
+                  children: [
+                    pw.Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const pw.BoxDecoration(
+                        color: PdfColors.green700,
+                        shape: pw.BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  pw.SizedBox(width: 6),
-                  pw.Text(
-                    'Mermaid 图表',
-                    style: pw.TextStyle(
-                      fontSize: 10,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.grey700,
+                    pw.SizedBox(width: 6),
+                    pw.Text(
+                      'Mermaid 图表 (矢量)',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey700,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            pw.Image(
-              pw.MemoryImage(bytes),
-              width: 480,
-              fit: pw.BoxFit.contain,
-            ),
-            pw.SizedBox(height: 8),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(8),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(2),
-              ),
-              child: pw.Text(
-                code,
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColors.grey700,
+                  ],
                 ),
               ),
-            ),
-          ],
+              await _buildSvgInPdf(svgString),
+            ],
+          ),
+        );
+      } catch (e) {
+        debugPrint('SVG to PDF conversion failed: $e');
+      }
+    }
+
+    return _buildMermaidFallback(code);
+  }
+
+  static Future<pw.Widget> _buildSvgInPdf(String svg) async {
+    try {
+      final wrappedSvg = svg.contains('xmlns')
+          ? svg
+          : svg.replaceFirst('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+
+      return pw.SvgImage(svg: wrappedSvg, width: 480);
+    } catch (e) {
+      final base64Data = base64Encode(svg.codeUnits);
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(8),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey100,
+          borderRadius: pw.BorderRadius.circular(2),
+        ),
+        child: pw.Text(
+          '[Mermaid SVG - ${svg.length} 字符]',
+          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
         ),
       );
     }
+  }
 
-    return MermaidRenderer.buildFallback(code);
+  static pw.Widget _buildMermaidFallback(String code) {
+    return pw.Container(
+      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: pw.BorderRadius.circular(4),
+        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            children: [
+              pw.Container(
+                width: 8,
+                height: 8,
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.orange700,
+                  shape: pw.BoxShape.circle,
+                ),
+              ),
+              pw.SizedBox(width: 6),
+              pw.Text(
+                'Mermaid 图表 (代码)',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            code,
+            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+        ],
+      ),
+    );
   }
 
   static pw.Widget _pdfTable(List<String> headers, List<List<String>> rows) {

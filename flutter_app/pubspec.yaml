@@ -35,6 +35,10 @@ dependencies:
   uuid: ^4.5.1
   intl: ^0.19.0
 
+  flutter_svg: ^2.0.10+1
+  crypto: ^3.0.3
+  vector_graphics: ^1.1.9+1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
