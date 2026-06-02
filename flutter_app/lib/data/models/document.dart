@@ -27,11 +27,15 @@ class ParagraphElement extends DocumentElement {
 }
 
 class ListElement extends DocumentElement {
-  final String text;
+  final List<InlineElement> children;
   final bool ordered;
   final int indent;
 
-  const ListElement({required this.text, this.ordered = false, this.indent = 0});
+  const ListElement({
+    required this.children,
+    this.ordered = false,
+    this.indent = 0,
+  });
 }
 
 class CodeElement extends DocumentElement {

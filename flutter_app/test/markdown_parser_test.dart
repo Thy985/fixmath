@@ -30,8 +30,10 @@ void main() {
       final elements = MarkdownParser.parse('- 列表项1\n- 列表项2');
       final items = elements.whereType<ListElement>().toList();
       expect(items.length, 2);
-      expect(items[0].text, '列表项1');
-      expect(items[1].text, '列表项2');
+      expect(items[0].children.length, 1);
+      expect((items[0].children[0] as TextElement).text, '列表项1');
+      expect(items[1].children.length, 1);
+      expect((items[1].children[0] as TextElement).text, '列表项2');
     });
 
     test('解析有序列表', () {
@@ -128,7 +130,11 @@ void main() {
         );
         final items = elements.whereType<ListElement>().toList();
         expect(items.length, 1);
-        expect(items[0].text, contains('苹果'));
+        final nestedText = items[0].children
+            .whereType<TextElement>()
+            .map((t) => t.text)
+            .join();
+        expect(nestedText, contains('苹果'));
         expect(items[0].indent, 1);
       });
 
