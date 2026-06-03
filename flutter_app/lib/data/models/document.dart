@@ -84,6 +84,12 @@ class FormulaElement extends InlineElement {
   const FormulaElement({required this.latex, this.displayMode = false});
 }
 
+class BoldElement extends InlineElement {
+  final List<InlineElement> children;
+
+  const BoldElement({required this.children});
+}
+
 class Document {
   final String id;
   final String title;
