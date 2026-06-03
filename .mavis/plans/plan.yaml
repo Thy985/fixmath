@@ -1,0 +1,468 @@
+version: 1
+plan:
+  name: 'FormulaFix 导出功能 P0 修复 + 架构重构 + 端到端验证'
+  max_concurrency: 1
+  max_consecutive_failures: 2
+  max_cycles: 12
+  verifier_config:
+    default_verifiers: [verifier]
+    audit_sample_rate: 0.0
+tasks:
+  - id: worktree-baseline
+    title: '0. 初始化 worktree + 跑通基线测试'
+    prompt: |
+      任务: 为本 plan 后续所有任务建立统一 worktree,跑通基线测试,确认起点干净。
+
+      步骤:
+      1. 加载 worktree-management skill,走完整流程
+      2. 在 D:\study\front-end\math 下创建 worktree,分支名 fixed: feature/export-refactor
+      3. 在该 worktree 内:
+         - cd flutter_app
+         - flutter pub get
+         - flutter test  (记录现有 5 个 test 文件的通过情况)
+         - flutter analyze (记录结果)
+      4. 跑通后,在 worktree 里 commit 一个 "chore: baseline for export refactor" 空 commit,作为后续任务的起点
+      5. 不要修改任何业务代码,只建立环境
+
+      交付:
+      - commit hash (baseline commit)
+      - 现有测试结果摘要:5 个测试文件 X 个通过 X 个失败
+      - flutter analyze 结果
+      - worktree 绝对路径
+    assigned_to: coder
+    verified_by: verifier
+    verify_prompt: |
+      独立验证:
+      1. 用 git worktree list 确认 feature/export-refactor worktree 存在
+      2. 在该 worktree 路径下:
+         - git log -1 看到 baseline commit
+         - cd flutter_app && flutter test 跑一次,确认通过率与 producer 报告一致
+         - flutter analyze 跑一次
+      3. 不允许修改代码,只验证环境
+
+      FAIL 条件:
+      - worktree 不存在
+      - baseline commit 缺失或包含意外修改
+      - 现有测试在 baseline 上失败(说明环境有污染)
+    timeout_ms: 900000
+
+  - id: offline-assets
+    title: 'A. 资源离线化(去 CDN + 跨平台路径修复)'
+    prompt: |
+      任务: 把公式/Mermaid 渲染依赖的外部资源改为本地加载,真正实现产品宣传的"100% 离线"。
+
+      范围(只改以下文件,不要动其他):
+      - flutter_app/lib/core/services/mermaid_service.dart
+      - flutter_app/pubspec.yaml
+      - flutter_app/assets/js/  目录(新建/补全文件)
+      - 可选: 新建 flutter_app/assets/js/ 内的子目录
+
+      现状(已确认):
+      - mermaid_service.dart:201 引用 https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js (CDN 依赖,违反离线宣传)
+      - mermaid_service.dart:209 引用 file:///android_asset/assets/js/mermaid.min.js (Android-only,Windows/Web 不可用)
+      - pubspec.yaml:53 声明 - assets/js/ 但内容待补
+
+      修复要求:
+      1. 在 flutter_app/assets/js/ 下准备本地资源:
+         - mathjax 3 es5 tex-svg.js (用 mathjax-full 的 es5/tex-svg 入口,约 1-2 MB)
+         - mermaid.min.js (约 1-2 MB,推荐 10.x 或 11.x 最新稳定)
+         - 实在下不来时,在 deliverable.md 写明替代方案:运行时首次下载到 getApplicationSupportDirectory() 缓存
+      2. 修改 mermaid_service.dart 的 _kHtml 模板:
+         - 移除 cdn.jsdelivr.net 引用
+         - MathJax 引用改为相对路径 (./js/mathjax/tex-svg.js 或类似,基于 InAppWebView 加载本地 HTML 的位置)
+         - mermaid 引用改为相对路径 (./js/mermaid.min.js)
+         - 严禁再出现 file:///android_asset/ 硬编码
+      3. 确认 InAppWebView 加载本地资源的 API 正确:
+         - 优先方案: 用 controller.loadFile(assetFile: 'assets/...') (flutter_inappwebview 6.x 支持)
+         - 备选方案: 把 HTML 模板放到 assets/ 下,loadFile 加载
+         - 备选: 仍然 keepLocalFiles = true + loadDataWithBaseURL
+      4. 在 deliverable.md 记录:
+         - 实际下载/引入的资源文件
+         - HTML 模板的最终引用方式
+         - 跨平台验证情况
+         - 任何"首次联网"妥协的说明
+
+      验收标准(由 verifier 验证):
+      - lib/ 下 grep 不到 cdn.jsdelivr.net
+      - lib/ 下 grep 不到 android_asset
+      - assets/js/ 包含 mathjax 和 mermaid 文件
+      - 现有 5 个 test 文件 100% 通过
+      - flutter analyze 通过
+
+      禁止:
+      - 不要修改 ExportService / MarkdownExporter 的任何 public API
+      - 不要删除现有测试
+      - 不要修改公式渲染的服务接口 (FormulaSvgService / FormulaPdfRenderer 的方法签名)
+      - 不要引入新的 pub 依赖
+    assigned_to: coder
+    depends_on: [worktree-baseline]
+    verified_by: verifier
+    verify_prompt: |
+      独立验证(不要只看 deliverable.md,必须自己跑):
+
+      1. 静态检查(必须全部 false):
+         - 搜索 cdn.jsdelivr.net: Select-String -Path flutter_app/lib -Pattern 'cdn\.jsdelivr\.net' -Recurse
+         - 搜索 android_asset: Select-String -Path flutter_app/lib -Pattern 'android_asset' -Recurse
+         - 搜索 http:// 或 https:// 出现在 lib/ 下 dart 文件(只允许注释)
+      2. 资源存在性:
+         - Test-Path flutter_app/assets/js/mathjax/tex-svg.js  (或实际路径)
+         - Test-Path flutter_app/assets/js/mermaid.min.js
+         - 文件大小合理(每个 > 100KB)
+      3. 测试运行:
+         - cd flutter_app
+         - flutter pub get
+         - flutter test  (报告 5 个 test 文件的通过数)
+         - flutter analyze  (报告 0 error)
+      4. 如果环境允许,跑 flutter run -d windows 启动应用,导出包含公式的文档,目视确认公式渲染(否则写"无 GUI 验证环境,跳过"在报告里)
+
+      FAIL 条件(任一即 FAIL):
+      - 任一 CDN 引用未清空
+      - 任一 android_asset 路径未清空
+      - 任一资源文件缺失
+      - 现有测试回归
+      - flutter analyze 有 error
+      - 资源文件大小 < 50KB (说明没下载完整)
+
+      报告格式:
+      - PASS/FAIL
+      - 静态检查结果(命中数)
+      - 资源文件清单(路径 + 大小)
+      - 测试结果明细
+      - 任何 producer 需要修正的具体 gap
+    timeout_ms: 1800000
+
+  - id: word-docx-completeness
+    title: 'B. Word 文档完整性补全(OOXML 必需文件)'
+    prompt: |
+      任务: 补全 Word 文档的 OOXML 必需文件,使导出的 docx 在 Word/WPS/LibreOffice 中能稳定打开且样式应用正确。
+
+      范围(只改以下文件,不要动其他):
+      - flutter_app/lib/domain/services/export_service.dart  (MarkdownExporter 的 _word* 方法)
+      - flutter_app/test/export_integration_test.dart  (改进测试)
+      - 可选新增: flutter_app/lib/domain/services/word_ooxml/  (如果抽离 XML 模板)
+
+      现状(已确认):
+      - _wordHeading 用了 <w:pStyle w:val="HeadingN"/> 但 word/styles.xml 不存在,客户端会静默降级
+      - _wordList 用 "1. " 文本前缀模拟,不是真正的 numbering.xml 列表
+      - _wordCode 用 inline shading 模拟,不是真正的样式
+      - [Content_Types].xml 缺少 styles/settings/numbering 的 Override
+      - _rels/document.xml.rels 缺少 styles/settings/numbering 的 Relationship
+      - 测试 export_integration_test.dart:335-337 _hasDocxStructure 只判断 PK 头字节,无法验证 docx 真能开
+
+      修复要求:
+      1. 在 MarkdownExporter.exportToWord 内补全以下文件(作为 static const 字符串或运行时生成):
+         - word/styles.xml: 定义 Normal, Heading1-6, ListParagraph, CodeBlock (含 shd 灰底), Blockquote (含 bdr 左边框 + indent)
+         - word/settings.xml: zoom=100, defaultTabStop=720, characterSpacingControl
+         - word/numbering.xml: 至少 1 个 orderedList 和 1 个 bulletList 的 numId 定义,带对应的 numFmt 和 lvlText
+      2. 修改 _wordHeading / _wordList / _wordCode / _wordBlockquote,使用真正的 pStyle 引用
+      3. 修改 _wordList 使用真正的 <w:numPr> 而非文本前缀
+      4. 更新 [Content_Types].xml 的 Override 列表,加入:
+         - /word/styles.xml
+         - /word/settings.xml
+         - /word/numbering.xml
+      5. 更新 archive 构建,把这些新文件 addFile 进去
+      6. SVG → Word 决策(在 deliverable.md 写明):
+         - 选项 A: 保留 SVG,依赖 Office 2019+ 的 SVG 渲染
+         - 选项 B: 把 Mermaid SVG 渲染为 PNG (用现有的 FormulaPdfRenderer 路径)
+         - 推荐 B,选 B 则修改 _pdfMermaid 和 _wordMermaid 共享 PNG 路径
+      7. 改进测试 export_integration_test.dart:
+         - 用 archive 包 unzip 导出的 docx
+         - 验证 word/styles.xml, word/settings.xml, word/numbering.xml 都存在
+         - 用 XmlTextReader 或字符串匹配验证 styles.xml 包含 Heading1, CodeBlock, Blockquote 的 styleId
+         - 验证 word/document.xml 的 <w:p> 节点中至少有一个引用了 <w:pStyle w:val="Heading1"/>
+         - 验证 [Content_Types].xml 包含 styles/settings/numbering 的 Override
+
+      验收标准(由 verifier 验证):
+      - 现有测试全部通过 + 改进后的新测试通过
+      - flutter analyze 通过
+      - 导出的 docx 解压后,word/styles.xml, word/settings.xml, word/numbering.xml 三个文件都存在
+      - styles.xml 包含关键 styleId
+      - 如果有 LibreOffice,转换 docx → PDF 成功(verifier 自行决定)
+
+      禁止:
+      - 不要修改 exportToPdf / exportToWord / exportToTxt 的方法签名
+      - 不要删除现有测试
+      - 不要破坏 SVG → Word 链路(可以改实现但要保证 mermaid 仍能导出)
+      - 不要在 styles.xml 里塞太多花式样式,只补必需的
+
+      SVG 决策提示: 如果选 B,把 Mermaid 渲染为 PNG 后,记得 mermaid 文字也可能在 Word 中显示,不要完全删除 SVG 路径,要保留为 fallback。
+    assigned_to: coder
+    depends_on: [offline-assets]
+    verified_by: verifier
+    verify_prompt: |
+      独立验证:
+
+      1. 跑测试:
+         - cd flutter_app
+         - flutter test  (报告所有 test 通过情况)
+         - flutter analyze  (必须 0 error)
+      2. 写一个临时的 dart 脚本(可以放在 test/ 下,跑完删掉) 或用 archive 包在 main 里跑:
+         - 构造一个简单的 markdown,调用 MarkdownExporter.exportToWord
+         - 用 archive 包解码
+         - 验证以下文件存在: word/styles.xml, word/settings.xml, word/numbering.xml
+         - 用字符串包含检查 word/styles.xml 含有 'w:styleId="Heading1"' 和 'w:styleId="CodeBlock"' 和 'w:styleId="Blockquote"'
+         - 验证 [Content_Types].xml 含有 'PartName="/word/styles.xml"'
+         - 验证 word/document.xml 含有 '<w:pStyle w:val="Heading1"/>'
+      3. 试用 LibreOffice (如果系统装了):
+         - libreoffice --headless --convert-to pdf exported.docx
+         - 报告成功/失败
+      4. 如果没有 LibreOffice,跳过但要在报告里说明
+
+      FAIL 条件(任一即 FAIL):
+      - word/styles.xml 缺失
+      - word/settings.xml 缺失
+      - word/numbering.xml 缺失
+      - styles.xml 缺少 Heading1 或 CodeBlock 或 Blockquote styleId
+      - _wordCode / _wordBlockquote 还在用 inline shading 而不是 pStyle
+      - _wordList 还在用文本前缀
+      - 现有测试回归
+      - 文档结构验证脚本失败
+    timeout_ms: 1800000
+
+  - id: render-data-flow
+    title: 'C. 渲染数据流修复(isDark / 表格公式 / 缓存策略 / 协议加固)'
+    prompt: |
+      任务: 修复导出功能中的几个关键数据流问题。
+
+      范围(只改以下文件):
+      - flutter_app/lib/domain/services/export_service.dart  (MarkdownExporter 主体)
+      - flutter_app/lib/core/services/formula_pdf_renderer.dart
+      - flutter_app/lib/core/services/formula_svg_service.dart
+      - flutter_app/lib/core/services/mermaid_service.dart  (协议加固)
+      - 可选: flutter_app/lib/core/parser/markdown_parser.dart  (如果要给 TableElement 暴露 formulas)
+      - 测试文件可以新增或更新
+
+      修复点 1 — isDark 透传:
+      现状: MarkdownExporter.exportToPdf 调用 FormulaPdfRenderer.preRenderAll(allFormulas, fontSize: 16, isDark: isDark) - 但 _renderSingle 拿到 isDark 后传给 FormulaRenderHost.render,目前链路是通的,但需要在 exportToWord 路径上同样透传。
+      检查: exportToWord 的 isDark 传到了 FormulaPdfRenderer 吗?如果没有,补上。
+      同时: 写测试验证深色导出 PDF 中,公式背景是深色(可以通过 PDF metadata 或特定 marker)。
+
+      修复点 2 — 表格内公式:
+      现状: MarkdownExporter:67-82 只检查 ParagraphElement 和 ListElement 的 FormulaElement,TableElement 里的公式被忽略。
+      修复:
+      - 在 MarkdownParser 阶段,让 TableElement 的每个 cell 持有 inline children 列表(含 FormulaElement)
+      - 或者: 在 MarkdownExporter 里递归遍历所有元素类型,收集 FormulaElement
+      - 推荐后者(改动小),新建一个 collectAllFormulas(elements) 帮助方法
+      验证: 写测试 markdown = '| H |\n| --- |\n| $E=mc^2$ |', exportToPdf 后 PDF 包含公式图片(用 PDF 长度/图片数判断)
+
+      修复点 3 — 缓存策略:
+      现状: MarkdownExporter.exportToPdf / exportToWord 末尾调用 FormulaPdfRenderer.clearCache() / FormulaSvgService.clearCache() / MermaidService.clearCache(),等于没缓存。
+      修复:
+      - 移除导出末尾的 clearCache 调用
+      - 在 editor_screen 退出时(或 app pause 时)清理缓存
+      - 缓存 key 加入 format 维度: '$fontSize|$format|$displayMode|$latex' 避免 PDF/Word 互相覆盖
+      - FormulaPdfRenderer.cachedBytes 加可选 format 参数(默认 'pdf')
+      验证: 写测试或脚本,导出同一文档两次,记录第二次耗时 < 第一次 50% (缓存命中)。
+
+      修复点 4 — WebView SVG 协议加固:
+      现状: MermaidService.handleConsoleMessage 用 message.split('|') 然后 parts.sublist(3).join('|') 拼回 SVG,如果 SVG 含有 '|' 字符就会乱。formula_svg_service.dart 同样的问题。
+      修复:
+      - 在 HTML 模板里,把 SVG 写入一个 hidden DOM 元素(如 <div id="payload-{id}">),然后 evaluateJavascript 读它的 innerHTML
+      - 在 Dart 侧,改用 controller.evaluateJavascript(source: 'document.getElementById("payload-{id}").innerHTML') 拿回 SVG
+      - 失败时 fallback 到 console 协议(但要 base64 编码 SVG 避免 '|')
+      验证: 写测试,构造一个 SVG 字符串中含 '|' 字符,确保能正确解码
+
+      修复点 5 (可选) — 缓存总大小限制:
+      - FormulaPdfRenderer 已有 LRU + 64MB 限制,确认有效
+      - FormulaSvgService 缓存按 entry 数限制(256),没有字节数限制,SVG 字符串可能很大(每个 50KB+),建议加字节数上限(32MB)
+
+      验收标准(verifier 验证):
+      - 深色导出 PDF,公式区有深色背景(通过 PDF 颜色采样或 metadata 验证)
+      - 表格内公式能被识别和渲染(测试有覆盖)
+      - 连续导出两次相同文档,第二次有缓存命中
+      - SVG 含 '|' 字符能正确解码
+      - 现有测试 100% 通过
+      - flutter analyze 通过
+
+      禁止:
+      - 不要改 public API(exportToPdf / exportToWord 的签名)
+      - 不要删除现有测试
+      - 不要把缓存改成 persistent (内存就够)
+      - 不要破坏 Isolate / WebView 生命周期
+    assigned_to: coder
+    depends_on: [word-docx-completeness]
+    verified_by: verifier
+    verify_prompt: |
+      独立验证(每个点都验):
+
+      1. isDark 透传:
+         - 读 MarkdownExporter.exportToPdf,grep 'isDark' 看是否传给 FormulaPdfRenderer
+         - 读 exportToWord,grep 'isDark' 看是否传给 FormulaPdfRenderer
+         - 跑 exportToPdf(isDark: true),输出 PDF 字节,找一个 PDF parser 提取页面背景色或前几个像素,验证不是 #FFFFFF
+         - 写一个简单 PDF 文本提取,grep 公式区前后字节,看是否含深色 marker
+         - (如果 PDF 解析太复杂,至少代码层确认 isDark 传到了底层)
+
+      2. 表格公式:
+         - 写一个临时测试 markdown = '# H\n\n| A |\n| --- |\n| $x^2$ |'
+         - exportToPdf,验证 PDF 长度 > baseline(空表格),说明公式渲染了
+         - 检查 MarkdownExporter 里是否新增了 collectAllFormulas 或对 TableElement 做了处理
+
+      3. 缓存:
+         - 写一个临时测试,exportToPdf 同一个文档两次,记录两次耗时
+         - 第二次耗时应该 < 第一次 * 0.5 (允许偏差)
+         - grep MarkdownExporter 看是否还有 clearCache() 调用(应该没有)
+
+      4. SVG 协议:
+         - 读 mermaid_service.dart 和 formula_svg_service.dart 的 handleConsoleMessage
+         - 如果改成了 DOM 元素读取,要看到 controller.evaluateJavascript 读 document.getElementById
+         - 写测试: 构造 SVG = '<svg xmlns="http://www.w3.org/2000/svg"><text>foo|bar</text></svg>',验证能完整还原(没有字符丢失)
+
+      5. 跑 flutter test,所有测试通过
+      6. 跑 flutter analyze,0 error
+
+      FAIL 条件(任一即 FAIL):
+      - isDark 没传到底层
+      - 表格公式没被收集
+      - 缓存无效(第二次没快)
+      - SVG 含 '|' 字符解码错误
+      - 现有测试回归
+    timeout_ms: 1800000
+
+  - id: architecture-refactor
+    title: 'D. 架构重构(合并 export_service + 拆 MarkdownExporter + 错误分类)'
+    prompt: |
+      任务: 清理导出功能架构,提升可维护性,**不改 public API**。
+
+      范围(只改以下文件,可新增):
+      - flutter_app/lib/core/services/export_service.dart  (合并/重命名)
+      - flutter_app/lib/domain/services/export_service.dart  (拆分)
+      - flutter_app/lib/presentation/screens/editor_screen.dart  (改用新的错误处理)
+      - 可选新建: flutter_app/lib/domain/services/exporters/  目录
+
+      重构 1 — 合并两个 export_service.dart:
+      现状: lib/core/services/export_service.dart(67 行 ExportService 工具类)+ lib/domain/services/export_service.dart(1152 行 MarkdownExporter 上帝类),两个目录两个同名文件,职责混乱。
+      修复:
+      - 把 core/services/export_service.dart 的 ExportService 删掉,改名为 re-export from domain/services/export_service.dart
+      - 或者: 把 ExportService.exportAndShare 合并到 MarkdownExporter 所在的 domain/services/export_service.dart 里,作为顶层 helper
+      - 推荐前者(更轻),但要保证 editor_screen.dart 的 import 路径不需要大改
+      - 如果选前者,在 core/services/export_service.dart 里写 `export '../../domain/services/export_service.dart' show ExportService, ExportException;`
+
+      重构 2 — 拆分 MarkdownExporter:
+      现状: 1152 行上帝类,所有方法 static。
+      修复:
+      - 拆成 3 个 Exporter 类 + 1 个 Builder:
+        - PdfExporter (原 exportToPdf 逻辑)
+        - WordExporter (原 exportToWord 逻辑)
+        - TextExporter (原 exportToTxt 逻辑)
+        - WordOoxmlBuilder (抽离 OOXML 字符串拼接)
+      - MarkdownExporter 保留为 facade: 静态方法 exportToPdf / exportToWord / exportToTxt,内部委托给对应 Exporter
+      - public API 不变(都是 static 方法)
+      - 每个 Exporter 类 < 400 行
+
+      重构 3 — 错误分类:
+      现状: catch (e) 后只 debugPrint 或 SnackBar 甩堆栈。
+      修复:
+      - 新建 enum ExportFailure { offline, parseError, renderError, writeError, timeout, unknown }
+      - 引入 typedef ExportFailureInfo = ({ExportFailure kind, String userMessage, String? detail, Object? cause})
+      - 在 export_service.dart 添加 helper: ExportFailureInfo classifyError(Object e) { ... }
+      - 修改 ExportService.exportAndShare,失败时抛 ExportFailureException(包含 ExportFailureInfo)
+      - 修改 editor_screen.dart,根据 ExportFailure kind 显示不同 SnackBar:
+        - offline: "请检查网络连接"
+        - parseError: "文档中有无法识别的公式: ${detail}"
+        - renderError: "渲染失败,可能含有不支持的语法"
+        - writeError: "保存失败: ${detail}"
+        - timeout: "导出超时,请重试"
+        - unknown: "导出失败: ${detail}"
+      - 给用户看的消息不要含 Exception 堆栈
+
+      验收标准:
+      - 编译通过
+      - 现有 5 个 test 文件 100% 通过
+      - flutter analyze 通过
+      - MarkdownExporter 主体 < 200 行(只留 facade)
+      - 每个 Exporter < 400 行
+      - editor_screen.dart 的 SnackBar 消息不含 'Exception:' 或 'Error:'
+      - public API 签名不变(exportToPdf / exportToWord / exportToTxt 仍是 MarkdownExporter 的 static 方法)
+
+      禁止:
+      - 不要把 static 方法改成实例方法(避免破坏 import)
+      - 不要改 public 函数签名
+      - 不要改测试文件(测试本身就是验证 public API)
+      - 不要拆得过度(不要为了拆而拆,内部 helper 适度即可)
+    assigned_to: coder
+    depends_on: [render-data-flow]
+    verified_by: verifier
+    verify_prompt: |
+      独立验证:
+
+      1. 文件行数检查:
+         - Get-Content flutter_app/lib/domain/services/export_service.dart | Measure-Object -Line
+         - 主体 < 200 行
+         - 找到每个 Exporter 类(grep class.*Exporter),检查行数 < 400
+
+      2. Public API 兼容性:
+         - 在 editor_screen.dart grep MarkdownExporter.exportToPdf / exportToWord / exportToTxt
+         - 确认这些调用没被改
+         - 在 test/ 下 grep 同样,确认 import 路径没破
+
+      3. import 路径检查:
+         - 确认 lib/ 下没有 import '../../core/services/export_service.dart' 引用已删的代码
+         - 如果用 re-export 方式,验证 dart analyzer 不报 unused import
+
+      4. 错误处理验证:
+         - grep 'Exception:'  在 editor_screen.dart 找用户可见的字符串拼接(应该找不到)
+         - grep 'exportFailure' 或 'classifyError' 看新代码已就位
+         - 读 ExportService.exportAndShare 的 catch 块,确认抛 ExportFailureException 或带 kind 的异常
+
+      5. 跑测试 + analyze:
+         - cd flutter_app
+         - flutter test  全部通过
+         - flutter analyze  0 error
+
+      6. 模拟错误(如果容易):
+         - 写一个临时测试,Mock 一个 exporter 抛错,验证 exportAndShare 抛 ExportFailureException
+         - 删除临时测试
+
+      FAIL 条件(任一即 FAIL):
+      - 主体行数 > 200 行
+      - Exporter 类 > 400 行
+      - public API 签名改了(测试或 editor_screen 编译失败)
+      - 现有测试回归
+      - 错误消息仍含 'Exception:' 字符串
+    timeout_ms: 1800000
+
+  - id: e2e-integration
+    title: 'E. 端到端整合验证'
+    role: verify-as-task
+    prompt: |
+      任务: 作为 verifier,独立跑完所有验证,出具综合 PASS/FAIL 报告。
+
+      步骤:
+      1. 准备临时验证脚本(放在 test/_e2e_temp/ 目录,跑完删除):
+         - script_export_basics.dart: 验证 exportToPdf/Word/Txt 基本能产出非空字节
+         - script_export_table_formula.dart: 验证表格内公式被渲染
+         - script_export_dark_mode.dart: 验证 isDark=true 时 PDF 含深色背景或标记
+         - script_export_cache.dart: 验证连续导出两次,第二次 < 第一次 * 0.5
+         - script_export_svg_pipe.dart: 验证 SVG 含 '|' 时解码正确
+         - script_export_word_structure.dart: 验证 word/styles.xml 等 OOXML 必需文件存在
+      2. 跑所有 test:
+         - cd flutter_app
+         - flutter test
+         - 报告每个 test 文件通过数
+      3. flutter analyze:
+         - 0 error
+      4. 如果有 LibreOffice:
+         - 导出一个 docx,转 PDF,验证成功
+         - 导出一个 PDF,提取文本,验证含关键内容
+      5. 静态扫描:
+         - 确认 lib/ 下 0 个 cdn.jsdelivr.net
+         - 确认 lib/ 下 0 个 android_asset
+         - 确认 lib/ 下 0 个 throw Exception('...') 裸露异常(应该统一走 ExportFailureException)
+      6. 编译检查:
+         - cd flutter_app
+         - flutter build apk --debug 或 flutter analyze 已通过,二选一
+
+      交付:
+      - 一份 E2E_REPORT.md,放在 .mavis/plans/ 下,内容:
+        1. 总体 PASS / FAIL
+        2. 每个验证点的明细
+        3. 任何残余问题
+        4. 关键证据(命令输出、文件大小、字节采样等)
+
+      注意:
+      - 这是 verify-as-task,不要再被其他 verifier 验证
+      - 不要修改业务代码,只跑验证
+      - 不要把临时脚本 commit 到 feature 分支(可以放 .mavis/plans/ 下,或临时目录)
+    assigned_to: verifier
+    depends_on: [architecture-refactor]
+    timeout_ms: 1800000

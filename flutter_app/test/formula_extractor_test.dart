@@ -149,5 +149,61 @@ void main() {
         expect(result, contains(r'\frac{a}{b}'));
       });
     });
+
+    group('隐式公式识别（无 \$ 包裹）', () {
+      test('用户场景：vec{n} 应被识别为 \\vec{n}', () {
+        final formulas = FormulaExtractor.extractFormulas('vec{n} = (f_x, f_y, -1)');
+        expect(formulas.length, 1);
+        expect(formulas[0].latex, r'\vec{n}');
+        expect(formulas[0].start, 0);
+        expect(formulas[0].end, 6);
+      });
+
+      test('frac 嵌套识别', () {
+        final formulas = FormulaExtractor.extractFormulas(
+          r'cosgamma = frac{|vec{n} cdot vec{k}|}{|vec{n}| cdot |vec{k}|}',
+        );
+        final fracMatch = formulas.firstWhere(
+          (m) => m.latex.contains(r'\frac'),
+          orElse: () => FormulaMatch(latex: '', start: -1, end: -1, displayMode: false),
+        );
+        expect(fracMatch.latex, contains(r'\vec'));
+        expect(fracMatch.latex, contains(r'\cdot'));
+        expect(fracMatch.latex, contains(r'\frac'));
+      });
+
+      test('sqrt 识别', () {
+        final formulas = FormulaExtractor.extractFormulas('sqrt{x^2 + 1}');
+        expect(formulas.length, 1);
+        expect(formulas[0].latex, r'\sqrt{x^2 + 1}');
+      });
+
+      test('已带反斜杠时不重复添加', () {
+        final formulas = FormulaExtractor.extractFormulas(r'$\vec{n}$');
+        expect(formulas.length, 1);
+        expect(formulas[0].latex, r'\vec{n}');
+        expect(formulas[0].latex, isNot(contains(r'\\vec')));
+      });
+
+      test('普通英文单词不被误识别', () {
+        final formulas = FormulaExtractor.extractFormulas('I want to use vector graphics');
+        expect(formulas, isEmpty);
+      });
+
+      test('混合 \$...\$ 和隐式命令', () {
+        final formulas = FormulaExtractor.extractFormulas(
+          r'$E=mc^2$ 中包含 vec{n} 和 $\int_0^1 x dx$',
+        );
+        expect(formulas.length, 3);
+        expect(formulas[0].latex, 'E=mc^2');
+        expect(formulas[1].latex, r'\vec{n}');
+        expect(formulas[2].latex, contains(r'\int'));
+      });
+
+      test('希腊字母在 normalizeLatex 中被转换', () {
+        final result = FormulaExtractor.normalizeLatex('α + β');
+        expect(result, r'\alpha + \beta');
+      });
+    });
   });
 }

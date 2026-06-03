@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/export_service.dart';
 import '../../core/services/file_service.dart';
-import '../../domain/services/export_service.dart' as domain;
+import '../../core/services/formula_pdf_renderer.dart';
+import '../../core/services/formula_svg_service.dart';
+import '../../core/services/mermaid_service.dart';
+import '../../domain/services/export_service.dart' show MarkdownExporter;
 import '../../providers/editor_providers.dart';
 import '../widgets/markdown_input_field.dart';
 import '../widgets/editor_bottom_bar.dart';
@@ -49,7 +52,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _clearExportCaches();
     super.dispose();
+  }
+
+  /// 退出编辑器时清理所有公式 / Mermaid 缓存。
+  /// 防止应用长期挂起时 WebView isolate 持有大量内存。
+  /// 同次会话内的多次导出会复用缓存。
+  void _clearExportCaches() {
+    FormulaPdfRenderer.clearCache();
+    FormulaSvgService.clearCache();
+    MermaidService.clearCache();
   }
 
   void _onTextChanged() {
@@ -128,13 +141,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _exportToPdf() async {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
-    
+    final isDark = ref.read(darkModeProvider);
+
     ref.read(isExportingProvider.notifier).state = true;
     try {
       await ExportService.exportAndShare(
         markdown: content,
         format: ExportFormat.pdf,
-        exporter: domain.ExportService.exportToPdf,
+        exporter: (markdown) => MarkdownExporter.exportToPdf(markdown, isDark: isDark),
       );
     } catch (e) {
       _showSnackBar('PDF导出失败: $e');
@@ -146,16 +160,35 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _exportToWord() async {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
-    
+    final isDark = ref.read(darkModeProvider);
+
     ref.read(isExportingProvider.notifier).state = true;
     try {
       await ExportService.exportAndShare(
         markdown: content,
         format: ExportFormat.docx,
-        exporter: domain.ExportService.exportToWord,
+        exporter: (markdown) => MarkdownExporter.exportToWord(markdown, isDark: isDark),
       );
     } catch (e) {
       _showSnackBar('Word导出失败: $e');
+    } finally {
+      ref.read(isExportingProvider.notifier).state = false;
+    }
+  }
+
+  Future<void> _exportToTxt() async {
+    final content = ref.read(editorContentProvider);
+    if (content.isEmpty) return;
+    
+    ref.read(isExportingProvider.notifier).state = true;
+    try {
+      await ExportService.exportAndShare(
+        markdown: content,
+        format: ExportFormat.txt,
+        exporter: MarkdownExporter.exportToTxt,
+      );
+    } catch (e) {
+      _showSnackBar('文本导出失败: $e');
     } finally {
       ref.read(isExportingProvider.notifier).state = false;
     }
@@ -167,6 +200,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       builder: (ctx) => ExportMenu(
         onExportPdf: _exportToPdf,
         onExportWord: _exportToWord,
+        onExportTxt: _exportToTxt,
       ),
     );
   }
