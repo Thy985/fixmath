@@ -20,6 +20,44 @@ class ListRenderer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+    final spans = <InlineSpan>[];
+
+    for (final child in children) {
+      if (child is TextElement) {
+        spans.add(TextSpan(
+          text: child.text,
+          style: TextStyle(
+            fontSize: AppSpacing.body,
+            height: 1.6,
+            color: textColor,
+          ),
+        ));
+      } else if (child is FormulaElement) {
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: _buildFormula(child.latex, child.displayMode),
+        ));
+      } else if (child is BoldElement) {
+        spans.add(TextSpan(
+          children: child.children.map((c) {
+            if (c is TextElement) {
+              return TextSpan(
+                text: c.text,
+                style: TextStyle(
+                  fontSize: AppSpacing.body,
+                  height: 1.6,
+                  color: textColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            }
+            return const TextSpan(text: '');
+          }).toList(),
+        ));
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Row(
@@ -34,18 +72,16 @@ class ListRenderer extends StatelessWidget {
                 style: TextStyle(
                   fontSize: AppSpacing.body,
                   height: 1.6,
-                  color: isDark ? AppColors.darkText : AppColors.lightText,
+                  color: textColor,
                   fontWeight: ordered ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
           ),
           Expanded(
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: children
-                  .map((child) => _renderInline(child))
-                  .toList(),
+            child: Text.rich(
+              TextSpan(children: spans),
+              softWrap: true,
             ),
           ),
         ],
@@ -53,60 +89,45 @@ class ListRenderer extends StatelessWidget {
     );
   }
 
-  Widget _renderInline(InlineElement child) {
-    if (child is TextElement) {
-      return Text(
-        child.text,
-        style: TextStyle(
-          fontSize: AppSpacing.body,
-          height: 1.6,
-          color: isDark ? AppColors.darkText : AppColors.lightText,
-        ),
-      );
-    } else if (child is FormulaElement) {
-      return _buildFormula(child.latex, child.displayMode);
-    }
-    return const SizedBox.shrink();
-  }
-
   Widget _buildFormula(String latex, bool displayMode) {
     final normalized = FormulaExtractor.normalizeLatex(latex);
 
     if (displayMode) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
         child: Math.tex(
           normalized,
+          mathStyle: MathStyle.display,
           textStyle: const TextStyle(fontSize: AppSpacing.formulaDisplay),
-          onErrorFallback: (err) => Text(
-            latex,
-            style: const TextStyle(
-              color: AppColors.error,
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
+          onErrorFallback: _fallback(latex),
         ),
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkFormulaInlineBg : AppColors.formulaInlineBg,
+        borderRadius: BorderRadius.circular(3),
+      ),
       child: Math.tex(
         normalized,
-        textStyle: TextStyle(
-          fontSize: AppSpacing.formulaInline,
-          backgroundColor:
-              isDark ? AppColors.darkFormulaInlineBg : AppColors.formulaInlineBg,
-        ),
-        onErrorFallback: (err) => Text(
-          latex,
-          style: const TextStyle(
-            color: AppColors.error,
-            fontFamily: 'monospace',
-            fontSize: 12,
-          ),
-        ),
+        mathStyle: MathStyle.text,
+        textStyle: const TextStyle(fontSize: AppSpacing.formulaInline),
+        onErrorFallback: _fallback(latex),
+      ),
+    );
+  }
+
+  Widget Function(FlutterMathException) _fallback(String latex) {
+    return (_) => Text(
+      '\$$latex\$',
+      style: const TextStyle(
+        color: AppColors.error,
+        fontFamily: 'monospace',
+        fontSize: 12,
       ),
     );
   }

@@ -231,13 +231,22 @@ class MarkdownParser {
     return cells;
   }
 
+  /// 公开的内联解析入口，供导出器在表格 cell 等场景下复用。
+  ///
+  /// 设计动机：`TableElement.headers` / `TableElement.rows` 当前是 `List<String>`，
+  /// 导出器需要把 cell 字符串解析为 inline children 以渲染 cell 内的公式 / 加粗。
+  /// 此方法暴露了 [parseInline] 内部使用的逻辑，但行为完全一致。
+  static List<InlineElement> parseInline(String text) {
+    return _parseInline(text);
+  }
+
   static List<InlineElement> _parseInline(String text) {
     final List<InlineElement> elements = [];
     final formulas = FormulaExtractor.extractFormulas(text);
 
     if (formulas.isEmpty) {
       if (text.trim().isNotEmpty) {
-        elements.add(TextElement(text.trim()));
+        elements.addAll(_parseBoldAndItalic(text.trim()));
       }
       return elements;
     }
@@ -245,9 +254,9 @@ class MarkdownParser {
     int lastEnd = 0;
     for (final formula in formulas) {
       if (formula.start > lastEnd) {
-        final textContent = text.substring(lastEnd, formula.start).trim();
+        final textContent = text.substring(lastEnd, formula.start);
         if (textContent.isNotEmpty) {
-          elements.add(TextElement(textContent));
+          elements.addAll(_parseBoldAndItalic(textContent));
         }
       }
       elements.add(FormulaElement(
@@ -258,10 +267,41 @@ class MarkdownParser {
     }
 
     if (lastEnd < text.length) {
-      final remaining = text.substring(lastEnd).trim();
+      final remaining = text.substring(lastEnd);
+      if (remaining.isNotEmpty) {
+        elements.addAll(_parseBoldAndItalic(remaining));
+      }
+    }
+
+    return elements;
+  }
+
+  static List<InlineElement> _parseBoldAndItalic(String text) {
+    final List<InlineElement> elements = [];
+    final boldRegex = RegExp(r'\*\*(.+?)\*\*');
+
+    int lastEnd = 0;
+    for (final match in boldRegex.allMatches(text)) {
+      if (match.start > lastEnd) {
+        final before = text.substring(lastEnd, match.start);
+        if (before.isNotEmpty) {
+          elements.add(TextElement(before));
+        }
+      }
+      final boldContent = match.group(1)!;
+      elements.add(BoldElement(children: [TextElement(boldContent)]));
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < text.length) {
+      final remaining = text.substring(lastEnd);
       if (remaining.isNotEmpty) {
         elements.add(TextElement(remaining));
       }
+    }
+
+    if (elements.isEmpty && text.isNotEmpty) {
+      elements.add(TextElement(text));
     }
 
     return elements;

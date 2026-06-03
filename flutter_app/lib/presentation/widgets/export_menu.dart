@@ -4,11 +4,13 @@ import '../../core/constants/app_constants.dart';
 class ExportMenu extends StatelessWidget {
   final VoidCallback onExportPdf;
   final VoidCallback onExportWord;
+  final VoidCallback onExportTxt;
 
   const ExportMenu({
     super.key,
     required this.onExportPdf,
     required this.onExportWord,
+    required this.onExportTxt,
   });
 
   @override
@@ -51,20 +53,11 @@ class ExportMenu extends StatelessWidget {
             subtitle: const Text('.txt 纯文本文件'),
             onTap: () {
               Navigator.pop(context);
-              _exportTxt(context);
+              onExportTxt();
             },
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-      ),
-    );
-  }
-
-  void _exportTxt(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('文本导出功能开发中'),
-        duration: Duration(seconds: 2),
       ),
     );
   }

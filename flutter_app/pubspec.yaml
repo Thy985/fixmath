@@ -50,3 +50,9 @@ flutter:
   assets:
     - assets/
     - assets/js/
+    - assets/mermaid_renderer.html
+
+  fonts:
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.ttf

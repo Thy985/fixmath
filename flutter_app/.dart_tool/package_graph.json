@@ -8,6 +8,7 @@
       "version": "2.0.0+1",
       "dependencies": [
         "archive",
+        "crypto",
         "cupertino_icons",
         "file_picker",
         "flutter",
@@ -15,6 +16,7 @@
         "flutter_markdown",
         "flutter_math_fork",
         "flutter_riverpod",
+        "flutter_svg",
         "go_router",
         "intl",
         "path_provider",
@@ -22,7 +24,8 @@
         "printing",
         "share_plus",
         "shared_preferences",
-        "uuid"
+        "uuid",
+        "vector_graphics"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -52,6 +55,33 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "vector_graphics",
+      "version": "1.2.2",
+      "dependencies": [
+        "flutter",
+        "http",
+        "vector_graphics_codec"
+      ]
+    },
+    {
+      "name": "crypto",
+      "version": "3.0.7",
+      "dependencies": [
+        "typed_data"
+      ]
+    },
+    {
+      "name": "flutter_svg",
+      "version": "2.3.0",
+      "dependencies": [
+        "flutter",
+        "http",
+        "vector_graphics",
+        "vector_graphics_codec",
+        "vector_graphics_compiler"
       ]
     },
     {
@@ -334,16 +364,43 @@
       ]
     },
     {
-      "name": "fixnum",
-      "version": "1.1.1",
+      "name": "vector_graphics_codec",
+      "version": "1.1.13",
       "dependencies": []
     },
     {
-      "name": "crypto",
-      "version": "3.0.7",
+      "name": "http",
+      "version": "1.6.0",
       "dependencies": [
-        "typed_data"
+        "async",
+        "http_parser",
+        "meta",
+        "web"
       ]
+    },
+    {
+      "name": "typed_data",
+      "version": "1.4.0",
+      "dependencies": [
+        "collection"
+      ]
+    },
+    {
+      "name": "vector_graphics_compiler",
+      "version": "1.2.5",
+      "dependencies": [
+        "args",
+        "meta",
+        "path",
+        "path_parsing",
+        "vector_graphics_codec",
+        "xml"
+      ]
+    },
+    {
+      "name": "fixnum",
+      "version": "1.1.1",
+      "dependencies": []
     },
     {
       "name": "logging",
@@ -650,16 +707,6 @@
       ]
     },
     {
-      "name": "http",
-      "version": "1.6.0",
-      "dependencies": [
-        "async",
-        "http_parser",
-        "meta",
-        "web"
-      ]
-    },
-    {
       "name": "xml",
       "version": "6.6.1",
       "dependencies": [
@@ -701,17 +748,6 @@
         "collection",
         "flutter",
         "nested"
-      ]
-    },
-    {
-      "name": "flutter_svg",
-      "version": "2.3.0",
-      "dependencies": [
-        "flutter",
-        "http",
-        "vector_graphics",
-        "vector_graphics_codec",
-        "vector_graphics_compiler"
       ]
     },
     {
@@ -797,11 +833,19 @@
       ]
     },
     {
-      "name": "typed_data",
-      "version": "1.4.0",
+      "name": "http_parser",
+      "version": "4.1.2",
       "dependencies": [
-        "collection"
+        "collection",
+        "source_span",
+        "string_scanner",
+        "typed_data"
       ]
+    },
+    {
+      "name": "args",
+      "version": "2.7.0",
+      "dependencies": []
     },
     {
       "name": "platform",
@@ -856,16 +900,6 @@
       "dependencies": []
     },
     {
-      "name": "http_parser",
-      "version": "4.1.2",
-      "dependencies": [
-        "collection",
-        "source_span",
-        "string_scanner",
-        "typed_data"
-      ]
-    },
-    {
       "name": "petitparser",
       "version": "7.0.2",
       "dependencies": [
@@ -886,37 +920,6 @@
       "dependencies": [
         "flutter"
       ]
-    },
-    {
-      "name": "vector_graphics_compiler",
-      "version": "1.2.5",
-      "dependencies": [
-        "args",
-        "meta",
-        "path",
-        "path_parsing",
-        "vector_graphics_codec",
-        "xml"
-      ]
-    },
-    {
-      "name": "vector_graphics_codec",
-      "version": "1.1.13",
-      "dependencies": []
-    },
-    {
-      "name": "vector_graphics",
-      "version": "1.2.2",
-      "dependencies": [
-        "flutter",
-        "http",
-        "vector_graphics_codec"
-      ]
-    },
-    {
-      "name": "args",
-      "version": "2.7.0",
-      "dependencies": []
     },
     {
       "name": "vm_service",

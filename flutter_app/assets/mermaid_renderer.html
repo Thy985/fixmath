@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script>
+window.MathJax = {
+  tex: { },
+  svg: { fontCache: 'global' },
+  startup: { typeset: false }
+};
+</script>
+<!-- All resources are bundled as Flutter assets (see pubspec.yaml). Relative paths
+     resolve against the directory of this HTML file, which is the root of the
+     `assets/` folder when loaded via InAppWebView.loadFile(assetFilePath: ...). -->
+<script src="js/tex-svg.js" async></script>
+<style>
+body { margin: 0; padding: 8px; background: transparent; }
+#out { display: inline-block; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script src="js/mermaid.min.js"></script>
+<script>
+let currentTheme = 'default';
+mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: currentTheme, fontFamily: 'sans-serif' });
+window.renderMermaid = async function(id, code, theme) {
+  try {
+    const el = document.getElementById('out');
+    el.innerHTML = '';
+    if (currentTheme !== theme) {
+      currentTheme = theme;
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: theme, fontFamily: 'sans-serif' });
+    }
+    const { svg } = await mermaid.render(id, code);
+    el.innerHTML = svg;
+    // v2 protocol: write SVG to a hidden payload slot so Dart can read it via
+    // evaluateJavascript (no '|' character loss like the old console protocol).
+    let payload = document.getElementById('payload-' + id);
+    if (!payload) {
+      payload = document.createElement('div');
+      payload.id = 'payload-' + id;
+      payload.style.display = 'none';
+      document.body.appendChild(payload);
+    }
+    payload.textContent = svg;
+    console.log('MERMAID_OK|' + id);
+    return true;
+  } catch (e) {
+    console.log('MERMAID_ERR|' + id + '|' + (e.message || String(e)));
+    return false;
+  }
+};
+
+window.renderLatex = async function(id, latex, displayMode) {
+  try {
+    if (typeof MathJax === 'undefined' || !MathJax.tex2svg) {
+      console.log('LATEX_ERR|' + id + '|mathjax_not_loaded');
+      return false;
+    }
+    const node = MathJax.tex2svg(latex, { display: displayMode === true });
+    const svg = node.querySelector('svg');
+    if (!svg) {
+      console.log('LATEX_ERR|' + id + '|no_svg_in_output');
+      return false;
+    }
+    const serialized = svg.outerHTML;
+    // v2 protocol: same hidden payload approach as renderMermaid above.
+    let payload = document.getElementById('payload-' + id);
+    if (!payload) {
+      payload = document.createElement('div');
+      payload.id = 'payload-' + id;
+      payload.style.display = 'none';
+      document.body.appendChild(payload);
+    }
+    payload.textContent = serialized;
+    console.log('LATEX_OK|' + id);
+    return true;
+  } catch (e) {
+    console.log('LATEX_ERR|' + id + '|render_failed|' + (e.message || String(e)));
+    return false;
+  }
+};
+</script>
+</body>
+</html>
