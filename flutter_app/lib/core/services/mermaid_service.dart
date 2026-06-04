@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+/// 页面加载完成后的回调签名。由 [MermaidService.markPageLoaded] 触发。
+typedef MermaidPageLoadedCallback = void Function();
+
 enum MermaidTheme { light, dark }
 
 /// Mermaid 图表 → SVG 字符串渲染服务。
@@ -39,13 +42,17 @@ class MermaidService {
   static int _requestCounter = 0;
   static InAppWebViewController? _controller;
   static bool _isReady = false;
+  static bool _pageLoaded = false;
+  static Completer<void>? _pageLoadedCompleter;
 
   static final List<_PendingRender> _waiting = [];
   static final Map<String, _PendingRender> _active = {};
   static final Map<MermaidTheme, String> _themeSvgCache = {};
+  static final List<MermaidPageLoadedCallback> _pageLoadedCallbacks = [];
 
   static String get html => _kHtml;
   static bool get isReady => _isReady;
+  static bool get isPageLoaded => _pageLoaded;
   static MermaidTheme _activeTheme = MermaidTheme.light;
 
   /// WebView 加载本地 HTML 的相对资产路径。
@@ -58,7 +65,99 @@ class MermaidService {
   static void attachController(InAppWebViewController controller) {
     _controller = controller;
     _isReady = true;
+    // 新的 WebView 实例 = 页面需要重新加载 = 必须等 onLoadStop 之后
+    // 才能让 window.renderMermaid(window.cleanupPayloads 等) 真正可用。
+    _pageLoaded = false;
+    _pageLoadedCompleter = Completer<void>();
     _dispatchWaiting();
+  }
+
+  /// 由 [MermaidRendererHost] 的 `onLoadStop` 回调触发。
+  ///
+  /// 必须在页面 + 子资源（tex-svg.js / mermaid.min.js）真正加载完成
+  /// 之后调用 — 在那之前调用 [renderToSvg] 会让 evaluateJavascript
+  /// 静默失败（window.renderMermaid 不存在），30s 后才超时。
+  static void markPageLoaded() {
+    if (_pageLoaded) return;
+    _pageLoaded = true;
+    final c = _pageLoadedCompleter;
+    if (c != null && !c.isCompleted) c.complete();
+    // 页面就绪后，dispatch 已经在 _waiting 里排队的请求。
+    _dispatchWaiting();
+    // 同时通知兄弟服务（FormulaSvgService 等）可以 dispatch 自己的队列。
+    for (final cb in List.of(_pageLoadedCallbacks)) {
+      try {
+        cb();
+      } catch (_) {}
+    }
+  }
+
+  /// 注册一个在 WebView 页面真正加载完成后被同步触发的回调。
+  /// 用于共享同一个 WebView 的其他服务（如 [FormulaSvgService]）。
+  ///
+  /// 重复注册同一个回调可能导致多次触发——调用方需自行去重。
+  static void addPageLoadedCallback(MermaidPageLoadedCallback cb) {
+    _pageLoadedCallbacks.add(cb);
+    if (_pageLoaded) {
+      // 页面已经加载完，立即触发
+      try {
+        cb();
+      } catch (_) {}
+    }
+  }
+
+  /// 异步等待页面真正加载完成。已有 completer 则复用，否则创建一个。
+  /// 等待超时上限是 _renderTimeout（30s），与单次渲染超时对齐。
+  ///
+  /// 公开给共享 WebView 的兄弟服务（如 [FormulaSvgService]）使用。
+  static Future<void> awaitPageLoaded() async {
+    if (_pageLoaded) return;
+    _pageLoadedCompleter ??= Completer<void>();
+    await _pageLoadedCompleter!.future.timeout(
+      _renderTimeout,
+      onTimeout: () {
+        // 不抛错：让下游 renderToSvg 自身的 30s 兜底超时来报错。
+        // 抛错会和我们已有的错误分类冲突。
+      },
+    );
+  }
+
+  /// WebView 渲染进程崩溃时调用，重置状态并清除所有待处理的渲染请求。
+  static void resetRenderer() {
+    _controller = null;
+    _isReady = false;
+    _pageLoaded = false;
+    final pendingPage = _pageLoadedCompleter;
+    _pageLoadedCompleter = null;
+    if (pendingPage != null && !pendingPage.isCompleted) {
+      pendingPage.complete(); // 解开所有 await _awaitPageLoaded 的等待者
+    }
+    for (final p in _waiting) {
+      if (!p.completer.isCompleted) {
+        p.completer.completeError(
+          MermaidRenderException('WebView renderer crashed'),
+        );
+      }
+    }
+    _waiting.clear();
+    for (final p in _active.values) {
+      if (!p.completer.isCompleted) {
+        p.completer.completeError(
+          MermaidRenderException('WebView renderer crashed'),
+        );
+      }
+    }
+    _active.clear();
+    _cache.clear();
+  }
+
+  /// 清理 WebView DOM 中的所有 payload 元素，释放内存。
+  static Future<void> cleanupPayloads() async {
+    final controller = _controller;
+    if (controller == null || !_isReady) return;
+    try {
+      await controller.evaluateJavascript(source: 'window.cleanupPayloads();');
+    } catch (_) {}
   }
 
   /// 暴露已 attach 的 WebView 控制器给其他服务（如 [FormulaSvgService]）复用。
@@ -84,7 +183,11 @@ class MermaidService {
       if (payload.startsWith('b64:')) {
         // base64 fallback — 立即解码（避免 '|' 字符问题）
         try {
-          final svg = utf8.decode(base64Decode(payload.substring(4)));
+          // 关键：allowMalformed: true 容忍部分字节无法解码的情况，
+          // 避免 Mermaid SVG 中夹杂的边缘 Unicode 字符（未配对 surrogate 等）
+          // 导致整批图表渲染失败。
+          final svg = utf8.decode(base64Decode(payload.substring(4)),
+              allowMalformed: true);
           _completePending(id, svg);
         } catch (e) {
           _completePendingError(id, 'base64 decode failed: $e');
@@ -121,23 +224,29 @@ class MermaidService {
     }
     final idLiteral = _js(id).substring(1, _js(id).length - 1);
     try {
-      final raw = await controller.evaluateJavascript(
-        source:
-            '(function(){var e=document.getElementById("payload-$idLiteral");return e?e.textContent:"";})()',
-      );
+      final raw = await controller
+          .evaluateJavascript(
+            source:
+                '(function(){var e=document.getElementById("payload-$idLiteral");return e?e.textContent:"";})()',
+          )
+          .timeout(_renderTimeout);
       final svg = (raw is String) ? raw : (raw?.toString() ?? '');
       // best-effort cleanup
       try {
-        await controller.evaluateJavascript(
-          source:
-              '(function(){var e=document.getElementById("payload-$idLiteral");if(e)e.remove();})()',
-        );
+        await controller
+            .evaluateJavascript(
+              source:
+                  '(function(){var e=document.getElementById("payload-$idLiteral");if(e)e.remove();})()',
+            )
+            .timeout(const Duration(seconds: 2));
       } catch (_) {}
       if (svg.isEmpty) {
         _completePendingError(id, 'DOM fetch returned empty SVG');
       } else {
         _completePending(id, svg);
       }
+    } on TimeoutException {
+      resetRenderer();
     } catch (e) {
       _completePendingError(id, 'DOM fetch failed: $e');
     }
@@ -156,6 +265,21 @@ class MermaidService {
       return hit;
     }
 
+    if (_controller == null || !_isReady) {
+      throw MermaidRenderException(
+        'Mermaid WebView is not ready. Ensure MermaidRendererHost is mounted before exporting.',
+      );
+    }
+
+    // 关键：等待 HTML + 子资源（tex-svg.js / mermaid.min.js）真正加载完毕。
+    // 在此之前 window.renderMermaid 还不存在，evaluateJavascript 会静默
+    // 失败，30s 后才超时。
+    await awaitPageLoaded();
+    if (_controller == null || !_isReady) {
+      // 等待过程中 WebView 被 reset 了
+      throw MermaidRenderException('Mermaid WebView reset during page-load wait');
+    }
+
     final completer = Completer<String>();
     final requestId = 'm${++_requestCounter}';
     final pending = _PendingRender(
@@ -164,12 +288,6 @@ class MermaidService {
       code: code,
       theme: theme,
     );
-
-    if (_controller == null || !_isReady) {
-      throw MermaidRenderException(
-        'Mermaid WebView is not ready. Ensure MermaidRendererHost is mounted before exporting.',
-      );
-    }
 
     _waiting.add(pending);
     _active[requestId] = pending;
@@ -191,7 +309,7 @@ class MermaidService {
   }
 
   static void _dispatchWaiting() {
-    if (_controller == null || !_isReady) return;
+    if (_controller == null || !_isReady || !_pageLoaded) return;
     while (_active.length < _maxConcurrent && _waiting.isNotEmpty) {
       final next = _waiting.removeAt(0);
       if (_activeTheme != next.theme) {
@@ -207,7 +325,11 @@ class MermaidService {
         '(function(){if(!window._mermaidTheme||window._mermaidTheme!==$themeStr){window._mermaidTheme=$themeStr;} '
         'return window.renderMermaid(${_js(p.requestId)}, ${_js(p.code)}, $themeStr);})()';
     try {
-      await _controller?.evaluateJavascript(source: script);
+      await (_controller?.evaluateJavascript(source: script) ?? Future.value(null))
+          .timeout(_renderTimeout);
+    } on TimeoutException {
+      // evaluateJavascript 超时，说明 WebView 进程可能已卡死，重置渲染器状态
+      resetRenderer();
     } catch (e) {
       _completePendingError(p.requestId, 'evaluateJavascript failed: $e');
     }
@@ -314,6 +436,11 @@ window.renderMermaid = async function(id, code, theme) {
     }
     const { svg } = await mermaid.render(id, code);
     el.innerHTML = svg;
+    // 限制 payload 数量：超过 10 个时移除最早的
+    var allPayloads = document.querySelectorAll('[id^="payload-"]');
+    if (allPayloads.length > 10) {
+      allPayloads[0].remove();
+    }
     // v2 协议：把 SVG 写入 hidden payload slot，Dart 用 evaluateJavascript 读 innerHTML
     // 避免旧版 MERMAID_OK|id|len|svg 协议中 '|' 字符丢失的问题
     let payload = document.getElementById('payload-' + id);
@@ -354,11 +481,24 @@ window.renderLatex = async function(id, latex, displayMode) {
       document.body.appendChild(payload);
     }
     payload.textContent = serialized;
+    // 限制 payload 数量：超过 10 个时移除最早的
+    var allPayloads = document.querySelectorAll('[id^="payload-"]');
+    if (allPayloads.length > 10) {
+      allPayloads[0].remove();
+    }
     console.log('LATEX_OK|' + id);
     return true;
   } catch (e) {
     console.log('LATEX_ERR|' + id + '|render_failed|' + (e.message || String(e)));
     return false;
+  }
+};
+
+// 清理所有 payload 元素，释放 DOM 内存
+window.cleanupPayloads = function() {
+  var allPayloads = document.querySelectorAll('[id^="payload-"]');
+  for (var i = 0; i < allPayloads.length; i++) {
+    allPayloads[i].remove();
   }
 };
 </script>

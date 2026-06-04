@@ -1,4 +1,6 @@
-﻿import 'dart:convert';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/parser/markdown_parser.dart';
@@ -474,6 +476,68 @@ graph TD
         print('大文档导出耗时: ${stopwatch.elapsedMilliseconds}ms');
         expect(stopwatch.elapsedMilliseconds, lessThan(5000));
       });
+    });
+  });
+
+  group('ExportService 错误分类', () {
+    test('空白 markdown 抛 emptyDocument', () async {
+      bool gotEmpty = false;
+      try {
+        await ExportService.exportAndShare(
+          markdown: '   \n  ',
+          format: ExportFormat.pdf,
+          exporter: (_) async => Uint8List(0),
+        );
+      } on ExportFailureException catch (e) {
+        expect(e.info.kind, ExportFailure.emptyDocument);
+        gotEmpty = true;
+      }
+      expect(gotEmpty, true);
+    });
+
+    test('空字符串 markdown 抛 emptyDocument', () async {
+      bool gotEmpty = false;
+      try {
+        await ExportService.exportAndShare(
+          markdown: '',
+          format: ExportFormat.docx,
+          exporter: (_) async => Uint8List(0),
+        );
+      } on ExportFailureException catch (e) {
+        expect(e.info.kind, ExportFailure.emptyDocument);
+        gotEmpty = true;
+      }
+      expect(gotEmpty, true);
+    });
+
+    test('exporter 抛 ExportException 归为 renderError', () async {
+      bool got = false;
+      try {
+        await ExportService.exportAndShare(
+          markdown: '# title',
+          format: ExportFormat.pdf,
+          exporter: (_) async => throw ExportException('format unsupported'),
+        );
+      } on ExportFailureException catch (e) {
+        expect(e.info.kind, ExportFailure.renderError);
+        got = true;
+      }
+      expect(got, true);
+    });
+
+    test('exporter 抛 ArgumentError 归为 parseError', () async {
+      bool got = false;
+      try {
+        await ExportService.exportAndShare(
+          markdown: '# title',
+          format: ExportFormat.docx,
+          exporter: (_) async => throw ArgumentError('bad input'),
+        );
+      } on ExportFailureException catch (e) {
+        expect(e.info.kind, ExportFailure.parseError);
+        got = true;
+      }
+      expect(got, true);
     });
   });
 }

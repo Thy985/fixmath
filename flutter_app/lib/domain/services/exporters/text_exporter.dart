@@ -35,7 +35,49 @@ class TextExporter {
     final trimmed = result.endsWith('\n')
         ? result.substring(0, result.length - 1)
         : result;
-    return Uint8List.fromList(utf8.encode(trimmed));
+    // 关键：清洗未配对 UTF-16 surrogate / 不可编码字符，避免
+    // utf8.encode 抛 "Unexpected extension byte" 致整份 txt 导出失败。
+    // Markdown 源文本理论上不应有 surrogate，但 WebView 桥接回 Dart
+    // 的某些内容（嵌入的 SVG、Mermaid 提示文本等）可能残留。
+    final safe = _sanitize(trimmed);
+    return Uint8List.fromList(utf8.encode(safe));
+  }
+
+  /// 清洗字符串为可安全 utf8.encode 的 Dart String。
+  /// 复用 word_exporter 的 _safeXml 策略的精简版。
+  ///
+  /// **关键**：用 `String.fromCharCodes` 一次性重建字符串（不是
+  /// `String.fromCharCode` 逐字符）。后者对 rune > 0xFFFF 会截断为
+  /// 低 16 位 → 产生孤立 surrogate → utf8.encode 抛 "Unexpected
+  /// extension byte (at offset 1)"。Dart 的 fromCharCodes 会自动为
+  /// 非 BMP 字符生成合法 surrogate pair。
+  static String _sanitize(String s) {
+    if (s.isEmpty) return s;
+    final safeRunes = <int>[];
+    for (final r in s.runes) {
+      if (r >= 0xD800 && r <= 0xDFFF) {
+        // 孤立 surrogate
+        safeRunes.add(0xFFFD);
+      } else if (r == 0xFFFE || r == 0xFFFF) {
+        // Unicode noncharacter
+        safeRunes.add(0xFFFD);
+      } else if (r >= 0x00 && r < 0x20 && r != 0x09 && r != 0x0A && r != 0x0D) {
+        // C0 控制字符
+        safeRunes.add(0xFFFD);
+      } else if (r == 0x7F) {
+        // DEL
+        safeRunes.add(0xFFFD);
+      } else {
+        safeRunes.add(r);
+      }
+    }
+    final cleaned = String.fromCharCodes(safeRunes);
+    try {
+      final bytes = utf8.encode(cleaned);
+      return utf8.decode(bytes, allowMalformed: true);
+    } on FormatException {
+      return '';
+    }
   }
 
   /// 把单个 DocumentElement 序列化为单行/多行 Markdown 文本。

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
+import '../../core/services/file_service.dart' show decodeBytesAuto;
 
 class FileManagerScreen extends ConsumerStatefulWidget {
   const FileManagerScreen({super.key});
@@ -29,7 +30,8 @@ class _FileManagerScreenState extends ConsumerState<FileManagerScreen> {
       final fileInfos = <FileInfo>[];
       for (final file in dirFiles) {
         final stat = file.statSync();
-        final content = await file.readAsString();
+        // 用 decodeBytesAuto 处理非 UTF-8 编码（GBK / 含非法字节）的旧文件
+        final content = decodeBytesAuto(await file.readAsBytes());
         final preview = content.length > 80 ? '${content.substring(0, 80)}...' : content;
         fileInfos.add(FileInfo(
           path: file.path,

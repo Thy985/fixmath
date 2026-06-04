@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/services/export_service.dart';
 import '../../core/services/file_service.dart';
+import '../../domain/services/export_service.dart';
 import '../../core/services/formula_pdf_renderer.dart';
 import '../../core/services/formula_svg_service.dart';
 import '../../core/services/mermaid_service.dart';
@@ -137,10 +137,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  /// 从 Markdown 内容中提取第一个标题行作为导出文件名
+  String? _extractTitle(String markdown) {
+    final lines = markdown.split('\n');
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.startsWith('# ')) {
+        return trimmed.substring(2).trim();
+      }
+    }
+    return null;
+  }
+
   Future<void> _exportToPdf() async {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
     final isDark = ref.read(darkModeProvider);
+    final title = _extractTitle(content);
 
     ref.read(isExportingProvider.notifier).state = true;
     try {
@@ -148,6 +161,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         markdown: content,
         format: ExportFormat.pdf,
         exporter: (markdown) => MarkdownExporter.exportToPdf(markdown, isDark: isDark),
+        title: title,
       );
     } on ExportFailureException catch (e) {
       _showSnackBar(_userMessageFor('PDF', e.info));
@@ -160,6 +174,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
     final isDark = ref.read(darkModeProvider);
+    final title = _extractTitle(content);
 
     ref.read(isExportingProvider.notifier).state = true;
     try {
@@ -167,6 +182,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         markdown: content,
         format: ExportFormat.docx,
         exporter: (markdown) => MarkdownExporter.exportToWord(markdown, isDark: isDark),
+        title: title,
       );
     } on ExportFailureException catch (e) {
       _showSnackBar(_userMessageFor('Word', e.info));
@@ -178,6 +194,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _exportToTxt() async {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
+    final title = _extractTitle(content);
 
     ref.read(isExportingProvider.notifier).state = true;
     try {
@@ -185,6 +202,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         markdown: content,
         format: ExportFormat.txt,
         exporter: MarkdownExporter.exportToTxt,
+        title: title,
       );
     } on ExportFailureException catch (e) {
       _showSnackBar(_userMessageFor('文本', e.info));
@@ -197,32 +215,48 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   ///
   /// 绝不暴露底层异常类名或堆栈——只用 [userMessage] 和 [detail]，
   /// 而 [detail] 也经过脱敏（短字符串 + 局部截断）。
+  ///
+  /// 失败时不仅告诉用户"超时/失败",还要引导用户自助排查(检查文档大小、
+  /// 检查是否含未支持语法等)。Snippet 类型的 detail 在合法范围内透传。
   String _userMessageFor(String formatLabel, ExportFailureInfo info) {
     final kind = info.kind;
     final detail = info.detail;
     switch (kind) {
+      case ExportFailure.emptyDocument:
+        return '无法导出空白文档';
       case ExportFailure.offline:
         return '请检查网络连接';
       case ExportFailure.parseError:
         if (detail != null && detail.isNotEmpty) {
-          return '文档中有无法识别的公式: $detail';
+          return '文档中有无法识别的内容: ${_clip(detail, 60)}';
         }
-        return '文档中有无法识别的公式';
+        return '文档中有无法识别的内容';
       case ExportFailure.renderError:
-        return '渲染失败，可能含有不支持的语法';
+        if (detail != null && detail.isNotEmpty) {
+          return '$formatLabel 渲染失败: ${_clip(detail, 60)}';
+        }
+        return '$formatLabel 渲染失败，可能含有不支持的语法';
       case ExportFailure.writeError:
         if (detail != null && detail.isNotEmpty) {
-          return '保存失败: $detail';
+          return '保存失败: ${_clip(detail, 60)}';
         }
         return '保存失败';
       case ExportFailure.timeout:
-        return '导出超时，请重试';
+        return '$formatLabel 导出超时（超过 120s）。'
+            '可能原因：文档过大、公式/图表太多、或 WebView 渲染卡死。'
+            '请尝试：减少公式/图表数量后重试，或简化文档内容。';
       case ExportFailure.unknown:
         if (detail != null && detail.isNotEmpty) {
-          return '$formatLabel 导出失败: $detail';
+          return '$formatLabel 导出失败: ${_clip(detail, 80)}';
         }
         return '$formatLabel 导出失败';
     }
+  }
+
+  /// 截断 detail 以避免 SnackBar 文案过长。
+  String _clip(String s, int maxLen) {
+    if (s.length <= maxLen) return s;
+    return '${s.substring(0, maxLen)}…';
   }
 
   void _showExportMenu() {
