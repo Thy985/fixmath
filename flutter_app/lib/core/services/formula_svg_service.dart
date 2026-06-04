@@ -57,6 +57,14 @@ class FormulaSvgService {
       );
     }
 
+    // 关键：等 HTML + tex-svg.js 真正加载完。否则 window.renderLatex 不存在，
+    // evaluateJavascript 静默失败，30s 后才超时。
+    _ensurePageLoadedCallbackRegistered();
+    await MermaidService.awaitPageLoaded();
+    if (MermaidService.attachedController == null) {
+      throw FormulaSvgException('WebView reset during page-load wait');
+    }
+
     final completer = Completer<String>();
     final requestId = 'l${++_requestCounter}';
     final pending = _PendingLatex(
@@ -122,10 +130,26 @@ class FormulaSvgService {
   static void _dispatchWaiting() {
     final controller = MermaidService.attachedController;
     if (controller == null) return;
+    if (!MermaidService.isPageLoaded) return; // 等 onLoadStop
     while (_active.length < _maxConcurrent && _waiting.isNotEmpty) {
       final next = _waiting.removeAt(0);
       _evaluate(controller, next);
     }
+  }
+
+  static bool _pageLoadedCallbackRegistered = false;
+
+  /// 注册一次性的页面加载回调——当 MermaidService 报告页面真正加载完成后
+  /// 立即 dispatch 自己的 _waiting 队列。多次调用 [renderToSvg] 共享同一个
+  /// 回调。
+  static void _ensurePageLoadedCallbackRegistered() {
+    if (_pageLoadedCallbackRegistered) return;
+    _pageLoadedCallbackRegistered = true;
+    MermaidService.addPageLoadedCallback(_onPageLoaded);
+  }
+
+  static void _onPageLoaded() {
+    _dispatchWaiting();
   }
 
   static Future<void> _evaluate(
@@ -135,7 +159,10 @@ class FormulaSvgService {
     final script =
         'window.renderLatex(${_js(p.requestId)}, ${_js(p.latex)}, ${p.displayMode})';
     try {
-      await controller.evaluateJavascript(source: script);
+      await controller.evaluateJavascript(source: script).timeout(_renderTimeout);
+    } on TimeoutException {
+      // WebView 进程卡死，重置渲染器
+      MermaidService.resetRenderer();
     } catch (e) {
       _completePendingError(p.requestId, 'evaluateJavascript failed: $e');
     }
@@ -180,7 +207,11 @@ class FormulaSvgService {
       if (payload.startsWith('b64:')) {
         // base64 fallback — 立即解码（避免 '|' 字符问题）
         try {
-          final svg = utf8.decode(base64Decode(payload.substring(4)));
+          // 关键：allowMalformed: true 容忍部分字节无法解码的情况，
+          // 避免 SVG 中夹杂的边缘 Unicode 字符（未配对 surrogate 等）
+          // 导致整批公式渲染失败。
+          final svg = utf8.decode(base64Decode(payload.substring(4)),
+              allowMalformed: true);
           _completePending(id, svg);
         } catch (e) {
           _completePendingError(id, 'base64 decode failed: $e');

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
+import 'file_service.dart' show decodeBytesAuto;
 
 class DocumentService {
   static const String _fileName = 'formula_fix_documents.json';
@@ -18,7 +19,10 @@ class DocumentService {
     try {
       final f = await _file;
       if (!await f.exists()) return [];
-      final content = await f.readAsString();
+      // 本服务的 JSON 文件理论上总是 UTF-8（我们自己写入的），但用
+      // decodeBytesAuto 防止历史数据/迁移过来的文件含异常字节。
+      final bytes = await f.readAsBytes();
+      final content = decodeBytesAuto(bytes);
       if (content.isEmpty) return [];
       final List<dynamic> list = json.decode(content);
       return list.map((j) => _fromJson(j as Map<String, dynamic>)).toList()
@@ -92,7 +96,10 @@ class DocumentService {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final f = File('${dir.path}/formula_fix_autosave.md');
-      if (await f.exists()) return f.readAsString();
+      if (await f.exists()) {
+        final bytes = await f.readAsBytes();
+        return decodeBytesAuto(bytes);
+      }
     } catch (e) {
       debugPrint('Failed to load autosave: $e');
     }

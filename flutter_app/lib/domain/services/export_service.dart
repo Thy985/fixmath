@@ -39,8 +39,48 @@ import 'exporters/word_exporter.dart';
 ///
 /// 所有方法都是 static，保持与重构前完全一致的 import 路径和调用方式。
 /// 内部按格式委托给对应的 Exporter 类。
+///
+/// 依赖注入：通过 [register] 注册自定义 exporter 实例，
+/// 单元测试可注入 fake exporter 而无需 mock 全局状态。
 class MarkdownExporter {
   MarkdownExporter._();
+
+  /// 当前生效的 PDF exporter（默认 = [DefaultPdfExporter]）。
+  static PdfExporterInterface _pdfExporter = const DefaultPdfExporter();
+
+  /// 当前生效的 Word exporter（默认 = [DefaultWordExporter]）。
+  static WordExporterInterface _wordExporter = const DefaultWordExporter();
+
+  /// 当前生效的 Text exporter（默认 = [DefaultTextExporter]）。
+  static TextExporterInterface _textExporter = const DefaultTextExporter();
+
+  /// 注册自定义实现。返回 `dispose` 闭包用于还原。
+  ///
+  /// 用法:
+  /// ```dart
+  /// final dispose = MarkdownExporter.register(
+  ///   pdf: FakePdfExporter(),
+  ///   word: FakeWordExporter(),
+  /// );
+  /// addTearDown(dispose);
+  /// ```
+  static void Function() register({
+    PdfExporterInterface? pdf,
+    WordExporterInterface? word,
+    TextExporterInterface? text,
+  }) {
+    final prevPdf = _pdfExporter;
+    final prevWord = _wordExporter;
+    final prevText = _textExporter;
+    if (pdf != null) _pdfExporter = pdf;
+    if (word != null) _wordExporter = word;
+    if (text != null) _textExporter = text;
+    return () {
+      _pdfExporter = prevPdf;
+      _wordExporter = prevWord;
+      _textExporter = prevText;
+    };
+  }
 
   /// 递归收集文档中所有唯一的 LaTeX 公式字符串（去重）。
   /// 覆盖 ParagraphElement / ListElement / TableElement（headers + 每个 cell）。
@@ -57,7 +97,7 @@ class MarkdownExporter {
     String? author,
     bool isDark = false,
   }) {
-    return PdfExporter.export(
+    return _pdfExporter.export(
       markdown,
       title: title,
       author: author,
@@ -71,11 +111,83 @@ class MarkdownExporter {
     String? title,
     bool isDark = false,
   }) {
-    return WordExporter.export(markdown, title: title, isDark: isDark);
+    return _wordExporter.export(markdown, title: title, isDark: isDark);
   }
 
   /// 把 Markdown 文本导出为 UTF-8 编码的纯文本字节流。
   static Future<Uint8List> exportToTxt(String markdown) {
+    return _textExporter.export(markdown);
+  }
+}
+
+// ============================================================================
+// Exporter 接口：依赖注入点
+// ============================================================================
+
+/// PDF 导出接口。
+abstract interface class PdfExporterInterface {
+  Future<Uint8List> export(
+    String markdown, {
+    String? title,
+    String? author,
+    bool isDark,
+  });
+}
+
+/// Word 导出接口。
+abstract interface class WordExporterInterface {
+  Future<Uint8List> export(
+    String markdown, {
+    String? title,
+    bool isDark,
+  });
+}
+
+/// 纯文本导出接口。
+abstract interface class TextExporterInterface {
+  Future<Uint8List> export(String markdown);
+}
+
+/// 默认 PDF 实现，代理到 [PdfExporter] 的 static 方法。
+class DefaultPdfExporter implements PdfExporterInterface {
+  const DefaultPdfExporter();
+
+  @override
+  Future<Uint8List> export(
+    String markdown, {
+    String? title,
+    String? author,
+    bool isDark = false,
+  }) {
+    return PdfExporter.export(
+      markdown,
+      title: title,
+      author: author,
+      isDark: isDark,
+    );
+  }
+}
+
+/// 默认 Word 实现，代理到 [WordExporter] 的 static 方法。
+class DefaultWordExporter implements WordExporterInterface {
+  const DefaultWordExporter();
+
+  @override
+  Future<Uint8List> export(
+    String markdown, {
+    String? title,
+    bool isDark = false,
+  }) {
+    return WordExporter.export(markdown, title: title, isDark: isDark);
+  }
+}
+
+/// 默认纯文本实现，代理到 [TextExporter] 的 static 方法。
+class DefaultTextExporter implements TextExporterInterface {
+  const DefaultTextExporter();
+
+  @override
+  Future<Uint8List> export(String markdown) {
     return TextExporter.export(markdown);
   }
 }
@@ -90,6 +202,9 @@ class MarkdownExporter {
 /// 同一类错误在不同语境下文案可能不同（例如 parseError 既可能源自 Markdown
 /// 解析也可能源自 LaTeX 渲染），具体文案在 UI 层拼接。
 enum ExportFailure {
+  /// 文档为空或无效。
+  emptyDocument,
+
   /// 网络不可达（SocketException / NetworkException / HttpException 等）。
   offline,
 
@@ -99,7 +214,7 @@ enum ExportFailure {
   /// 渲染失败：公式 / Mermaid 内部 SVG 解析、字体加载等。
   renderError,
 
-  /// 写临时文件 / 读取 / 删除失败（FileSystemException / PlatformException 等）。
+  /// 写临时文件 / 读取 / 归档编码失败（FileSystemException / PlatformException 等）。
   writeError,
 
   /// 导出超时（TimeoutException）。
@@ -156,7 +271,24 @@ ExportFailureInfo classifyError(Object e) {
   }
 
   if (e is ExportException) {
-    // ExportException 是应用层显式抛出的（空文档 / 编码失败等），按 renderError 处理。
+    // ExportException 根据消息内容分类
+    final msg = e.message.toLowerCase();
+    if (msg.contains('empty') || msg.contains('空白') || msg.isEmpty) {
+      return (
+        kind: ExportFailure.emptyDocument,
+        userMessage: '无法导出空白文档',
+        detail: null,
+        cause: e,
+      );
+    }
+    if (msg.contains('encode') || msg.contains('zip') || msg.contains('archive')) {
+      return (
+        kind: ExportFailure.writeError,
+        userMessage: '文档打包失败，请重试',
+        detail: e.message,
+        cause: e,
+      );
+    }
     return (
       kind: ExportFailure.renderError,
       userMessage: '渲染失败，可能含有不支持的语法',
@@ -212,8 +344,8 @@ ExportFailureInfo classifyError(Object e) {
 }
 
 String _truncate(String s, int maxLen) {
-  if (s.length <= maxLen) return s;
-  return '${s.substring(0, maxLen)}…';
+  if (s.isEmpty || maxLen <= 0) return '';
+  return safeClip(s, maxLen);
 }
 
 // ============================================================================
@@ -236,6 +368,18 @@ class ExportException implements Exception {
   String toString() => message;
 }
 
+/// 公开的工具函数：UTF-16 安全的字符串截断。
+///
+/// 使用 [String.runes] 迭代字符，避免 surrogate pair 被 [String.substring]
+/// 切到中间产生乱码。`maxLen` 是 rune (Unicode code point) 数量，不是 UTF-16
+/// 单元数。截断后追加 `…`。
+String safeClip(String s, int maxLen) {
+  if (s.isEmpty || maxLen <= 0) return '';
+  final chars = s.runes.toList();
+  if (chars.length <= maxLen) return s;
+  return '${String.fromCharCodes(chars.take(maxLen))}…';
+}
+
 // ============================================================================
 // 导出 + 分享高层包装：ExportService
 // ============================================================================
@@ -255,15 +399,27 @@ class ExportService {
   ///
   /// [exporter] 是具体的导出函数（通常是一个 MarkdownExporter 静态方法的闭包）。
   /// 任何阶段抛出的异常都会被分类并以 [ExportFailureException] 重新抛出。
+  ///
+  /// 阶段：解析/收集公式 → 预渲染公式 → 拼装文档 → 写临时文件 → 调起系统分享。
+  /// 每个阶段都打 debugPrint 日志，便于线上排查卡在哪个阶段。
   static Future<void> exportAndShare({
     required String markdown,
     required ExportFormat format,
     required Future<Uint8List> Function(String) exporter,
+    String? title,
   }) async {
-    if (markdown.isEmpty) {
+    final formatLabel = switch (format) {
+      ExportFormat.pdf => 'PDF',
+      ExportFormat.docx => 'Word',
+      ExportFormat.txt => 'TXT',
+    };
+    final sw = Stopwatch()..start();
+    debugPrint('[Export:${formatLabel}] start, markdown length=${markdown.length}');
+
+    if (markdown.trim().isEmpty) {
       throw ExportFailureException(
         (
-          kind: ExportFailure.renderError,
+          kind: ExportFailure.emptyDocument,
           userMessage: '无法导出空白文档',
           detail: null,
           cause: null,
@@ -271,22 +427,39 @@ class ExportService {
       );
     }
 
+    // 阶段 1: 渲染
     final Uint8List bytes;
     try {
       bytes = await exporter(markdown).timeout(_exportTimeout);
-    } on TimeoutException catch (e) {
-      throw ExportFailureException(classifyError(e));
+      debugPrint('[Export:${formatLabel}] render done, bytes=${bytes.length}');
+    } on TimeoutException {
+      debugPrint(
+        '[Export:${formatLabel}] TIMEOUT after ${sw.elapsedMilliseconds}ms in render stage. '
+        '常见原因：(1) 公式/Mermaid 预渲染挂死 (FormulaRenderHost 未挂载或 WebView 卡死); '
+        '(2) 文档过大, 拼装 PDF/Word 耗时超过 120s。',
+      );
+      throw ExportFailureException(classifyError(TimeoutException(
+        '导出在渲染阶段超时（${_exportTimeout.inSeconds}s）',
+      )));
     } catch (e) {
+      debugPrint('[Export:${formatLabel}] render failed: $e');
       throw ExportFailureException(classifyError(e));
     }
 
+    // 阶段 2: 写临时文件 + 调起分享
     final tempDir = await getTemporaryDirectory();
     final extension = format.name;
-    final filename = 'formulafix_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final rawTitle = (title == null || title.trim().isEmpty) ? 'formulafix' : title;
+    final sanitizedTitle = rawTitle
+        .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '_')
+        .replaceAll(RegExp(r'\s+'), '_');
+    final safeTitle = _truncate(sanitizedTitle, 30);
+    final filename = '${safeTitle}_${DateTime.now().millisecondsSinceEpoch}.$extension';
     final file = File('${tempDir.path}/$filename');
 
     try {
       await file.writeAsBytes(bytes);
+      debugPrint('[Export:${formatLabel}] file written: ${file.path}');
 
       // 等待分享完成或超时
       try {
@@ -294,10 +467,15 @@ class ExportService {
           [XFile(file.path)],
           text: 'FormulaFix $extension',
         ).timeout(_shareTimeout);
+        debugPrint('[Export:${formatLabel}] share completed in ${sw.elapsedMilliseconds}ms');
       } on TimeoutException {
-        debugPrint('Share timeout, file saved at: ${file.path}');
+        debugPrint(
+          '[Export:${formatLabel}] share UI timeout after ${_shareTimeout.inSeconds}s, '
+          'file still saved at: ${file.path}',
+        );
       }
     } catch (e) {
+      debugPrint('[Export:${formatLabel}] write/share failed: $e');
       throw ExportFailureException(classifyError(e));
     } finally {
       // 分享完成后（或超时后）再删除临时文件

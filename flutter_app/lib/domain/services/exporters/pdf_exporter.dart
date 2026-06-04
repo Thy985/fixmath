@@ -16,6 +16,7 @@ import '../../../core/parser/formula_extractor.dart';
 import '../../../core/parser/markdown_parser.dart';
 import '../../../core/services/formula_pdf_renderer.dart';
 import '../../../core/services/formula_svg_service.dart';
+import '../../../core/services/mermaid_service.dart';
 import '../../../data/models/document.dart';
 import '../export_service.dart' show ExportException;
 import 'formula_render_plan.dart';
@@ -25,17 +26,40 @@ import 'pdf_page_decoration.dart';
 class PdfExporter {
   static pw.Font? _cjkFont;
   static bool _cjkFontLoadAttempted = false;
+  static DateTime? _cjkFontLoadFailedAt;
+  static const Duration _fontRetryInterval = Duration(seconds: 30);
 
   /// 加载 CJK 字体（用于中文等宽字符）。失败时回退 Helvetica。
+  ///
+  /// 具备重试机制：首次失败后间隔 [_fontRetryInterval] 可再次尝试加载，
+  /// 避免临时 IO 抖动导致永久降级。
   static Future<pw.Font?> _ensureCjkFont() async {
-    if (_cjkFontLoadAttempted) return _cjkFont;
+    if (_cjkFontLoadAttempted && _cjkFont != null) {
+      return _cjkFont;
+    }
+
+    // 如果已加载失败，检查是否超过重试间隔
+    if (_cjkFontLoadAttempted && _cjkFont == null) {
+      if (_cjkFontLoadFailedAt != null) {
+        final elapsed = DateTime.now().difference(_cjkFontLoadFailedAt!);
+        if (elapsed < _fontRetryInterval) {
+          return null; // 仍在冷却期，使用 fallback
+        }
+        // 超过冷却期，允许重试
+        debugPrint('CJK font retry attempt after ${elapsed.inSeconds}s cooldown');
+      }
+    }
+
     _cjkFontLoadAttempted = true;
     try {
       final data = await rootBundle.load('assets/fonts/NotoSansSC-Regular.ttf');
       _cjkFont = pw.Font.ttf(data);
+      _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
+      debugPrint('CJK font loaded successfully');
     } catch (e) {
       debugPrint('CJK font load failed: $e');
       _cjkFont = null;
+      _cjkFontLoadFailedAt = DateTime.now();
     }
     return _cjkFont;
   }
@@ -86,17 +110,18 @@ class PdfExporter {
     final allFormulas = collectAllFormulas(elements);
 
     if (allFormulas.isNotEmpty) {
-      debugPrint('Pre-rendering ${allFormulas.length} unique formulas (PDF, isDark=$isDark)...');
-      await FormulaPdfRenderer.preRenderAll(
-        allFormulas,
-        fontSize: 16,
-        isDark: isDark,
-        format: FormulaPdfRenderer.formatPdf,
-      );
+      debugPrint(
+          'Pre-rendering ${allFormulas.length} unique formulas (SVG, isDark=$isDark)...');
+      // 主路径：SVG（WebView + MathJax）→ pw.SvgImage 矢量化嵌入 PDF。
+      // 优势：无 GPU 离屏渲染、无内存压力、任意缩放清晰。
+      // 不再预渲染 PNG：之前 5.0 倍 pixelRatio × 24 公式的离屏 toImage()
+      // 会在真机低端设备上触发 GC 抖动 + 偶发 toImage 不返回。
+      // PNG 缓存保留在 buildFormulaPlan 中作为最终兜底——WebView
+      // 加载失败时回退到 bitmap（text fallback 之后）。
       try {
         await FormulaSvgService.preRenderAll(allFormulas, displayMode: false);
       } catch (e) {
-        debugPrint('SVG pre-render skipped: $e');
+        debugPrint('SVG pre-render failed (will fall back to PNG/text): $e');
       }
     }
 
@@ -107,6 +132,8 @@ class PdfExporter {
             base: pw.Font.helvetica(),
             fontFallback: const [],
           );
+    // 用于代码块的 monospace 字体。pdf 包内置 Courier。
+    final monoFont = pw.Font.courier();
 
     final pdf = pw.Document(
       title: title ?? 'FormulaFix 文档',
@@ -119,7 +146,12 @@ class PdfExporter {
     final List<pw.Widget> body = [];
 
     for (final element in elements) {
-      final widget = await _elementToPdfWidgetAsync(element);
+      final widget = await _elementToPdfWidgetAsync(
+        element,
+        isDark: isDark,
+        monoFont: monoFont,
+        cjkFont: cjk,
+      );
       if (widget != null) {
         body.add(widget);
       }
@@ -129,8 +161,8 @@ class PdfExporter {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(40, 60, 40, 60),
-        header: (ctx) => buildPdfHeader(title ?? 'FormulaFix', ctx),
-        footer: (ctx) => buildPdfFooter(ctx),
+        header: (ctx) => buildPdfHeader(title ?? 'FormulaFix', ctx, isDark: isDark),
+        footer: (ctx) => buildPdfFooter(ctx, isDark: isDark),
         theme: theme,
         build: (_) => body,
       ),
@@ -138,6 +170,8 @@ class PdfExporter {
 
     // 不在导出末尾清理缓存——重复导出同一文档应能命中缓存。
     // 缓存在 editor_screen 退出 / app pause 时由调用方清理。
+    // 但每次导出后清理 WebView DOM payload 元素，减少内存压力。
+    await MermaidService.cleanupPayloads();
     return pdf.save();
   }
 
@@ -187,23 +221,28 @@ class PdfExporter {
 
   // --- 元素 → PDF widget 派发 ---
 
-  static Future<pw.Widget?> _elementToPdfWidgetAsync(DocumentElement element) async {
+  static Future<pw.Widget?> _elementToPdfWidgetAsync(
+    DocumentElement element, {
+    bool isDark = false,
+    pw.Font? monoFont,
+    pw.Font? cjkFont,
+  }) async {
     if (element is HeadingElement) {
-      return _pdfHeading(element.level, element.text);
+      return _pdfHeading(element.level, element.text, isDark: isDark);
     } else if (element is ParagraphElement) {
-      return await _pdfParagraphAsync(element.children, fontSize: 13);
+      return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark);
     } else if (element is ListElement) {
       final paragraph =
-          await _pdfParagraphAsync(element.children, fontSize: 13);
+          await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark);
       return _wrapListItem(paragraph, element.indent, element.ordered);
     } else if (element is CodeElement) {
-      return _pdfCode(element.code, element.language);
+      return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont);
     } else if (element is BlockquoteElement) {
-      return _pdfBlockquote(element.text);
+      return _pdfBlockquote(element.text, isDark: isDark);
     } else if (element is MermaidElement) {
       return await buildMermaidPdfWidget(element.code);
     } else if (element is TableElement) {
-      return await _pdfTable(element.headers, element.rows);
+      return await _pdfTable(element.headers, element.rows, isDark: isDark);
     } else if (element is EmptyLineElement) {
       return pw.SizedBox(height: 6);
     }
@@ -216,7 +255,10 @@ class PdfExporter {
     List<InlineElement> children, {
     required double fontSize,
     bool bold = false,
+    bool isDark = false,
   }) async {
+    final textColor = isDark ? PdfColors.grey100 : PdfColors.black;
+    final boldColor = isDark ? PdfColors.grey200 : PdfColors.grey900;
     final widgets = <pw.Widget>[];
 
     for (final c in children) {
@@ -226,7 +268,7 @@ class PdfExporter {
           style: pw.TextStyle(
             fontSize: fontSize,
             fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            color: bold ? PdfColors.grey900 : PdfColors.black,
+            color: bold ? boldColor : textColor,
           ),
         ));
       } else if (c is FormulaElement) {
@@ -234,7 +276,7 @@ class PdfExporter {
         widgets.add(plan.toPdfWidget(fontSize: fontSize));
       } else if (c is BoldElement) {
         // 递归渲染 bold 内部
-        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true));
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark));
       }
     }
 
@@ -245,19 +287,38 @@ class PdfExporter {
   }
 
   static pw.Widget _wrapListItem(pw.Widget paragraph, int indent, bool ordered) {
-    final prefix = ordered ? '${indent + 1}. ' : '• ';
+    String prefix;
+    if (ordered) {
+      // 嵌套有序列表: indent=0 → "1.", indent=1 → "1.1.", indent=2 → "1.1.1."
+      final parts = <String>[];
+      for (int i = 0; i <= indent; i++) {
+        parts.add('${i + 1}');
+      }
+      prefix = '${parts.join('.')}. ';
+    } else {
+      // 与 Word numbering.xml 中 bullet 样式对齐，每层用 `•`。
+      prefix = '• ';
+    }
+    // 缩进与 Word 的 hanging 360 + 360*indent (twips) 保持近似比例。
+    // 1 twip ≈ 0.0141 pt；360 twips ≈ 5pt = ~18.75 / 1.333 ≈ 14 logical pt
+    const double indentPt = 14.0;
+    final leftPad = indent * indentPt;
+    final prefixWidth = leftPad + 24; // 留出编号+空白
     return pw.Padding(
-      padding: pw.EdgeInsets.only(left: indent * 16.0, top: 2, bottom: 2),
+      padding: const pw.EdgeInsets.only(left: 0, top: 2, bottom: 2),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: indent * 16.0 + 20,
-            child: pw.Text(
-              prefix,
-              style: pw.TextStyle(
-                fontSize: 13,
-                fontWeight: pw.FontWeight.bold,
+            width: prefixWidth,
+            child: pw.Padding(
+              padding: pw.EdgeInsets.only(left: leftPad),
+              child: pw.Text(
+                prefix,
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -267,7 +328,7 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _pdfHeading(int level, String text) {
+  static pw.Widget _pdfHeading(int level, String text, {bool isDark = false}) {
     final size = switch (level) {
       1 => 22.0,
       2 => 18.0,
@@ -275,6 +336,7 @@ class PdfExporter {
       4 => 13.0,
       _ => 12.0,
     };
+    final color = isDark ? PdfColors.grey100 : PdfColors.grey900;
     return pw.Padding(
       padding: pw.EdgeInsets.only(
         top: level == 1 ? 16 : 12,
@@ -285,20 +347,33 @@ class PdfExporter {
         style: pw.TextStyle(
           fontSize: size,
           fontWeight: pw.FontWeight.bold,
-          color: PdfColors.grey900,
+          color: color,
         ),
       ),
     );
   }
 
-  static pw.Widget _pdfCode(String code, String? language) {
+  static pw.Widget _pdfCode(
+    String code,
+    String? language, {
+    bool isDark = false,
+    pw.Font? monoFont,
+    pw.Font? cjkFont,
+  }) {
+    final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey100;
+    final borderColor = isDark ? PdfColors.grey600 : PdfColors.grey300;
+    final textColor = isDark ? PdfColors.grey100 : PdfColors.grey900;
+    // 代码块优先用等宽字体 (Courier) 以保证代码对齐；
+    // cjkFont 仅在无等宽字体时作 fallback（事实上 pdf 包的 standard fonts
+    // 不支持 cjkFont fontFallback 命名参数，这里仅用 cjkFont 整体替换）。
+    final codeFont = monoFont ?? (cjkFont ?? pw.Font.courier());
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
+        color: bgColor,
         borderRadius: pw.BorderRadius.circular(4),
-        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+        border: pw.Border.all(color: borderColor, width: 0.5),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -312,7 +387,7 @@ class PdfExporter {
                   vertical: 2,
                 ),
                 decoration: pw.BoxDecoration(
-                  color: PdfColors.blue700,
+                  color: isDark ? PdfColors.blue900 : PdfColors.blue700,
                   borderRadius: pw.BorderRadius.circular(2),
                 ),
                 child: pw.Text(
@@ -329,7 +404,8 @@ class PdfExporter {
             code,
             style: pw.TextStyle(
               fontSize: 11,
-              font: null,
+              color: textColor,
+              font: codeFont,
             ),
           ),
         ],
@@ -337,22 +413,25 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _pdfBlockquote(String text) {
+  static pw.Widget _pdfBlockquote(String text, {bool isDark = false}) {
+    final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey50;
+    final textColor = isDark ? PdfColors.grey300 : PdfColors.grey800;
+    final borderColor = isDark ? PdfColors.blue400 : PdfColors.blue700;
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       padding: const pw.EdgeInsets.all(12),
-      decoration: const pw.BoxDecoration(
+      decoration: pw.BoxDecoration(
         border: pw.Border(
-          left: pw.BorderSide(color: PdfColors.blue700, width: 3),
+          left: pw.BorderSide(color: borderColor, width: 3),
         ),
-        color: PdfColors.grey50,
+        color: bgColor,
       ),
       child: pw.Text(
         text,
         style: pw.TextStyle(
           fontSize: 13,
           fontStyle: pw.FontStyle.italic,
-          color: PdfColors.grey800,
+          color: textColor,
         ),
       ),
     );
@@ -362,8 +441,9 @@ class PdfExporter {
 
   static Future<pw.Widget> _pdfTable(
     List<String> headers,
-    List<List<String>> rows,
-  ) async {
+    List<List<String>> rows, {
+    bool isDark = false,
+  }) async {
     if (headers.isEmpty) return pw.SizedBox();
 
     // 把每个 header / cell 解析为 inline children，公式走矢量/位图渲染。
@@ -372,41 +452,48 @@ class PdfExporter {
       final inlines = MarkdownParser.parseInline(h);
       headerCells.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 12, bold: true),
+        child: await _pdfParagraphAsync(inlines, fontSize: 12, bold: true, isDark: isDark),
       ));
     }
 
     final tableRows = <pw.TableRow>[
       pw.TableRow(
-        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        decoration: pw.BoxDecoration(
+          color: isDark ? PdfColors.grey700 : PdfColors.grey200,
+        ),
         children: headerCells,
       ),
       for (int i = 0; i < rows.length; i++)
-        await _buildDataTableRow(i, rows[i]),
+        await _buildDataTableRow(i, rows[i], isDark: isDark),
     ];
 
     return pw.Container(
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       child: pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+        border: pw.TableBorder.all(
+          color: isDark ? PdfColors.grey600 : PdfColors.grey400,
+          width: 0.5,
+        ),
         children: tableRows,
       ),
     );
   }
 
   /// 构造一个数据行（带斑马纹 + 公式渲染）。
-  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<String> cells) async {
+  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<String> cells, {bool isDark = false}) async {
     final children = <pw.Widget>[];
+    final evenBgColor = isDark ? PdfColors.grey800 : PdfColors.white;
+     final oddBgColor = isDark ? PdfColors.grey700 : PdfColors.grey50;
     for (final cell in cells) {
       final inlines = MarkdownParser.parseInline(cell);
       children.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 11),
+        child: await _pdfParagraphAsync(inlines, fontSize: 11, isDark: isDark),
       ));
     }
     return pw.TableRow(
       decoration: pw.BoxDecoration(
-        color: rowIndex.isEven ? PdfColors.white : PdfColors.grey50,
+        color: rowIndex.isEven ? evenBgColor : oddBgColor,
       ),
       children: children,
     );

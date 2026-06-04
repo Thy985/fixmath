@@ -10,12 +10,14 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 /// 每页页眉：左侧文档标题，右侧应用名 + 下边线。
-pw.Widget buildPdfHeader(String title, pw.Context ctx) {
+pw.Widget buildPdfHeader(String title, pw.Context ctx, {bool isDark = false}) {
+  final textColor = isDark ? PdfColors.grey400 : PdfColors.grey600;
+  final borderColor = isDark ? PdfColors.grey700 : PdfColors.grey300;
   return pw.Container(
     padding: const pw.EdgeInsets.only(bottom: 8),
-    decoration: const pw.BoxDecoration(
+    decoration: pw.BoxDecoration(
       border: pw.Border(
-        bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+        bottom: pw.BorderSide(color: borderColor, width: 0.5),
       ),
     ),
     child: pw.Row(
@@ -25,7 +27,7 @@ pw.Widget buildPdfHeader(String title, pw.Context ctx) {
           title,
           style: pw.TextStyle(
             fontSize: 9,
-            color: PdfColors.grey600,
+            color: textColor,
             fontWeight: pw.FontWeight.bold,
           ),
         ),
@@ -33,7 +35,7 @@ pw.Widget buildPdfHeader(String title, pw.Context ctx) {
           'FormulaFix',
           style: pw.TextStyle(
             fontSize: 9,
-            color: PdfColors.grey500,
+            color: textColor,
           ),
         ),
       ],
@@ -42,15 +44,17 @@ pw.Widget buildPdfHeader(String title, pw.Context ctx) {
 }
 
 /// 每页页脚：左侧生成日期，右侧"第 N 页 / 共 M 页" + 上边线。
-pw.Widget buildPdfFooter(pw.Context ctx) {
+pw.Widget buildPdfFooter(pw.Context ctx, {bool isDark = false}) {
   final now = DateTime.now();
   final mm = now.month.toString().padLeft(2, '0');
   final dd = now.day.toString().padLeft(2, '0');
+  final textColor = isDark ? PdfColors.grey400 : PdfColors.grey500;
+  final borderColor = isDark ? PdfColors.grey700 : PdfColors.grey300;
   return pw.Container(
     padding: const pw.EdgeInsets.only(top: 8),
-    decoration: const pw.BoxDecoration(
+    decoration: pw.BoxDecoration(
       border: pw.Border(
-        top: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+        top: pw.BorderSide(color: borderColor, width: 0.5),
       ),
     ),
     child: pw.Row(
@@ -58,11 +62,11 @@ pw.Widget buildPdfFooter(pw.Context ctx) {
       children: [
         pw.Text(
           '生成于 ${now.year}-$mm-$dd',
-          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+          style: pw.TextStyle(fontSize: 8, color: textColor),
         ),
         pw.Text(
           '第 ${ctx.pageNumber} 页 / 共 ${ctx.pagesCount} 页',
-          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+          style: pw.TextStyle(fontSize: 8, color: textColor),
         ),
       ],
     ),
