@@ -9,6 +9,7 @@
 /// public API：仅 [WordExporter.export] 一个静态方法。
 library;
 
+import 'dart:convert' show utf8;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
@@ -126,26 +127,40 @@ class WordExporter {
 
     final archive = Archive();
 
+    // 注意：ArchiveFile 写入 String content 时实际产生的是 utf8 字节流，
+    // 但 `size` 字段如果传 `String.length`（UTF-16 code units），非 ASCII 字符
+    // （中文/特殊符号）越多，header 里 uncompSize 与实际字节数偏差越大
+    // （差值 = 多字节字符数 × 2）。严格 zip 读取器（Python zipfile 等）会因此
+    // 报 `Bad CRC-32` 拒绝打开。下面统一用 `utf8.encode(...)` 把 String 转
+    // 成 Uint8List，让 size 与 content 走同一份字节数，避免该规范违例。
+    final contentTypesBytes = utf8.encode(contentTypesXml);
+    final rootRelsBytes = utf8.encode(rootRelsXml);
+    final docBytes = utf8.encode(docXml);
+    final imageRelsBytes = utf8.encode(imageRelsXml);
+
     archive.addFile(ArchiveFile(
-        '[Content_Types].xml', contentTypesXml.length, contentTypesXml));
+        '[Content_Types].xml', contentTypesBytes.length, contentTypesBytes));
     archive.addFile(
-        ArchiveFile('_rels/.rels', rootRelsXml.length, rootRelsXml));
+        ArchiveFile('_rels/.rels', rootRelsBytes.length, rootRelsBytes));
     archive.addFile(ArchiveFile(
-        'word/document.xml', docXml.length, docXml));
+        'word/document.xml', docBytes.length, docBytes));
     archive.addFile(ArchiveFile('word/_rels/document.xml.rels',
-        imageRelsXml.length, imageRelsXml));
+        imageRelsBytes.length, imageRelsBytes));
 
     // 补全 OOXML 必需 Part：styles / settings / numbering。
     // 这些文件让导出的 docx 在 Word/WPS/LibreOffice 中能识别 pStyle 和 numId。
     final stylesXml = WordOoxmlTemplates.stylesXml;
     final settingsXml = WordOoxmlTemplates.settingsXml;
     final numberingXml = WordOoxmlTemplates.numberingXml;
+    final stylesBytes = utf8.encode(stylesXml);
+    final settingsBytes = utf8.encode(settingsXml);
+    final numberingBytes = utf8.encode(numberingXml);
     archive.addFile(ArchiveFile(
-        'word/styles.xml', stylesXml.length, stylesXml));
+        'word/styles.xml', stylesBytes.length, stylesBytes));
     archive.addFile(ArchiveFile(
-        'word/settings.xml', settingsXml.length, settingsXml));
+        'word/settings.xml', settingsBytes.length, settingsBytes));
     archive.addFile(ArchiveFile(
-        'word/numbering.xml', numberingXml.length, numberingXml));
+        'word/numbering.xml', numberingBytes.length, numberingBytes));
 
     int i = 0;
     for (final latex in allFormulas) {
@@ -169,7 +184,10 @@ class WordExporter {
       final info = mermaidRels[code];
       if (info != null && info.svg != null) {
         final name = 'word/media/mermaid_$i.svg';
-        archive.addFile(ArchiveFile(name, info.svg!.length, info.svg!));
+        // 同样要 utf8.encode，避免 SVG 里的非 ASCII 字符引发 zip header
+        // uncompSize 偏差。
+        final svgBytes = utf8.encode(info.svg!);
+        archive.addFile(ArchiveFile(name, svgBytes.length, svgBytes));
       }
     }
 
