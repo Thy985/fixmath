@@ -318,10 +318,14 @@ ExportFailureInfo classifyError(Object e) {
   }
 
   if (e is FormatException) {
+    // DEBUG-DIAG: 把 stack trace 也带进 detail，定位 Unexpected extension byte 真因
+    debugPrint('[FORMAT-EXC] ${e.message}');
+    debugPrint('[FORMAT-EXC] source: ${e.source}');
+    debugPrint('[FORMAT-EXC] offset: ${e.offset}');
     return (
       kind: ExportFailure.parseError,
       userMessage: '文档中有无法识别的公式',
-      detail: e.message,
+      detail: '${e.message} | source: ${_truncate(e.source.toString(), 80)} | offset: ${e.offset}',
       cause: e,
     );
   }

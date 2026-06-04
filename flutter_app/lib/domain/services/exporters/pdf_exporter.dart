@@ -33,35 +33,13 @@ class PdfExporter {
   ///
   /// 具备重试机制：首次失败后间隔 [_fontRetryInterval] 可再次尝试加载，
   /// 避免临时 IO 抖动导致永久降级。
+  ///
+  /// ⚠️ DEBUG-ONLY TEMP DISABLED — 验证 CJK 字体是否为 Unexpected extension
+  /// byte 根因。如禁用后 PDF 导出正常，说明 ttf_parser.dart:126 加载
+  /// NotoSansSC 时 utf8.decode 抛错。验证完恢复原实现。
   static Future<pw.Font?> _ensureCjkFont() async {
-    if (_cjkFontLoadAttempted && _cjkFont != null) {
-      return _cjkFont;
-    }
-
-    // 如果已加载失败，检查是否超过重试间隔
-    if (_cjkFontLoadAttempted && _cjkFont == null) {
-      if (_cjkFontLoadFailedAt != null) {
-        final elapsed = DateTime.now().difference(_cjkFontLoadFailedAt!);
-        if (elapsed < _fontRetryInterval) {
-          return null; // 仍在冷却期，使用 fallback
-        }
-        // 超过冷却期，允许重试
-        debugPrint('CJK font retry attempt after ${elapsed.inSeconds}s cooldown');
-      }
-    }
-
-    _cjkFontLoadAttempted = true;
-    try {
-      final data = await rootBundle.load('assets/fonts/NotoSansSC-Regular.ttf');
-      _cjkFont = pw.Font.ttf(data);
-      _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
-      debugPrint('CJK font loaded successfully');
-    } catch (e) {
-      debugPrint('CJK font load failed: $e');
-      _cjkFont = null;
-      _cjkFontLoadFailedAt = DateTime.now();
-    }
-    return _cjkFont;
+    debugPrint('[CJK-FONT-DIAG] _ensureCjkFont CALLED — TEMP DISABLED for diagnosis');
+    return null;
   }
 
   /// 决定 PDF 公式的渲染路径（SVG 矢量 vs PNG 位图）。
@@ -172,7 +150,17 @@ class PdfExporter {
     // 缓存在 editor_screen 退出 / app pause 时由调用方清理。
     // 但每次导出后清理 WebView DOM payload 元素，减少内存压力。
     await MermaidService.cleanupPayloads();
-    return pdf.save();
+    try {
+      return await pdf.save();
+    } catch (e, st) {
+      // DEBUG-DIAG: 抓完整 stack trace，帮助定位 Unexpected extension byte 真因
+      debugPrint('====== [PDF-SAVE-DIAG] pdf.save() FAILED ======');
+      debugPrint('Error: $e');
+      debugPrint('Type: ${e.runtimeType}');
+      debugPrint('Stack: $st');
+      debugPrint('================================================');
+      rethrow;
+    }
   }
 
   /// 递归收集文档中所有唯一的 LaTeX 公式字符串（去重）。
