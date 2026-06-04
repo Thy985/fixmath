@@ -8,8 +8,11 @@ library;
 
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import '../../../core/renderers/svg_parser.dart';
+import '../../../core/renderers/svg_to_pdf.dart';
 
 /// 把任意来源的字符串（含未配对 UTF-16 代理对 / 不可编码字符 / 非 BMP 字符）
 /// 清洗成可安全 `utf8.encode` 的 Dart String。
@@ -95,43 +98,25 @@ class SvgPlan extends FormulaRenderPlan {
 
   @override
   pw.Widget toPdfWidget({required double fontSize}) {
-    // 关键：先清洗 SVG 字符串。MathJax / Mermaid 在某些 Unicode 字符上
-    // 会通过 WebView console 桥接回 Dart 时残留未配对的 UTF-16 代理对，
-    // pw.SvgImage 内部 utf8.encode 会抛 "Unexpected extension byte"
-    // 致整份 PDF 导出失败。
-    String wrapped = sanitizeSvgString(svg);
-    if (!wrapped.contains('xmlns=')) {
-      wrapped = wrapped.replaceFirst(
-        '<svg',
-        '<svg xmlns="http://www.w3.org/2000/svg/"',
-      );
-    }
-    // 防御性深度：sanitizeSvgString 已经尽力清洗，但若清洗后 SVG 仍无法
-    // utf8.encode（极端情况：原始 SVG 含非 BMP 字符 + 孤立 surrogate 组合），
-    // 这里**主动**调用 utf8.encode 验证。pw.SvgImage 是懒构造 widget，
-    // 错误要到 pdf.save() 阶段才抛，到那时已无法 catch 退回 PNG。
+    // 新路线（stage1+）：MathJax SVG 字符串 → svg_parser → AST → SvgPdfWidget
+    // → pdf 底层 PdfGraphics API。完全绕开 pw.SvgImage（已知在含未配对
+    // 代理对的 SVG 上抛 "Unexpected extension byte"）和 ttf_parser。
+    //
+    // 旧路线（保留为参考，未启用）：pw.SvgImage(svg: sanitizeSvgString(svg))
+    // —— 触发了多轮 utf8 边界 bug 修复仍未彻底解决。
     try {
-      utf8.encode(wrapped);
-    } catch (e) {
-      // 关键：打印出问题的 SVG 字节序列前 20 字节，
-      // 帮助定位是哪个字符触发 "Unexpected extension byte (at offset 1)"
-      // 编码失败时不能再用 utf8.encode（会再次抛错）——用 runes + String 显示
-      final preview = wrapped.runes
-          .take(20)
-          .map((r) => r > 0xFFFF ? '[U+${r.toRadixString(16)}]' : String.fromCharCode(r))
-          .join();
-      debugPrint(
-          'SvgPlan: sanitized SVG still fails utf8.encode! Latex: ${latex.length > 40 ? '${latex.substring(0, 40)}...' : latex}');
-      debugPrint('SvgPlan: first 20 runes of sanitized SVG: $preview');
-      debugPrint('SvgPlan: error: $e');
-      return FallbackPlan(latex).toPdfWidget(fontSize: fontSize);
-    }
-    try {
+      final root = parseSvgString(svg);
       return pw.Container(
         margin: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-        child: pw.SvgImage(svg: wrapped, width: fontSize * 6),
+        // 宽度按 fontSize 比例计算（MathJax SVG 通常 viewBox.width ≈ 字符数 × 高度）
+        child: SvgPdfWidget(
+          root: root,
+          fontSize: fontSize,
+        ),
       );
     } catch (e) {
+      // 解析器/绘制器任何环节失败 → 退到文本兜底，绝不阻塞 PDF
+      debugPrint('SvgPlan: SvgPdfWidget path failed for "$latex": $e');
       return FallbackPlan(latex).toPdfWidget(fontSize: fontSize);
     }
   }
