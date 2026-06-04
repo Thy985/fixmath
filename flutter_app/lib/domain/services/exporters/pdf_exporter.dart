@@ -33,13 +33,35 @@ class PdfExporter {
   ///
   /// 具备重试机制：首次失败后间隔 [_fontRetryInterval] 可再次尝试加载，
   /// 避免临时 IO 抖动导致永久降级。
-  ///
-  /// ⚠️ DEBUG-ONLY TEMP DISABLED — 验证 CJK 字体是否为 Unexpected extension
-  /// byte 根因。如禁用后 PDF 导出正常，说明 ttf_parser.dart:126 加载
-  /// NotoSansSC 时 utf8.decode 抛错。验证完恢复原实现。
   static Future<pw.Font?> _ensureCjkFont() async {
-    debugPrint('[CJK-FONT-DIAG] _ensureCjkFont CALLED — TEMP DISABLED for diagnosis');
-    return null;
+    if (_cjkFontLoadAttempted && _cjkFont != null) {
+      return _cjkFont;
+    }
+
+    // 如果已加载失败，检查是否超过重试间隔
+    if (_cjkFontLoadAttempted && _cjkFont == null) {
+      if (_cjkFontLoadFailedAt != null) {
+        final elapsed = DateTime.now().difference(_cjkFontLoadFailedAt!);
+        if (elapsed < _fontRetryInterval) {
+          return null; // 仍在冷却期，使用 fallback
+        }
+        // 超过冷却期，允许重试
+        debugPrint('CJK font retry attempt after ${elapsed.inSeconds}s cooldown');
+      }
+    }
+
+    _cjkFontLoadAttempted = true;
+    try {
+      final data = await rootBundle.load('assets/fonts/NotoSansSC-Regular.ttf');
+      _cjkFont = pw.Font.ttf(data);
+      _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
+      debugPrint('CJK font loaded successfully');
+    } catch (e) {
+      debugPrint('CJK font load failed: $e');
+      _cjkFont = null;
+      _cjkFontLoadFailedAt = DateTime.now();
+    }
+    return _cjkFont;
   }
 
   /// 决定 PDF 公式的渲染路径（SVG 矢量 vs PNG 位图）。
@@ -88,27 +110,40 @@ class PdfExporter {
     final allFormulas = collectAllFormulas(elements);
 
     if (allFormulas.isNotEmpty) {
-      debugPrint(
-          'Pre-rendering ${allFormulas.length} unique formulas (SVG, isDark=$isDark)...');
-      // 主路径：SVG（WebView + MathJax）→ pw.SvgImage 矢量化嵌入 PDF。
-      // 优势：无 GPU 离屏渲染、无内存压力、任意缩放清晰。
-      // 不再预渲染 PNG：之前 5.0 倍 pixelRatio × 24 公式的离屏 toImage()
-      // 会在真机低端设备上触发 GC 抖动 + 偶发 toImage 不返回。
-      // PNG 缓存保留在 buildFormulaPlan 中作为最终兜底——WebView
-      // 加载失败时回退到 bitmap（text fallback 之后）。
-      try {
-        await FormulaSvgService.preRenderAll(allFormulas, displayMode: false);
-      } catch (e) {
-        debugPrint('SVG pre-render failed (will fall back to PNG/text): $e');
-      }
+      // 关键修复：预渲染改为 fire-and-forget，不再 await。
+      // 旧实现：await preRenderAll → 24 公式 4 并发 30s 单超时 → 真机
+      //   卡死 1+ 分钟，UI 无响应，用户误以为导出挂死。
+      // 新实现：后台异步跑预渲染（缓存命中即返回），导出主流程立即继续。
+      //   缓存命中的公式 → 走 SvgPlan 矢量嵌入（最优）
+      //   缓存未命中 → 走 PngPlan/FallbackPlan（不阻塞）
+      //   下次导出同一文档时缓存预热，零等待矢量导出。
+      // 注意：必须用 unawaited 明确告诉 Dart "我不等这个 future 完成"，
+      //   否则 analyzer 会报 discarded_futures。
+      // ignore: discarded_futures
+      FormulaSvgService.preRenderAll(allFormulas, displayMode: false)
+          .catchError((e) {
+        debugPrint('SVG background pre-render failed: $e');
+      });
     }
 
     final cjk = await _ensureCjkFont();
-    final theme = (cjk != null)
-        ? pw.ThemeData.withFont(base: cjk, fontFallback: [cjk])
-        : pw.ThemeData.withFont(
-            base: pw.Font.helvetica(),
-            fontFallback: const [],
+    // 关键：除了 base + fontFallback，还要把 cjk 直接塞进 defaultStyle.font。
+    // pdf 包内嵌的 pw.Text widget 在没显式指定 style.font 时，先用
+    // defaultStyle.font；只有它不支持某字符时才走 fontFallback。
+    // 用户日志显示 "Unable to find a font to draw 生" → 根因是
+    // defaultStyle.font 是 Helvetica (cjk 为 null 时) 或 fontFallback
+    // 路径根本没被采纳。直接用 defaultStyle 构造并指定 cjk 为 font。
+    final theme = cjk != null
+        ? pw.ThemeData(
+            defaultTextStyle: pw.TextStyle(
+              font: cjk,
+              fontFallback: [cjk],
+            ),
+          )
+        : pw.ThemeData(
+            defaultTextStyle: pw.TextStyle(
+              font: pw.Font.helvetica(),
+            ),
           );
     // 用于代码块的 monospace 字体。pdf 包内置 Courier。
     final monoFont = pw.Font.courier();
