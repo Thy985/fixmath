@@ -1,66 +1,22 @@
-import 'dart:async';
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+/// Re-export shim：把 domain 层的导出 facade 透传到 core 层。
+///
+/// 重构前 lib/core/services/export_service.dart 持有 ExportService / ExportFormat
+/// / ExportException；lib/domain/services/export_service.dart 持有 1000+ 行
+/// MarkdownExporter。两个同名文件分散在不同职责层，调用方需要分别 import。
+///
+/// 重构后把 ExportService / ExportFormat / ExportException 全部迁到
+/// `domain/services/export_service.dart`（作为顶层 helper），core 层只保留
+/// 这一个 re-export 入口。EditorScreen 等老代码的 import 路径不变，
+/// 内部直接看到的就是 domain 的统一实现。
+library;
 
-enum ExportFormat { pdf, docx, txt }
-
-class ExportService {
-  static const _shareTimeout = Duration(seconds: 60);
-  static const _exportTimeout = Duration(seconds: 120);
-
-  static Future<void> exportAndShare({
-    required String markdown,
-    required ExportFormat format,
-    required Future<Uint8List> Function(String) exporter,
-  }) async {
-    if (markdown.isEmpty) {
-      throw ExportException('Cannot export empty content');
-    }
-
-    final Uint8List bytes;
-    try {
-      bytes = await exporter(markdown).timeout(_exportTimeout);
-    } on TimeoutException {
-      throw ExportException('Export timeout - please try again');
-    } catch (e) {
-      throw ExportException('Export failed: $e');
-    }
-
-    final tempDir = await getTemporaryDirectory();
-    final extension = format.name;
-    final filename = 'formulafix_${DateTime.now().millisecondsSinceEpoch}.$extension';
-    final file = File('${tempDir.path}/$filename');
-
-    try {
-      await file.writeAsBytes(bytes);
-
-      // 等待分享完成或超时
-      try {
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: 'FormulaFix $extension',
-        ).timeout(_shareTimeout);
-      } on TimeoutException {
-        debugPrint('Share timeout, file saved at: ${file.path}');
-      }
-    } finally {
-      // 分享完成后（或超时后）再删除临时文件
-      if (await file.exists()) {
-        try {
-          await file.delete();
-        } catch (_) {}
-      }
-    }
-  }
-}
-
-class ExportException implements Exception {
-  final String message;
-  ExportException(this.message);
-
-  @override
-  String toString() => message;
-}
+export '../../domain/services/export_service.dart'
+    show
+        ExportFormat,
+        ExportService,
+        ExportException,
+        ExportFailure,
+        ExportFailureInfo,
+        ExportFailureException,
+        classifyError,
+        MarkdownExporter;
