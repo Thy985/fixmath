@@ -8,7 +8,6 @@ import '../../core/services/file_service.dart';
 import '../../core/services/formula_pdf_renderer.dart';
 import '../../core/services/formula_svg_service.dart';
 import '../../core/services/mermaid_service.dart';
-import '../../domain/services/export_service.dart' show MarkdownExporter;
 import '../../providers/editor_providers.dart';
 import '../widgets/markdown_input_field.dart';
 import '../widgets/editor_bottom_bar.dart';
@@ -150,8 +149,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         format: ExportFormat.pdf,
         exporter: (markdown) => MarkdownExporter.exportToPdf(markdown, isDark: isDark),
       );
-    } catch (e) {
-      _showSnackBar('PDF导出失败: $e');
+    } on ExportFailureException catch (e) {
+      _showSnackBar(_userMessageFor('PDF', e.info));
     } finally {
       ref.read(isExportingProvider.notifier).state = false;
     }
@@ -169,8 +168,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         format: ExportFormat.docx,
         exporter: (markdown) => MarkdownExporter.exportToWord(markdown, isDark: isDark),
       );
-    } catch (e) {
-      _showSnackBar('Word导出失败: $e');
+    } on ExportFailureException catch (e) {
+      _showSnackBar(_userMessageFor('Word', e.info));
     } finally {
       ref.read(isExportingProvider.notifier).state = false;
     }
@@ -179,7 +178,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _exportToTxt() async {
     final content = ref.read(editorContentProvider);
     if (content.isEmpty) return;
-    
+
     ref.read(isExportingProvider.notifier).state = true;
     try {
       await ExportService.exportAndShare(
@@ -187,10 +186,42 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         format: ExportFormat.txt,
         exporter: MarkdownExporter.exportToTxt,
       );
-    } catch (e) {
-      _showSnackBar('文本导出失败: $e');
+    } on ExportFailureException catch (e) {
+      _showSnackBar(_userMessageFor('文本', e.info));
     } finally {
       ref.read(isExportingProvider.notifier).state = false;
+    }
+  }
+
+  /// 把 [ExportFailureInfo] 翻译成给用户看的本地化消息。
+  ///
+  /// 绝不暴露底层异常类名或堆栈——只用 [userMessage] 和 [detail]，
+  /// 而 [detail] 也经过脱敏（短字符串 + 局部截断）。
+  String _userMessageFor(String formatLabel, ExportFailureInfo info) {
+    final kind = info.kind;
+    final detail = info.detail;
+    switch (kind) {
+      case ExportFailure.offline:
+        return '请检查网络连接';
+      case ExportFailure.parseError:
+        if (detail != null && detail.isNotEmpty) {
+          return '文档中有无法识别的公式: $detail';
+        }
+        return '文档中有无法识别的公式';
+      case ExportFailure.renderError:
+        return '渲染失败，可能含有不支持的语法';
+      case ExportFailure.writeError:
+        if (detail != null && detail.isNotEmpty) {
+          return '保存失败: $detail';
+        }
+        return '保存失败';
+      case ExportFailure.timeout:
+        return '导出超时，请重试';
+      case ExportFailure.unknown:
+        if (detail != null && detail.isNotEmpty) {
+          return '$formatLabel 导出失败: $detail';
+        }
+        return '$formatLabel 导出失败';
     }
   }
 
