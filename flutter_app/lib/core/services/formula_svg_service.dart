@@ -24,7 +24,12 @@ import 'mermaid_service.dart' show MermaidService;
 class FormulaSvgService {
   FormulaSvgService._();
 
-  static const Duration _renderTimeout = Duration(seconds: 30);
+  /// 单个公式渲染超时。3 秒是经验值：
+  ///  - 正常 WebView 已就绪 + MathJax 已加载：单公式 100-500ms
+  ///  - WebView 刚启动：首公式 1-2s，后续 < 500ms
+  ///  - 3s 仍超时：WebView 死了 / MathJax 加载失败 → 立刻放弃，别阻塞导出
+  /// 旧值 30s × 24 公式 / 4 并发 = 卡 1 分钟，真机 UI 完全无响应。
+  static const Duration _renderTimeout = Duration(seconds: 3);
   static const int _maxConcurrent = 4;
   static const int _maxCacheEntries = 256;
   static const int _maxCacheBytes = 32 * 1024 * 1024; // 32 MB
