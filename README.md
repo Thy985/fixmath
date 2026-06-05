@@ -138,4 +138,4 @@ flutter test
 
 ## 许可证
 
-本项目仅供学习交流使用。
+本项目基于 MIT 许可证开源，详见 [LICENSE](LICENSE) 文件。
