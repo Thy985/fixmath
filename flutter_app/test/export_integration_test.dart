@@ -312,6 +312,61 @@ def hello():
         expect(names.contains('word/numbering.xml'), true);
         expect(names.contains('word/_rels/document.xml.rels'), true);
       });
+
+      // 回归保护（fix-docx-zip-header，2026-06-04）：当 XML 字符串含非 ASCII
+      // 字符时，archive 3.6.1 的 `ArchiveFile(name, xml.length, xml)` 会
+      // 把 `String.length`（UTF-16 code units）当作 header 里的 uncompSize，
+      // 但实际写入的是 utf8 字节流——多字节字符越多，header 偏差越大。
+      // 严格 zip 读取器（Python 3.14 zipfile）会因此报 `Bad CRC-32` 拒绝打开。
+      // 这里用 `getCrc32`（package:archive 暴露的 CRC-32 工具）和实际的
+      // `file.content` 字节数对每个 entry 做完整性断言：
+      //   1. file.size  必须等于 file.content.length（utf8 实际字节数）
+      //   2. file.crc32 必须等于 getCrc32(file.content)
+      // 第 1 条是真正的回归断言（捕获 header uncompSize 偏差），第 2 条是
+      // zip 协议基础正确性的兜底。
+      test(
+          'regression: docx zip 头 uncompSize/CRC-32 必须与 utf8 实际字节一致 (非 ASCII 内容)',
+          () async {
+        // 用一份带中文 + bullet "•" (\u2022) 的样本，触发 archive 写入
+        // String.length 与 utf8 字节数不一致的代码路径。
+        const markdown = r'''
+# 标题包含中文和特殊符号 •
+
+这是正文段落，包含**加粗**与*斜体*。
+
+- 项目 1 • bullet
+- 项目 2 • bullet
+
+1. 有序 1
+2. 有序 2
+''';
+
+        final bytes = await MarkdownExporter.exportToWord(markdown);
+        final archive = ZipDecoder().decodeBytes(bytes);
+        expect(archive.files.isNotEmpty, true,
+            reason: 'docx must contain at least one zip entry');
+
+        for (final file in archive.files) {
+          final content = file.content as List<int>;
+          // 回归断言 1：header 里的 uncompSize 必须等于实际 utf8 字节数。
+          // 修复前 word_exporter.dart 传 `xml.length` (UTF-16 code units)
+          // 当 size 字段，header uncompSize 会比 content 短 2×多字节字符数
+          // 个字节（中文 = 3 字节 utf8 但只 1 个 UTF-16 code unit → 差 2；
+          // 实际计算 = (utf8 byte count) - (UTF-16 code unit count)，
+          // 对 CJK 字符 = 2，对 emoji = 4）。
+          expect(file.size, content.length,
+              reason:
+                  'zip header uncompSize 不等于 utf8 实际字节数 (entry: ${file.name}, '
+                  'header.size=${file.size}, actual=${content.length}). '
+                  '这通常是 word_exporter.dart 把 String.length 当 size 传 ArchiveFile 导致。');
+          // 回归断言 2：CRC-32 必须等于对实际内容字节计算的结果。
+          final actualCrc = getCrc32(content);
+          expect(actualCrc, file.crc32,
+              reason:
+                  'CRC-32 mismatch for ${file.name}: header=0x${(file.crc32 ?? -1).toRadixString(16)}, '
+                  'actual=0x${actualCrc.toRadixString(16)}');
+        }
+      });
     });
 
     group('Text 导出', () {
