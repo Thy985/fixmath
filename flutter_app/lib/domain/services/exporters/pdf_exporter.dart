@@ -56,8 +56,11 @@ class PdfExporter {
       _cjkFont = pw.Font.ttf(data);
       _cjkFontLoadFailedAt = null; // 加载成功，清除失败记录
       debugPrint('CJK font loaded successfully');
-    } catch (e) {
+    } catch (e, st) {
+      // 详细 stack trace 记录：之前怀疑 ttf_parser.dart:126 是 Unexpected
+      // extension byte 真因；如果以后还需要诊断，保留详细输出。
       debugPrint('CJK font load failed: $e');
+      debugPrint('CJK font load stack: $st');
       _cjkFont = null;
       _cjkFontLoadFailedAt = DateTime.now();
     }
@@ -66,17 +69,21 @@ class PdfExporter {
 
   /// 决定 PDF 公式的渲染路径（SVG 矢量 vs PNG 位图）。
   /// SVG 优先（满足"矢量导出"硬约束），失败时回退到 PNG。
+  ///
+  /// [cjkFont] 用于 SvgPlan 内的中文字段（论文标题里的 $\alpha\beta$ 等
+  /// 实际不会含中文，但 cjkFont 提供兜底字符映射）。
   static Future<FormulaRenderPlan> buildFormulaPlan(
     String latex,
-    bool displayMode,
-  ) async {
+    bool displayMode, {
+    pw.Font? cjkFont,
+  }) async {
     try {
       final svg = await FormulaSvgService.renderToSvg(
         latex,
         displayMode: displayMode,
       );
       if (svg.isNotEmpty) {
-        return FormulaRenderPlan.svg(svg, latex, displayMode);
+        return FormulaRenderPlan.svg(svg, latex, displayMode, cjkFont: cjkFont);
       }
     } catch (e) {
       debugPrint('SVG path failed for "$latex": $e');
@@ -110,29 +117,30 @@ class PdfExporter {
     final allFormulas = collectAllFormulas(elements);
 
     if (allFormulas.isNotEmpty) {
-      // 关键修复：预渲染改为 fire-and-forget，不再 await。
-      // 旧实现：await preRenderAll → 24 公式 4 并发 30s 单超时 → 真机
-      //   卡死 1+ 分钟，UI 无响应，用户误以为导出挂死。
-      // 新实现：后台异步跑预渲染（缓存命中即返回），导出主流程立即继续。
-      //   缓存命中的公式 → 走 SvgPlan 矢量嵌入（最优）
-      //   缓存未命中 → 走 PngPlan/FallbackPlan（不阻塞）
-      //   下次导出同一文档时缓存预热，零等待矢量导出。
-      // 注意：必须用 unawaited 明确告诉 Dart "我不等这个 future 完成"，
-      //   否则 analyzer 会报 discarded_futures。
-      // ignore: discarded_futures
-      FormulaSvgService.preRenderAll(allFormulas, displayMode: false)
-          .catchError((e) {
-        debugPrint('SVG background pre-render failed: $e');
-      });
+      debugPrint(
+          'Pre-rendering ${allFormulas.length} unique formulas (SVG, isDark=$isDark)...');
+      // 主路径：SVG（WebView + MathJax）→ pw.SvgImage 矢量化嵌入 PDF。
+      // 优势：无 GPU 离屏渲染、无内存压力、任意缩放清晰。
+      // 不再预渲染 PNG：之前 5.0 倍 pixelRatio × 24 公式的离屏 toImage()
+      // 会在真机低端设备上触发 GC 抖动 + 偶发 toImage 不返回。
+      // PNG 缓存保留在 buildFormulaPlan 中作为最终兜底——WebView
+      // 加载失败时回退到 bitmap（text fallback 之后）。
+      try {
+        await FormulaSvgService.preRenderAll(allFormulas, displayMode: false);
+      } catch (e) {
+        debugPrint('SVG pre-render failed (will fall back to PNG/text): $e');
+      }
     }
 
     final cjk = await _ensureCjkFont();
     // 关键：除了 base + fontFallback，还要把 cjk 直接塞进 defaultStyle.font。
     // pdf 包内嵌的 pw.Text widget 在没显式指定 style.font 时，先用
     // defaultStyle.font；只有它不支持某字符时才走 fontFallback。
-    // 用户日志显示 "Unable to find a font to draw 生" → 根因是
-    // defaultStyle.font 是 Helvetica (cjk 为 null 时) 或 fontFallback
-    // 路径根本没被采纳。直接用 defaultStyle 构造并指定 cjk 为 font。
+    // 之前 `pw.ThemeData.withFont(base: cjk, fontFallback: [cjk])` 只影响
+    // Theme.defaultStyle.fontFallback 链，未显式设 defaultStyle.font
+    // —— Helvetica 没有 CJK glyph 时直接走 "Unable to find a font" 路径，
+    // 中文渲染为方框/空白。改用 `defaultTextStyle: TextStyle(font: cjk)`
+    // 后所有 pw.Text 默认走 CJK 字体。
     final theme = cjk != null
         ? pw.ThemeData(
             defaultTextStyle: pw.TextStyle(
@@ -251,21 +259,21 @@ class PdfExporter {
     pw.Font? cjkFont,
   }) async {
     if (element is HeadingElement) {
-      return _pdfHeading(element.level, element.text, isDark: isDark);
+      return _pdfHeading(element.level, element.text, isDark: isDark, cjkFont: cjkFont);
     } else if (element is ParagraphElement) {
-      return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark);
+      return await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
     } else if (element is ListElement) {
       final paragraph =
-          await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark);
+          await _pdfParagraphAsync(element.children, fontSize: 13, isDark: isDark, cjkFont: cjkFont);
       return _wrapListItem(paragraph, element.indent, element.ordered);
     } else if (element is CodeElement) {
       return _pdfCode(element.code, element.language, isDark: isDark, monoFont: monoFont, cjkFont: cjkFont);
     } else if (element is BlockquoteElement) {
-      return _pdfBlockquote(element.text, isDark: isDark);
+      return _pdfBlockquote(element.text, isDark: isDark, cjkFont: cjkFont);
     } else if (element is MermaidElement) {
-      return await buildMermaidPdfWidget(element.code);
+      return await buildMermaidPdfWidget(element.code, cjkFont: cjkFont);
     } else if (element is TableElement) {
-      return await _pdfTable(element.headers, element.rows, isDark: isDark);
+      return await _pdfTable(element.headers, element.rows, isDark: isDark, cjkFont: cjkFont);
     } else if (element is EmptyLineElement) {
       return pw.SizedBox(height: 6);
     }
@@ -279,6 +287,7 @@ class PdfExporter {
     required double fontSize,
     bool bold = false,
     bool isDark = false,
+    pw.Font? cjkFont,
   }) async {
     final textColor = isDark ? PdfColors.grey100 : PdfColors.black;
     final boldColor = isDark ? PdfColors.grey200 : PdfColors.grey900;
@@ -286,20 +295,22 @@ class PdfExporter {
 
     for (final c in children) {
       if (c is TextElement) {
+        // 中文文本：使用 cjkFont（如果已加载），否则 helvetica 会显示方框
         widgets.add(pw.Text(
           c.text,
           style: pw.TextStyle(
+            font: cjkFont,
             fontSize: fontSize,
             fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
             color: bold ? boldColor : textColor,
           ),
         ));
       } else if (c is FormulaElement) {
-        final plan = await buildFormulaPlan(c.latex, c.displayMode);
+        final plan = await buildFormulaPlan(c.latex, c.displayMode, cjkFont: cjkFont);
         widgets.add(plan.toPdfWidget(fontSize: fontSize));
       } else if (c is BoldElement) {
         // 递归渲染 bold 内部
-        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark));
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark, cjkFont: cjkFont));
       }
     }
 
@@ -351,7 +362,8 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _pdfHeading(int level, String text, {bool isDark = false}) {
+  static pw.Widget _pdfHeading(int level, String text,
+      {bool isDark = false, pw.Font? cjkFont}) {
     final size = switch (level) {
       1 => 22.0,
       2 => 18.0,
@@ -368,6 +380,7 @@ class PdfExporter {
       child: pw.Text(
         text,
         style: pw.TextStyle(
+          font: cjkFont,
           fontSize: size,
           fontWeight: pw.FontWeight.bold,
           color: color,
@@ -436,7 +449,8 @@ class PdfExporter {
     );
   }
 
-  static pw.Widget _pdfBlockquote(String text, {bool isDark = false}) {
+  static pw.Widget _pdfBlockquote(String text,
+      {bool isDark = false, pw.Font? cjkFont}) {
     final bgColor = isDark ? PdfColors.grey800 : PdfColors.grey50;
     final textColor = isDark ? PdfColors.grey300 : PdfColors.grey800;
     final borderColor = isDark ? PdfColors.blue400 : PdfColors.blue700;
@@ -452,6 +466,7 @@ class PdfExporter {
       child: pw.Text(
         text,
         style: pw.TextStyle(
+          font: cjkFont,
           fontSize: 13,
           fontStyle: pw.FontStyle.italic,
           color: textColor,
@@ -466,6 +481,7 @@ class PdfExporter {
     List<String> headers,
     List<List<String>> rows, {
     bool isDark = false,
+    pw.Font? cjkFont,
   }) async {
     if (headers.isEmpty) return pw.SizedBox();
 
@@ -475,7 +491,7 @@ class PdfExporter {
       final inlines = MarkdownParser.parseInline(h);
       headerCells.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 12, bold: true, isDark: isDark),
+        child: await _pdfParagraphAsync(inlines, fontSize: 12, bold: true, isDark: isDark, cjkFont: cjkFont),
       ));
     }
 
@@ -487,7 +503,7 @@ class PdfExporter {
         children: headerCells,
       ),
       for (int i = 0; i < rows.length; i++)
-        await _buildDataTableRow(i, rows[i], isDark: isDark),
+        await _buildDataTableRow(i, rows[i], isDark: isDark, cjkFont: cjkFont),
     ];
 
     return pw.Container(
@@ -503,7 +519,8 @@ class PdfExporter {
   }
 
   /// 构造一个数据行（带斑马纹 + 公式渲染）。
-  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<String> cells, {bool isDark = false}) async {
+  static Future<pw.TableRow> _buildDataTableRow(int rowIndex, List<String> cells,
+      {bool isDark = false, pw.Font? cjkFont}) async {
     final children = <pw.Widget>[];
     final evenBgColor = isDark ? PdfColors.grey800 : PdfColors.white;
      final oddBgColor = isDark ? PdfColors.grey700 : PdfColors.grey50;
@@ -511,7 +528,7 @@ class PdfExporter {
       final inlines = MarkdownParser.parseInline(cell);
       children.add(pw.Padding(
         padding: const pw.EdgeInsets.all(8),
-        child: await _pdfParagraphAsync(inlines, fontSize: 11, isDark: isDark),
+        child: await _pdfParagraphAsync(inlines, fontSize: 11, isDark: isDark, cjkFont: cjkFont),
       ));
     }
     return pw.TableRow(

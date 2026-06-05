@@ -150,4 +150,80 @@ void main() {
       expect(bytes, isNotEmpty);
     });
   });
+
+  group('SvgPdfWidget layout 缩放（修复 TooManyPagesException）', () {
+    test('大 viewBox SVG (5321x936) 在容器约束下 box 不超过 maxWidth',
+        () async {
+      // 真实 MathJax 输出的 viewBox 尺寸：宽度可达 5000+ pt
+      final svg = '''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5321 936" width="5321" height="936">
+  <text x="10" y="20" font-size="100">x</text>
+</svg>''';
+      final root = parseSvgString(svg);
+      final widget = SvgPdfWidget(root: root);
+
+      // 关键：PdfExporter 走 MultiPage → 传 maxWidth=A4 减去边距
+      // A4 宽 595pt 减去 2*20pt 边距 = 555pt
+      final doc = pw.Document();
+      doc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (ctx) => pw.Container(
+          // 模拟 maxWidth = 200pt（典型正文内嵌公式可用宽度）
+          width: 200,
+          child: widget,
+        ),
+      ));
+
+      // 应能正常生成 PDF（修复前会抛 TooManyPagesException）
+      final bytes = await doc.save();
+      expect(bytes, isNotEmpty);
+    });
+
+    test('保持宽高比缩放：viewBox 5321x936 → box 200x35.18', () async {
+      final svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5321 936">
+<text x="0" y="0" font-size="100">x</text></svg>''';
+      final root = parseSvgString(svg);
+      final widget = SvgPdfWidget(root: root);
+
+      // 模拟 MultiPage 的 BoxConstraints（maxWidth=200, maxHeight=800）
+      const constraints = pw.BoxConstraints(maxWidth: 200, maxHeight: 800);
+
+      final doc = pw.Document();
+      doc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (ctx) {
+          widget.layout(ctx, constraints);
+          // 关键断言：box 高度应小于原始 936pt，等比缩放到 200/5321 * 936 ≈ 35.2pt
+          expect(widget.box!.width, closeTo(200, 0.01));
+          expect(widget.box!.height, closeTo(35.18, 0.5));
+          return widget;
+        },
+      ));
+
+      final bytes = await doc.save();
+      expect(bytes, isNotEmpty);
+    });
+
+    test('极小 viewBox SVG (1x1) 在大约束下 box 保持原始尺寸', () async {
+      final svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">'
+          '<rect width="1" height="1" fill="#000"/></svg>';
+      final root = parseSvgString(svg);
+      final widget = SvgPdfWidget(root: root);
+
+      const constraints = pw.BoxConstraints(maxWidth: 500, maxHeight: 800);
+      final doc = pw.Document();
+      doc.addPage(pw.Page(
+        build: (ctx) {
+          widget.layout(ctx, constraints);
+          // 1x1 不应被放大
+          expect(widget.box!.width, 1);
+          expect(widget.box!.height, 1);
+          return widget;
+        },
+      ));
+
+      final bytes = await doc.save();
+      expect(bytes, isNotEmpty);
+    });
+  });
 }

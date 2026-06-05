@@ -9,7 +9,7 @@
 /// final root = parseSvgString(svgString);
 /// final widget = SvgPdfWidget(
 ///   root: root,
-///   textFont: pw.Font.courier(),  // 来自调用方 context.document
+///   textFont: pw.Font.courier(),  // 来自调用方
 ///   textColor: PdfColors.black,
 ///   fallbackFont: pw.Font.courier(),
 /// );
@@ -26,7 +26,7 @@
 library;
 
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' show Widget, Context, BoxConstraints;
+import 'package:pdf/widgets.dart' as pw;
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import 'svg_ast.dart';
@@ -35,52 +35,122 @@ import 'svg_ast.dart';
 ///
 /// 失败时（解析异常、root 为空等）会创建一个 fallback widget，
 /// 显示为 `[unsupported: <reason>]` 单行文字，绝不抛错。
-class SvgPdfWidget extends Widget {
+///
+/// 字体：默认在 paint 时懒创建 Helvetica/Courier，无需调用方预先构造。
+/// 可通过 [textFont] / [fallbackFont] 注入（典型场景：复用已有 CJK
+/// NotoSansSC 字体）。
+class SvgPdfWidget extends pw.Widget {
   SvgPdfWidget({
     required this.root,
-    required this.textFont,
+    this.textFont,
     this.textColor,
-    required this.fallbackFont,
+    this.fallbackFont,
     this.unsupportedColor,
+    this.fontSize,
   });
 
   /// 已解析的 AST。
   final SvgRoot root;
 
-  /// 文本节点使用的字体。MathJax 输出大量 `<text>`，复用调用方传入的字体。
-  final PdfFont textFont;
+  /// 文本节点使用的字体（pw.Font 高层 API）。为 null 时 paint 时用
+  /// `pw.Font.helvetica()`。
+  final pw.Font? textFont;
 
   /// 文本节点默认颜色。
   final PdfColor? textColor;
 
-  /// 兜底字体（用于 unsupported 占位 / 字族查找）。必须已构造（绑定 PdfDocument）。
-  final PdfFont fallbackFont;
+  /// 兜底字体（用于 unsupported 占位 / 字族查找）。为 null 时用 courier。
+  final pw.Font? fallbackFont;
 
   /// 未支持占位文本的颜色（默认红灰色 #B00020）。
   final PdfColor? unsupportedColor;
 
+  /// 全局字号覆写。null 时用节点自带的 fontSize。
+  final double? fontSize;
+
   @override
-  void layout(Context context, BoxConstraints constraints,
+  void layout(pw.Context context, pw.BoxConstraints constraints,
       {bool parentUsesSize = false}) {
-    final w = root.intrinsicWidth;
-    final h = root.intrinsicHeight;
+    final intrinsicW = root.intrinsicWidth;
+    final intrinsicH = root.intrinsicHeight;
+
+    // SVG viewBox 原始尺寸可能高达数千 pt（MathJax 默认输出 em 单位），
+    // 必须按父约束等比缩放，否则会触发 MultiPage 的 TooManyPagesException。
+    //
+    // 关键：Mermaid 父容器（pw.Column）通常给出 maxWidth=页宽，maxHeight=∞。
+    // 仅按 width 缩放会把高瘦 SVG 撑得更高（200×1262 → 555×3250），
+    // 因此需要两段缩放 + 兜底硬上限（min(intrinsicH, pageHeight)）。
+    double w = intrinsicW;
+    double h = intrinsicH;
+    if (constraints.maxWidth != double.infinity && w > constraints.maxWidth) {
+      final scale = constraints.maxWidth / w;
+      w = w * scale;
+      h = h * scale;
+    }
+    if (constraints.maxHeight != double.infinity && h > constraints.maxHeight) {
+      final scale = constraints.maxHeight / h;
+      w = w * scale;
+      h = h * scale;
+    } else if (constraints.maxHeight == double.infinity) {
+      // 父约束未给硬高度（pw.Column 内部 child 的典型情况），按宽度缩放
+      // 后的高度仍可能远超单页。按 A4 单页可用高度 720pt 兜底，避免
+      // 触顶 MultiPage 的 TooManyPagesException。
+      const double pageAvailableH = 720.0;
+      if (h > pageAvailableH && h > 0) {
+        final scale = pageAvailableH / h;
+        w = w * scale;
+        h = h * scale;
+      }
+    }
+    // 至少留出 1pt，避免 0-height widget
+    if (w <= 0) w = 1;
+    if (h <= 0) h = 1;
+
     box = PdfRect.fromPoints(PdfPoint.zero, PdfPoint(w, h));
   }
 
   @override
-  void paint(Context context) {
+  void paint(pw.Context context) {
     super.paint(context);
     final canvas = context.canvas;
+    // pw.Font.helvetica()/courier() 工厂无参；不为调用方增加 document 依赖。
+    final textFontWrapper = textFont ?? pw.Font.helvetica();
+    final fallbackFontWrapper = fallbackFont ?? pw.Font.courier();
+    // PdfGraphics.drawString 需要底层 PdfFont（不是 widgets.dart 的 Font 包装）。
+    final textPdfFont = textFontWrapper.getFont(context);
+    final fallbackPdfFont = fallbackFontWrapper.getFont(context);
 
-    // SVG 用户坐标系：原点在 (0,0)，x 右、y 下。
-    // PDF 坐标系是 y 向上 —— 这里不动 origin，由调用方决定放置位置。
-    _paintNode(canvas, root);
+    // 与 layout 保持一致：按 box / intrinsic 算缩放比，应用到画布 transform。
+    final intrinsicW = root.intrinsicWidth;
+    final intrinsicH = root.intrinsicHeight;
+    final myBox = box;
+    if (myBox == null) {
+      // 还没 layout 过（理论不会发生），按 intrinsic 1:1 画
+      _paintNode(
+          canvas, root, textPdfFont, fallbackPdfFont, context);
+      return;
+    }
+    final scaleX = intrinsicW > 0 ? myBox.width / intrinsicW : 1.0;
+    final scaleY = intrinsicH > 0 ? myBox.height / intrinsicH : 1.0;
+
+    if (scaleX != 1.0 || scaleY != 1.0) {
+      canvas.saveContext();
+      canvas.setTransform(Matrix4.identity()
+        ..scaleByDouble(scaleX, scaleY, 1, 1));
+      _paintNode(
+          canvas, root, textPdfFont, fallbackPdfFont, context);
+      canvas.restoreContext();
+    } else {
+      _paintNode(
+          canvas, root, textPdfFont, fallbackPdfFont, context);
+    }
   }
 
-  void _paintNode(PdfGraphics canvas, SvgNode node) {
+  void _paintNode(PdfGraphics canvas, SvgNode node, PdfFont textFont,
+      PdfFont fallbackFont, pw.Context context) {
     if (node is SvgRoot) {
       for (final child in node.children) {
-        _paintNode(canvas, child);
+        _paintNode(canvas, child, textFont, fallbackFont, context);
       }
     } else if (node is SvgGroup) {
       canvas.saveContext();
@@ -90,7 +160,7 @@ class SvgPdfWidget extends Widget {
             Matrix4.identity()..translateByDouble(node.translateX, node.translateY, 0, 1));
       }
       for (final child in node.children) {
-        _paintNode(canvas, child);
+        _paintNode(canvas, child, textFont, fallbackFont, context);
       }
       canvas.restoreContext();
     } else if (node is SvgRect) {
@@ -102,13 +172,13 @@ class SvgPdfWidget extends Widget {
     } else if (node is SvgEllipse) {
       _drawEllipse(canvas, node);
     } else if (node is SvgPath) {
-      _drawPath(canvas, node);
+      _drawPath(canvas, node, fallbackFont);
     } else if (node is SvgText) {
-      _drawText(canvas, node);
+      _drawText(canvas, node, textFont, fallbackFont);
     } else if (node is SvgUse) {
-      _drawUnsupported(canvas, '<use href="${node.href}">');
+      _drawUnsupported(canvas, fallbackFont, '<use href="${node.href}">');
     } else if (node is SvgUnsupported) {
-      _drawUnsupported(canvas, '<${node.elementName}>');
+      _drawUnsupported(canvas, fallbackFont, '<${node.elementName}>');
     }
   }
 
@@ -167,7 +237,7 @@ class SvgPdfWidget extends Widget {
     canvas.restoreContext();
   }
 
-  void _drawPath(PdfGraphics canvas, SvgPath p) {
+  void _drawPath(PdfGraphics canvas, SvgPath p, PdfFont fallbackFont) {
     if (p.d.isEmpty) return;
     final fill = _parseColor(p.fill);
     final stroke = _parseColor(p.stroke);
@@ -180,7 +250,7 @@ class SvgPdfWidget extends Widget {
       canvas.drawShape(p.d);
     } catch (_) {
       canvas.restoreContext();
-      _drawUnsupported(canvas, '<path>');
+      _drawUnsupported(canvas, fallbackFont, '<path>');
       return;
     }
     _finish(canvas, fill: fill, stroke: stroke);
@@ -199,17 +269,18 @@ class SvgPdfWidget extends Widget {
 
   // === 文本绘制 ===============================================
 
-  void _drawText(PdfGraphics canvas, SvgText t) {
+  void _drawText(PdfGraphics canvas, SvgText t,
+      PdfFont textFont, PdfFont fallbackFont) {
     if (t.children.isNotEmpty) {
       for (final s in t.children) {
-        _drawTspan(canvas, t, s);
+        _drawTspan(canvas, t, s, textFont, fallbackFont);
       }
       return;
     }
     if (t.text.isEmpty) return;
 
-    final font = _lookupFont(t.fontFamily);
-    final size = t.fontSize > 0 ? t.fontSize : 12.0;
+    final font = _lookupFont(t.fontFamily, textFont, fallbackFont);
+    final size = fontSize ?? (t.fontSize > 0 ? t.fontSize : 12.0);
     final color = _parseColor(t.fill) ?? textColor;
 
     canvas.saveContext();
@@ -220,16 +291,17 @@ class SvgPdfWidget extends Widget {
       canvas.drawString(font, size, t.text, t.x, t.y);
     } catch (_) {
       canvas.restoreContext();
-      _drawUnsupported(canvas, t.text);
+      _drawUnsupported(canvas, fallbackFont, t.text);
       return;
     }
     canvas.restoreContext();
   }
 
-  void _drawTspan(PdfGraphics canvas, SvgText parent, SvgTspan s) {
+  void _drawTspan(PdfGraphics canvas, SvgText parent, SvgTspan s,
+      PdfFont textFont, PdfFont fallbackFont) {
     if (s.text.isEmpty) return;
-    final font = _lookupFont(s.fontFamily);
-    final size = s.fontSize ?? parent.fontSize;
+    final font = _lookupFont(s.fontFamily, textFont, fallbackFont);
+    final size = fontSize ?? s.fontSize ?? parent.fontSize;
     final color = _parseColor(s.fill) ?? _parseColor(parent.fill) ?? textColor;
     final x = s.x ?? parent.x;
     final y = s.y ?? parent.y;
@@ -242,7 +314,7 @@ class SvgPdfWidget extends Widget {
       canvas.drawString(font, size, s.text, x, y);
     } catch (_) {
       canvas.restoreContext();
-      _drawUnsupported(canvas, s.text);
+      _drawUnsupported(canvas, fallbackFont, s.text);
       return;
     }
     canvas.restoreContext();
@@ -250,7 +322,7 @@ class SvgPdfWidget extends Widget {
 
   // === 占位文本 ===============================================
 
-  void _drawUnsupported(PdfGraphics canvas, String detail) {
+  void _drawUnsupported(PdfGraphics canvas, PdfFont fallbackFont, String detail) {
     final color = unsupportedColor ?? const PdfColor.fromInt(0xFFB00020);
     final label = '[unsupported: $detail]';
     canvas.saveContext();
@@ -297,7 +369,7 @@ class SvgPdfWidget extends Widget {
   }
 
   /// 简单 font-family 查找 —— MathJax SVG 通常不输出 font-family。
-  PdfFont _lookupFont(String? family) {
+  PdfFont _lookupFont(String? family, PdfFont textFont, PdfFont fallbackFont) {
     if (family == null) return textFont;
     final lower = family.toLowerCase();
     if (lower.contains('mono') || lower.contains('courier')) {
