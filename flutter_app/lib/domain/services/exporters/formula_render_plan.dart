@@ -76,8 +76,15 @@ sealed class FormulaRenderPlan {
   const FormulaRenderPlan();
 
   /// SVG 矢量路径：直接在 PDF 中嵌入 SVG，缩放不失真。
-  factory FormulaRenderPlan.svg(String svg, String latex, bool displayMode) =
-      SvgPlan;
+  ///
+  /// [cjkFont] 用于 SVG `<text>` 节点中的 CJK 字符。MathJax SVG 通常不含
+  /// 中文，但 cjkFont 提供兜底字符映射（防止中文字符显示为方框）。
+  factory FormulaRenderPlan.svg(
+    String svg,
+    String latex,
+    bool displayMode, {
+    pw.Font? cjkFont,
+  }) = SvgPlan;
 
   /// PNG 位图路径：嵌入高分辨率位图。
   factory FormulaRenderPlan.png(Uint8List bytes, String latex) = PngPlan;
@@ -93,8 +100,9 @@ class SvgPlan extends FormulaRenderPlan {
   final String svg;
   final String latex;
   final bool displayMode;
+  final pw.Font? cjkFont;
 
-  const SvgPlan(this.svg, this.latex, this.displayMode);
+  const SvgPlan(this.svg, this.latex, this.displayMode, {this.cjkFont});
 
   @override
   pw.Widget toPdfWidget({required double fontSize}) {
@@ -112,6 +120,8 @@ class SvgPlan extends FormulaRenderPlan {
         child: SvgPdfWidget(
           root: root,
           fontSize: fontSize,
+          textFont: cjkFont,
+          fallbackFont: cjkFont,
         ),
       );
     } catch (e) {
