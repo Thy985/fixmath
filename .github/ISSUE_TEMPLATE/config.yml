@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/Thy985/fixmath/discussions
+    about: |
+      For questions and general discussion, please use GitHub Discussions.

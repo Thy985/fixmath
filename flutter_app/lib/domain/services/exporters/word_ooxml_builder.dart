@@ -13,6 +13,7 @@ library;
 
 import 'dart:typed_data';
 
+import '../../../core/parser/markdown_parser.dart';
 import '../../../data/models/document.dart';
 import '../word_ooxml_templates.dart';
 
@@ -48,7 +49,7 @@ class WordOoxmlBuilder {
   static String buildDocumentXml(
     List<DocumentElement> elements,
     String? title,
-    Map<String, FormulaImageInfo> formulaRels,
+    Map<String, FormulaImageInfo?> formulaRels,
     Map<String, MermaidImageInfo> mermaidRels,
   ) {
     final buffer = StringBuffer();
@@ -77,12 +78,13 @@ class WordOoxmlBuilder {
 
   /// 构造 document.xml.rels 全文（静态 Relationship + 动态图片 Relationship）。
   static String buildImageRelsXml(
-    Map<String, FormulaImageInfo> formulaRels,
+    Map<String, FormulaImageInfo?> formulaRels,
     Map<String, MermaidImageInfo> mermaidRels,
   ) {
     final buf = StringBuffer();
     for (final entry in formulaRels.entries) {
       final info = entry.value;
+      if (info == null) continue; // 渲染失败的公式没有 PNG，跳过
       final i = info.relId.replaceFirst('rIdImage', '');
       buf.write(
         '<Relationship Id="${info.relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/formula_$i.png"/>',
@@ -108,7 +110,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
 
   static String _elementToXml(
     DocumentElement element, {
-    required Map<String, FormulaImageInfo> formulaRels,
+    required Map<String, FormulaImageInfo?> formulaRels,
     required Map<String, MermaidImageInfo> mermaidRels,
   }) {
     if (element is HeadingElement) {
@@ -129,7 +131,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     } else if (element is MermaidElement) {
       return _mermaidSvg(element.code, mermaidRels: mermaidRels);
     } else if (element is TableElement) {
-      return _table(element.headers, element.rows);
+      return _table(element.headers, element.rows, formulaRels: formulaRels);
     } else if (element is EmptyLineElement) {
       return '<w:p/>';
     }
@@ -151,7 +153,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
 
   static String _paragraph(
     List<InlineElement> children, {
-    required Map<String, FormulaImageInfo> formulaRels,
+    required Map<String, FormulaImageInfo?> formulaRels,
   }) {
     final runs = StringBuffer();
     for (final c in children) {
@@ -175,7 +177,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     List<InlineElement> children,
     int indent,
     bool ordered, {
-    required Map<String, FormulaImageInfo> formulaRels,
+    required Map<String, FormulaImageInfo?> formulaRels,
   }) {
     // 真正使用 numbering.xml 里定义的 numId。
     // ordered → numId 1 (decimal "1.")；unordered → numId 2 (bullet "•")。
@@ -225,8 +227,23 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
   static String _formulaImage(String relId, int widthEmu, int heightEmu) {
     // 限制最大尺寸，防止 Word 显示异常
     const maxDim = 2600000; // ~27cm
-    final w = widthEmu > 0 && widthEmu < maxDim ? widthEmu : 1200000;
-    final h = heightEmu > 0 && heightEmu < maxDim ? heightEmu : 360000;
+    const defaultWidth = 1200000;
+    const defaultHeight = 360000;
+
+    int w = widthEmu > 0 ? widthEmu : defaultWidth;
+    int h = heightEmu > 0 ? heightEmu : defaultHeight;
+
+    // 等比缩放：如果宽度超过限制，按比例缩小高度
+    if (w > maxDim) {
+      final scale = maxDim / w;
+      w = maxDim;
+      h = (h * scale).round();
+    }
+    // 高度也有限制（不超过最大尺寸的 50%，避免超高公式撑满页面）
+    if (h > maxDim ~/ 2) {
+      h = maxDim ~/ 2;
+    }
+
     return '''<w:r><w:rPr><w:noProof/></w:rPr><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="$w" cy="$h"/><wp:docPr id="${relId.hashCode & 0x7FFFFFFF}" name="Formula"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="formula"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="$relId"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="$w" cy="$h"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>''';
   }
 
@@ -253,14 +270,42 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     }
   }
 
+  /// 解析 SVG width/height 属性，返回 (width, height) 像素值。
+  /// 返回 null 如果解析失败。
+  static ({double width, double height})? parseSvgDimensions(String svg) {
+    try {
+      double? w, h;
+      // 匹配 width="100" 或 width="100px"
+      final widthMatch = RegExp(r'''width\s*=\s*["'](\d+(?:\.\d+)?)[^"']*["']''').firstMatch(svg);
+      if (widthMatch != null) {
+        w = double.tryParse(widthMatch.group(1)!);
+      }
+      final heightMatch = RegExp(r'''height\s*=\s*["'](\d+(?:\.\d+)?)[^"']*["']''').firstMatch(svg);
+      if (heightMatch != null) {
+        h = double.tryParse(heightMatch.group(1)!);
+      }
+      if (w != null && h != null && w > 0 && h > 0) {
+        return (width: w, height: h);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 根据 SVG viewBox 比例计算 Word 绘图尺寸（EMU 单位）。
+  /// 优先级：viewBox > width/height 属性 > 默认比例
   /// 限制最大宽度为 6 英寸（5486400 EMU），高度按比例计算。
   static (int cx, int cy) calcMermaidEmu(String svg) {
     const maxWidthEmu = 5486400; // 6 inches in EMU
     const minHeightEmu = 100000; // 最小高度 1cm
     const defaultRatio = 2.0; // 默认 6x3 inches
 
-    final dims = parseSvgViewBox(svg);
+    // 优先使用 viewBox
+    var dims = parseSvgViewBox(svg);
+    // fallback 到 width/height 属性
+    dims ??= parseSvgDimensions(svg);
+
     if (dims == null) {
       return (maxWidthEmu, (maxWidthEmu / defaultRatio).round());
     }
@@ -283,36 +328,113 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
 
   // --- 表格 ---
 
-  static String _table(List<String> headers, List<List<String>> rows) {
+  static String _table(
+    List<String> headers,
+    List<List<String>> rows, {
+    required Map<String, FormulaImageInfo?> formulaRels,
+  }) {
     if (headers.isEmpty) return '<w:p/>';
 
-    final headerCells = headers
-        .map((h) => '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/><w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/></w:tcBorders><w:shd w:val="clear" w:fill="DDDDDD"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${_esc(h)}</w:t></w:r></w:p></w:tc>''')
-        .join('');
+    // 渲染表头单元格（支持行内格式）
+    final headerCells = headers.map((h) {
+      final inlines = MarkdownParser.parseInline(h);
+      return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="999999"/><w:left w:val="single" w:sz="4" w:color="999999"/><w:bottom w:val="single" w:sz="4" w:color="999999"/><w:right w:val="single" w:sz="4" w:color="999999"/></w:tcBorders><w:shd w:val="clear" w:fill="DDDDDD"/></w:tcPr>${_renderInlineCell(inlines, formulaRels, bold: true)}</w:tc>''';
+    }).join('');
 
+    // 渲染数据行单元格（支持行内格式：公式、粗体、代码）
     final dataRows = rows.map((row) {
-      final cells = row
-          .map((cell) => '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders></w:tcPr><w:p><w:r><w:t>${_esc(cell)}</w:t></w:r></w:p></w:tc>''')
-          .join('');
+      final cells = row.map((cell) {
+        final inlines = MarkdownParser.parseInline(cell);
+        return '''<w:tc><w:tcPr><w:tcBorders><w:top w:val="single" w:sz="4" w:color="CCCCCC"/><w:left w:val="single" w:sz="4" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/><w:right w:val="single" w:sz="4" w:color="CCCCCC"/></w:tcBorders></w:tcPr>${_renderInlineCell(inlines, formulaRels)}</w:tc>''';
+      }).join('');
       return '<w:tr>$cells</w:tr>';
     }).join('');
 
     return '''<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tr>$headerCells</w:tr>$dataRows</w:tbl>''';
   }
 
+  /// 渲染表格单元格内容（支持 TextElement, FormulaElement, BoldElement, CodeElement）
+  static String _renderInlineCell(
+    List<InlineElement> inlines,
+    Map<String, FormulaImageInfo?> formulaRels, {
+    bool bold = false,
+  }) {
+    final runs = StringBuffer();
+    for (final c in inlines) {
+      if (c is FormulaElement) {
+        final info = formulaRels[c.latex];
+        if (info != null) {
+          runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
+        } else {
+          runs.write(_formulaFallback(c.latex));
+        }
+      } else if (c is TextElement) {
+        final style = bold ? '<w:rPr><w:b/><w:sz w:val="24"/></w:rPr>' : '<w:rPr><w:sz w:val="22"/></w:rPr>';
+        runs.write('''<w:r>$style<w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''');
+      } else if (c is BoldElement) {
+        // 递归处理粗体内部的内容
+        runs.write(_renderBoldInline(c.children, formulaRels));
+      }
+      // 注意：MarkdownParser.parseInline 暂不支持行内代码（`code`），因此不处理 CodeElement
+    }
+    return '<w:p>$runs</w:p>';
+  }
+
+  /// 渲染粗体内部的行内元素
+  static String _renderBoldInline(
+    List<InlineElement> children,
+    Map<String, FormulaImageInfo?> formulaRels,
+  ) {
+    final runs = StringBuffer();
+    for (final c in children) {
+      if (c is TextElement) {
+        runs.write('''<w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''');
+      } else if (c is FormulaElement) {
+        final info = formulaRels[c.latex];
+        if (info != null) {
+          runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
+        } else {
+          runs.write(_formulaFallback(c.latex));
+        }
+      }
+      // MarkdownParser.parseInline 暂不支持行内代码
+    }
+    return runs.toString();
+  }
+
   // --- XML escape ---
 
+  /// XML 字符串转义 + 过滤非合法字符。
+  ///
+  /// 关键点：Dart String 的 `runes` 是 Unicode code points（不是 UTF-16
+  /// code units）。`StringBuffer.writeCharCode(int)` 只写一个 16-bit code
+  /// unit，对 BMP 外字符（如 emoji、U+1D400 数学字母数字）会**截断为低
+  /// 16 位**，产生未配对 surrogate，后续 utf8.encode 抛
+  /// "Unexpected extension byte" → docx 解析失败。
+  ///
+  /// 正确做法：用 `String.fromCharCodes(runesIterable)` 一次性写回
+  /// —— Dart 内部会自动编码为合法 UTF-16（必要时拆成 surrogate pair）。
   static String _esc(String s) {
-    final cleaned = StringBuffer();
+    // 第一遍：过滤非合法 XML 字符（NUL / DEL 等），把 surrogate 区域
+    // 替换为 U+FFFD。这一步我们重建一个干净的 runes 列表。
+    final safeRunes = <int>[];
     for (final rune in s.runes) {
       if (rune >= 0x20 && rune != 0x7F) {
-        cleaned.writeCharCode(rune);
+        safeRunes.add(rune);
+      } else if (rune == 0x09 || rune == 0x0A || rune == 0x0D) {
+        // Tab / LF / CR 是合法 XML 字符
+        safeRunes.add(rune);
+      } else if (rune >= 0xD800 && rune <= 0xDFFF) {
+        // 漏网的未配对 surrogate：替换为 U+FFFD
+        safeRunes.add(0xFFFD);
       } else {
-        cleaned.write('\uFFFD');
+        // NUL / DEL 等控制字符：替换为 U+FFFD
+        safeRunes.add(0xFFFD);
       }
     }
-    return cleaned
-        .toString()
+    // 第二遍：用 fromCharCodes 一次性写回，fromCharCodes 会正确生成
+    // surrogate pair 来表示 BMP 外字符（U+10000-U+10FFFF）。
+    return String.fromCharCodes(safeRunes)
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;')
@@ -322,25 +444,53 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
 }
 
 /// 解析 PNG 图片的宽高（单位：像素）。
-/// PNG header: signature(8) + IHDR chunk(len:4 + type:4 + data:13 + crc:4)
-/// 宽度在偏移 16 处，高度在偏移 20 处，均为 4 字节 big-endian。
+///
+/// PNG 文件结构：
+///   - 8 字节 signature (89 50 4E 47 0D 0A 1A 0A)
+///   - N 个 chunk: 4 字节 length + 4 字节 type + data + 4 字节 CRC
+///   - 第一个 chunk 必须是 IHDR，data 长度固定 13 字节：
+///       width (4 bytes BE) | height (4 bytes BE) | bit depth | color type | ...
+///
+/// 我们的解析只读取前 24 字节覆盖 IHDR 头 25 字节的前 24 字节，依赖
+/// "首个 chunk 是 IHDR" 这一约定。如果第一个 chunk 不是 IHDR (非标准 PNG)，
+/// 我们仍然会读出 width/height 字段，但语义错误——为此我们额外校验
+/// 偏移 12-15 字节为 "IHDR" magic，否则返回 null。
 ({int width, int height})? parsePngDimensions(Uint8List bytes) {
   if (bytes.length < 24) return null;
+  // 校验 PNG signature
   if (bytes[0] != 0x89 ||
       bytes[1] != 0x50 ||
       bytes[2] != 0x4E ||
-      bytes[3] != 0x47) return null; // Not PNG
+      bytes[3] != 0x47 ||
+      bytes[4] != 0x0D ||
+      bytes[5] != 0x0A ||
+      bytes[6] != 0x1A ||
+      bytes[7] != 0x0A) {
+    return null; // Not PNG
+  }
+  // 校验第一个 chunk 是 IHDR
+  if (bytes[12] != 0x49 || // I
+      bytes[13] != 0x48 || // H
+      bytes[14] != 0x44 || // D
+      bytes[15] != 0x52) { // R
+    return null; // 第一个 chunk 不是 IHDR，无法安全解析
+  }
   try {
-    final w0 = bytes[16] & 0xFF;
-    final w1 = bytes[17] & 0xFF;
-    final w2 = bytes[18] & 0xFF;
-    final w3 = bytes[19] & 0xFF;
-    final h0 = bytes[20] & 0xFF;
-    final h1 = bytes[21] & 0xFF;
-    final h2 = bytes[22] & 0xFF;
-    final h3 = bytes[23] & 0xFF;
-    final width = (w0 << 24) | (w1 << 16) | (w2 << 8) | w3;
-    final height = (h0 << 24) | (h1 << 16) | (h2 << 8) | h3;
+    // Dart int 是 64-bit 有符号，因此先做 unsigned-extend
+    // 拼成无符号 32-bit 整数（最终仍是 int，但值正确）
+    final wBig = (BigInt.from(bytes[16] & 0xFF) << 24) |
+        (BigInt.from(bytes[17] & 0xFF) << 16) |
+        (BigInt.from(bytes[18] & 0xFF) << 8) |
+        BigInt.from(bytes[19] & 0xFF);
+    final hBig = (BigInt.from(bytes[20] & 0xFF) << 24) |
+        (BigInt.from(bytes[21] & 0xFF) << 16) |
+        (BigInt.from(bytes[22] & 0xFF) << 8) |
+        BigInt.from(bytes[23] & 0xFF);
+    final width = wBig.toUnsigned(32).toInt();
+    final height = hBig.toUnsigned(32).toInt();
+    // PNG 规范: width/height 不能为 0，且上限约为 2^31 - 1
+    if (width <= 0 || height <= 0) return null;
+    if (width > 0x7FFFFFFF || height > 0x7FFFFFFF) return null;
     return (width: width, height: height);
   } catch (_) {
     return null;
