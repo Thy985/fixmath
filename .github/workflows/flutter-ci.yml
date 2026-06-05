@@ -133,7 +133,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-debug-apk-${{ github.run_number }}
+          name: flutter-debug-apk
           path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
 
@@ -207,14 +207,23 @@ jobs:
         run: cd flutter_app && flutter pub get
 
       - name: Build iOS for simulator
-        run: cd flutter_app && flutter build ios --simulator --no-codesign
+        run: |
+          cd flutter_app
+          if [ -d "ios" ] && [ -f "ios/Runner.xcodeproj/project.pbxproj" ]; then
+            flutter build ios --simulator --no-codesign
+          else
+            echo "iOS not configured, skipping build"
+            exit 0
+          fi
 
-      - name: Upload build
+      - name: Upload iOS build
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-ios-build-${{ github.run_number }}
+          name: flutter-ios-build
           path: flutter_app/build/ios/iphonesimulator/
           retention-days: 7
+          if-no-files-found: ignore
 
   release:
     name: Create Release
@@ -233,7 +242,7 @@ jobs:
       - name: Download debug APK
         uses: actions/download-artifact@v4
         with:
-          name: flutter-debug-apk-${{ needs.build-android.outputs.run_number }}
+          name: flutter-debug-apk
           path: dist/
 
       - name: Create Release
