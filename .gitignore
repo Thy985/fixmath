@@ -1,0 +1,13 @@
+# Temporary files
+.mavis/
+.opencode/
+.worktrees/
+
+# Python
+*.pyc
+__pycache__/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
