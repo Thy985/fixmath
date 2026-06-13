@@ -1,7 +1,14 @@
+# Git LFS configuration
+# Migrate large binary assets out of git object DB into LFS storage.
+# Run `git lfs migrate import --everything` to retroactively convert.
+
+# Fonts (CJK + MaterialIcons) — rarely change, large binary
 *.ttf filter=lfs diff=lfs merge=lfs -text
 *.otf filter=lfs diff=lfs merge=lfs -text
 *.woff filter=lfs diff=lfs merge=lfs -text
 *.woff2 filter=lfs diff=lfs merge=lfs -text
+# Minified third-party JS — large, never diffed
 *.min.js filter=lfs diff=lfs merge=lfs -text
+# SVG sprites (occasionally large)
 *.sprite.svg filter=lfs diff=lfs merge=lfs -text
 /flutter_app/assets/js/tex-svg.js filter=lfs diff=lfs merge=lfs -text
