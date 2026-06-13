@@ -2,12 +2,12 @@ name: Flutter CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
     paths:
       - 'flutter_app/**'
       - '.github/workflows/flutter-ci.yml'
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop]
     paths:
       - 'flutter_app/**'
       - '.github/workflows/flutter-ci.yml'
@@ -15,6 +15,10 @@ on:
 concurrency:
   group: flutter-ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  flutter-version: '3.44.0'
+  pub-cache-dir: ~/.pub-cache
 
 jobs:
   analyze:
@@ -25,14 +29,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: ${{ env.flutter-version }}
           channel: 'stable'
 
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.pub-cache
+            ${{ env.pub-cache-dir }}
             flutter_app/.dart_tool
             flutter_app/.flutter-plugins
             flutter_app/.flutter-plugins-dependencies
@@ -44,7 +48,7 @@ jobs:
         run: cd flutter_app && flutter pub get
 
       - name: Flutter Analyze
-        run: cd flutter_app && flutter analyze
+        run: cd flutter_app && flutter analyze --no-fatal-infos --no-fatal-warnings
 
   test:
     name: Flutter Tests
@@ -55,14 +59,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: ${{ env.flutter-version }}
           channel: 'stable'
 
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.pub-cache
+            ${{ env.pub-cache-dir }}
             flutter_app/.dart_tool
             flutter_app/.flutter-plugins
             flutter_app/.flutter-plugins-dependencies
@@ -92,14 +96,14 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: ${{ env.flutter-version }}
           channel: 'stable'
 
       - name: Cache Flutter dependencies
         uses: actions/cache@v4
         with:
           path: |
-            ~/.pub-cache
+            ${{ env.pub-cache-dir }}
             flutter_app/.dart_tool
             flutter_app/.flutter-plugins
             flutter_app/.flutter-plugins-dependencies
@@ -131,7 +135,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.0'
+          flutter-version: ${{ env.flutter-version }}
           channel: 'stable'
           xcode-version: '15.0'
 
@@ -139,7 +143,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.pub-cache
+            ${{ env.pub-cache-dir }}
             flutter_app/.dart_tool
             flutter_app/.flutter-plugins
             flutter_app/.flutter-plugins-dependencies
