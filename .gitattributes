@@ -9,6 +9,7 @@
 *.woff2 filter=lfs diff=lfs merge=lfs -text
 # Minified third-party JS — large, never diffed
 *.min.js filter=lfs diff=lfs merge=lfs -text
+# KaTeX/MathJax output bundles (no .min. suffix but still minified)
+/flutter_app/assets/js/tex-svg.js filter=lfs diff=lfs merge=lfs -text
 # SVG sprites (occasionally large)
 *.sprite.svg filter=lfs diff=lfs merge=lfs -text
-/flutter_app/assets/js/tex-svg.js filter=lfs diff=lfs merge=lfs -text
