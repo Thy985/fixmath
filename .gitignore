@@ -2,6 +2,15 @@
 .mavis/
 .opencode/
 .worktrees/
+.claude/
+.wiki/
+
+# Wiki dump artefacts (duplicated in docs/)
+docs/1_Home.md
+docs/2_Architecture.md
+docs/3_Development_Progress.md
+docs/4_Installation.md
+docs/5_Usage.md
 
 # Python
 *.pyc
