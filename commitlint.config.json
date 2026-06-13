@@ -1,0 +1,73 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "refactor",
+        "perf",
+        "test",
+        "docs",
+        "ci",
+        "chore",
+        "revert",
+        "build",
+        "style"
+      ]
+    ],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "subject-empty": [2, "never"],
+    "subject-case": [
+      2,
+      "never",
+      ["sentence-case", "start-case", "pascal-case", "upper-case"]
+    ],
+    "subject-full-stop": [2, "never", "."],
+    "subject-max-length": [2, "always", 72],
+    "body-max-line-length": [2, "always", 100],
+    "header-max-length": [2, "always", 100],
+    "footer-max-line-length": [2, "always", 100],
+    "scope-case": [2, "always", "lower-case"],
+    "scope-empty": [0],
+    "scope-max-length": [1, "always", 32]
+  },
+  "helpUrl": "https://github.com/Thy985/fixmath/blob/master/CONTRIBUTING.md#commit-message-rules-conventional-commits",
+  "prompt": {
+    "questions": {
+      "type": {
+        "description": "What kind of change is this?",
+        "enum": {
+          "feat": "A new feature (user-visible behavior change)",
+          "fix": "A bug fix",
+          "refactor": "Code change that neither fixes a bug nor adds a feature",
+          "perf": "Performance improvement",
+          "test": "Adding or updating tests",
+          "docs": "Documentation only",
+          "ci": "CI/CD pipeline change",
+          "chore": "Tooling, dependencies, config (no behavior change)",
+          "revert": "Reverts a previous commit",
+          "build": "Build system or external dependencies",
+          "style": "Formatting, whitespace, semicolons — no code change"
+        }
+      },
+      "scope": {
+        "description": "What area of the codebase does this touch? (lowercase, optional)",
+        "examples": ["export", "ci", "flutter", "web", "deps"]
+      },
+      "subject": {
+        "description": "Imperative-mood summary, max 72 chars, no period"
+      },
+      "body": {
+        "description": "Why this change is needed (not what — the diff shows what)"
+      },
+      "breaking": {
+        "description": "Is this a breaking change?",
+        "enum": { "true": "Yes", "false": "No" }
+      }
+    }
+  }
+}
