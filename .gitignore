@@ -1,9 +1,11 @@
-# Temporary files
+# Temporary files (agent / IDE / tooling caches)
 .mavis/
 .opencode/
 .worktrees/
 .claude/
 .wiki/
+.tmp/
+tmp/
 
 # Wiki dump artefacts (duplicated in docs/)
 docs/1_Home.md
@@ -12,11 +14,63 @@ docs/3_Development_Progress.md
 docs/4_Installation.md
 docs/5_Usage.md
 
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter_build/
+coverage/
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.mocks.dart
+pubspec.lock
+
+# Node / Web (Vite)
+node_modules/
+dist/
+.parcel-cache/
+.next/
+out/
+
 # Python
 *.pyc
 __pycache__/
 *.log
 
+# Native / compiled binaries (never commit)
+*.dll
+*.so
+*.dylib
+*.exe
+*.bin
+*.o
+*.a
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
