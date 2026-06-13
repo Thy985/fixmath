@@ -1,0 +1,61 @@
+name: Refactor / Tech Debt
+description: Track internal code changes that have no user-visible behavior change
+title: "[Refactor] "
+labels: ["refactor", "tech-debt"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Refactor Scope
+
+        Describe the boundary of this refactor: which modules / files / functions
+        are touched, and which are explicitly out of scope.
+
+        **Rule:** a refactor issue must NOT mix with a `feat` or `fix`. If user-visible
+        behavior changes, file a `feat` / `fix` issue instead.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this refactor needed? (code smell? coupling? testability?)
+      placeholder: |
+        - [ ] Reduce coupling between X and Y
+        - [ ] Improve testability (currently untestable due to ...)
+        - [ ] Remove dead code
+        - [ ] Align with project conventions
+        - [ ] Other: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed Approach
+      description: How will this be refactored? Mention any risk to existing behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior-preservation
+    attributes:
+      label: Behavior Preservation Strategy
+      description: How will you verify behavior is unchanged?
+      placeholder: |
+        - [ ] Existing test suite covers affected paths
+        - [ ] Manual smoke test on:
+        - [ ] Diff review: no public API / signature changes
+        - [ ] Other: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback Plan
+      description: If something goes wrong post-merge, how do we revert?
+      placeholder: |
+        `git revert <merge-sha>` should restore the prior state because:
+        ...
+    validations:
+      required: false
