@@ -1,0 +1,14 @@
+# Consolidate all author identities to a single canonical identity.
+#
+# Background: this repo's history contains 4 distinct author identities
+# (Thy985/thq, 唐怀远/qq, Thy985/github-noreply, Coder/mavis-agent)
+# for the same physical contributor. Without this file, `git shortlog`,
+# `git blame`, and the GitHub contribution graph all fragment.
+#
+# Format: "Canonical Name <canonical@email>  <alias@email>"
+# GitHub also auto-links by email, but the mailmap fixes the local CLI view.
+#
+Thy985 <thy985@example.com>
+Thy985 <thy985@example.com>                              <Thy985@users.noreply.github.com>
+Thy985 <thy985@example.com>                              <coder@mavis.local>
+Thy985 <thy985@example.com>                              <1850833838@qq.com>
