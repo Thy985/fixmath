@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Run lint-staged on staged files before commit is created.
+# Rules are defined in package.json `lint-staged` field:
+#   - *.dart            → dart format (if dart installed)
+#   - *.{md,json,yml,yaml}  → prettier --write
+#   - *.{js,ts,vue,jsx,tsx} → prettier --write
+npx --no -- lint-staged

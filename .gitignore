@@ -7,6 +7,10 @@
 .tmp/
 tmp/
 
+# Husky internal (gitignored by convention; keeps `.husky/commit-msg`
+# and `.husky/pre-commit` while ignoring generated `._/` files)
+.husky/_/
+
 # Wiki dump artefacts (duplicated in docs/)
 docs/1_Home.md
 docs/2_Architecture.md

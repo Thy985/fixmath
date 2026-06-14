@@ -1,0 +1,57 @@
+name: lint
+
+# Enforce Conventional Commits + lint-staged rules in CI.
+#
+# This is the last line of defense against:
+#   - commits that bypassed `git commit` (e.g. `git commit --no-verify`)
+#   - PRs from forks where husky hooks are not installed
+#   - agents that commit directly with `git -c core.hooksPath=/dev/null`
+#
+# Husky handles the happy path locally; this workflow handles the rest.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    name: Validate commit messages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dev tooling
+        run: npm ci --no-audit --no-fund
+
+      - name: Run commitlint on push range
+        if: github.event_name == 'push'
+        run: npx --no -- commitlint --from ${{ github.event.before }} --to ${{ github.sha }} --verbose
+        env:
+          FULL: "true"
+
+      - name: Run commitlint on PR commits
+        if: github.event_name == 'pull_request'
+        run: npx --no -- commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" != "success" ]; then
+            echo "::error::commitlint failed. See CONTRIBUTING.md for the rules."
+            echo "::error::https://github.com/Thy985/fixmath/blob/master/CONTRIBUTING.md#commit-message-rules-conventional-commits"
+          fi

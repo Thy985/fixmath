@@ -1,0 +1,34 @@
+{
+  "name": "fixmath-dev-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Root dev tooling for fixmath: husky + commitlint + lint-staged. NOT shipped to end users.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "commitlint": "commitlint --edit",
+    "lint:staged": "lint-staged --diff=HEAD",
+    "verify:hooks": "node -e \"console.log('husky', require('husky/package.json').version); console.log('commitlint', require('@commitlint/cli/package.json').version); console.log('lint-staged', require('lint-staged/package.json').version); console.log('prettier', require('prettier/package.json').version);\""
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.0",
+    "@commitlint/config-conventional": "^19.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3"
+  },
+  "lint-staged": {
+    "*.dart": [
+      "bash -c 'command -v dart >/dev/null 2>&1 && dart format || echo \"[skip] dart format: dart not installed\"'"
+    ],
+    "*.{md,json,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.{js,ts,vue,jsx,tsx}": [
+      "prettier --write"
+    ]
+  }
+}

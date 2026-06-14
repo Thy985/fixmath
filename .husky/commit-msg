@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Validate commit message with commitlint.
+# Reads commitlint config from commitlint.config.json (root) via the
+# "commitlint" field in package.json.
+npx --no -- commitlint --edit "$1"
