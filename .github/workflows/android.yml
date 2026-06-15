@@ -1,0 +1,26 @@
+名称: Android CI
+
+在:
+  push:
+    分支: [ "master" ]
+  pull_request:
+    分支: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: set up JDK 11
+      使用: actions/setup-java@v4
+      with:
+        java-version: '11'
+        发行版: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Build with Gradle
+      run: ./gradlew build
