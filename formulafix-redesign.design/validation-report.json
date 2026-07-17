@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "skillProvenance": {
+    "name": "solo-design",
+    "version": null,
+    "version_source": "unknown",
+    "runtime_skill_dir": null,
+    "recorded_at": null,
+    "read_status": "missing",
+    "reason": "orchestration-summary.json missing skillProvenance"
+  },
+  "operatingMode": "free-explore",
+  "renderBlockingErrorCount": 0,
+  "softWarningCount": 9,
+  "renderBlockingErrors": [],
+  "softWarnings": [
+    "[orchestration-summary] orchestration-summary.json is missing. Canvas validation can still pass, but quality-context checks (operatingMode, visualNorthStar, compositionPattern, continuityAnchors, miniProgramStyle) are degraded.",
+    "[mobile-bottom-overlay] pages/home.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-[var(--ff-primary)]\"",
+    "[mobile-bottom-overlay] pages/editor.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"absolute left-0 top-1 bottom-1 w-[2px] bg-[var(--ff-primary)] rounded-full\"",
+    "[mobile-bottom-overlay] pages/formula-sheet.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-[var(--ff-card)] rounded-t-2xl shadow-[0_-12px_40px_rgba(26,29,35,0.18)]\"",
+    "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--ff-accent, --ff-accent-foreground, --accent). Use --state-success/warning/error/info only for semantic states.",
+    "[html-quality] colors_and_type.css: free-explore radius tokens must stay within the restrained 2/4/8/12/16px scale; oversized or forbidden radius tokens found (--ff-radius-xl: 24px). Do not use 20px+ radii unless the user explicitly requested large rounded shapes.",
+    "[html-quality] editor.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] formula-sheet.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] home.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states."
+  ],
+  "repairPlanHints": [],
+  "errorCount": 0,
+  "warningCount": 9,
+  "errors": [],
+  "warnings": [
+    "[orchestration-summary] orchestration-summary.json is missing. Canvas validation can still pass, but quality-context checks (operatingMode, visualNorthStar, compositionPattern, continuityAnchors, miniProgramStyle) are degraded.",
+    "[mobile-bottom-overlay] pages/home.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-[var(--ff-primary)]\"",
+    "[mobile-bottom-overlay] pages/editor.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"absolute left-0 top-1 bottom-1 w-[2px] bg-[var(--ff-primary)] rounded-full\"",
+    "[mobile-bottom-overlay] pages/formula-sheet.html: bottom fixed/absolute CTA or navigation found. Ensure it has safe-area spacing and does not cover content. Evidence: class=\"fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-[var(--ff-card)] rounded-t-2xl shadow-[0_-12px_40px_rgba(26,29,35,0.18)]\"",
+    "[html-quality] colors_and_type.css: free-explore brand CSS must use one primary hue only; forbidden secondary/accent brand variables found (--ff-accent, --ff-accent-foreground, --accent). Use --state-success/warning/error/info only for semantic states.",
+    "[html-quality] colors_and_type.css: free-explore radius tokens must stay within the restrained 2/4/8/12/16px scale; oversized or forbidden radius tokens found (--ff-radius-xl: 24px). Do not use 20px+ radii unless the user explicitly requested large rounded shapes.",
+    "[html-quality] editor.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] formula-sheet.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states.",
+    "[html-quality] home.html: free-explore pages must not use secondary/accent brand variables. Use the single primary hue, neutral tints, or --state-success/warning/error/info for real semantic states."
+  ],
+  "designDir": "d:\\Projects\\Active\\math\\formulafix-redesign.design",
+  "expectedPages": 3,
+  "requireInteractions": null,
+  "checkedAt": "2026-07-17T23:18:44.698Z"
+}

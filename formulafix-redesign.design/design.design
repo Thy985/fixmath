@@ -1,0 +1,57 @@
+{
+  "data": [
+    {
+      "id": "page-home",
+      "title": "首页 · 文档库",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784330000000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/home.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-editor",
+      "title": "编辑器 · WYSIWYG 沉浸式写作",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784330001000,
+      "canvasData": {
+        "x": 420,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/editor.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-formula-sheet",
+      "title": "公式插入面板",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784330002000,
+      "canvasData": {
+        "x": 840,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/formula-sheet.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "mobile",
+    "projectName": "FormulaFix Redesign"
+  }
+}

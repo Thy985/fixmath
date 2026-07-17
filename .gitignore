@@ -1,0 +1,120 @@
+# ===== Flutter / Dart =====
+# Build artifacts
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/generated_plugin_registrant.dart
+
+# Packages
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/pubspec.lock
+# 注：App 项目通常不提交 pubspec.lock，库项目需提交；本项目为 App，故忽略
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Flutter version managers
+.fvm/
+.fvmrc
+
+# ===== Platform-specific =====
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+*.jks
+*.keystore
+
+# iOS
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/DerivedData/
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/xcuserdata/
+**/ios/**/*.xcodeproj
+!**/ios/**/Runner.xcodeproj
+**/ios/**/*.xcworkspace
+!**/ios/**/Runner.xcworkspace
+
+# Web
+**/web/icons/Icon-*.png
+**/web/icons/Icon-192.png
+**/web/icons/Icon-512.png
+**/web/icons/Icon-maskable-192.png
+**/web/icons/Icon-maskable-512.png
+# 注：以上是 Flutter 默认生成的图标；如果项目内含自定义图标，调整此处
+
+# Linux / macOS desktop
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/.symlinks/
+
+# ===== Project-specific =====
+# 文档生成产物（如有）
+docs/_site/
+docs/.cache/
+
+# 临时备份文件
+*.bak
+*.tmp
+*~
+
+# Secrets / credentials
+.env
+.env.*
+**/google-services.json
+**/GoogleService-Info.plist
+**/key.properties
+secrets/
+
+# coverage
+**/coverage/
+**/lcov.info
+
+# Symbolication / obfuscation
+**/symbols/
+**/obfuscate/
