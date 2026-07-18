@@ -24,38 +24,7 @@ class ListRenderer extends StatelessWidget {
     final spans = <InlineSpan>[];
 
     for (final child in children) {
-      if (child is TextElement) {
-        spans.add(TextSpan(
-          text: child.text,
-          style: TextStyle(
-            fontSize: AppSpacing.body,
-            height: 1.6,
-            color: textColor,
-          ),
-        ));
-      } else if (child is FormulaElement) {
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: _buildFormula(child.latex, child.displayMode),
-        ));
-      } else if (child is BoldElement) {
-        spans.add(TextSpan(
-          children: child.children.map((c) {
-            if (c is TextElement) {
-              return TextSpan(
-                text: c.text,
-                style: TextStyle(
-                  fontSize: AppSpacing.body,
-                  height: 1.6,
-                  color: textColor,
-                  fontWeight: FontWeight.bold,
-                ),
-              );
-            }
-            return const TextSpan(text: '');
-          }).toList(),
-        ));
-      }
+      spans.addAll(_renderInline(child, textColor));
     }
 
     return Padding(
@@ -87,6 +56,109 @@ class ListRenderer extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 把单个 inline 元素渲染为 [InlineSpan]，内层递归以支持嵌套样式。
+  List<InlineSpan> _renderInline(InlineElement child, Color textColor) {
+    if (child is TextElement) {
+      return [
+        TextSpan(
+          text: child.text,
+          style: TextStyle(
+            fontSize: AppSpacing.body,
+            height: 1.6,
+            color: textColor,
+          ),
+        ),
+      ];
+    } else if (child is FormulaElement) {
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: _buildFormula(child.latex, child.displayMode),
+        ),
+      ];
+    } else if (child is BoldElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, textColor)).toList(),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ];
+    } else if (child is ItalicElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, textColor)).toList(),
+          style: const TextStyle(fontStyle: FontStyle.italic),
+        ),
+      ];
+    } else if (child is StrikethroughElement) {
+      return [
+        TextSpan(
+          children: child.children.expand((c) => _renderInline(c, textColor)).toList(),
+          style: const TextStyle(decoration: TextDecoration.lineThrough),
+        ),
+      ];
+    } else if (child is InlineCodeElement) {
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkCodeBlockBg : AppColors.codeBlockBg,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              child.code,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+            ),
+          ),
+        ),
+      ];
+    } else if (child is LinkElement) {
+      return [
+        TextSpan(
+          text: child.text,
+          style: TextStyle(
+            color: AppColors.primary,
+            decoration: TextDecoration.underline,
+            fontSize: AppSpacing.body,
+            height: 1.6,
+          ),
+        ),
+      ];
+    } else if (child is ImageElement) {
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: _buildImage(child.url, child.alt),
+        ),
+      ];
+    }
+    return [];
+  }
+
+  /// 渲染行内图片：网络地址用 [Image.network]，其余回退为 alt 文本。
+  Widget _buildImage(String url, String alt) {
+    final placeholder = Text(
+      alt.isNotEmpty ? alt : '[图片]',
+      style: TextStyle(
+        color: isDark ? Colors.grey[400] : Colors.grey[600],
+        fontSize: AppSpacing.small,
+      ),
+    );
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return Image.network(
+        url,
+        height: 120,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => placeholder,
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : placeholder,
+      );
+    }
+    return placeholder;
   }
 
   Widget _buildFormula(String latex, bool displayMode) {

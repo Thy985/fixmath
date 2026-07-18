@@ -85,11 +85,7 @@ class TextExporter {
     if (element is HeadingElement) {
       return '${'#' * element.level} ${element.text}';
     } else if (element is ParagraphElement) {
-      return element.children.map((c) {
-        if (c is FormulaElement) return ' [${c.latex}] ';
-        if (c is TextElement) return c.text;
-        return '';
-      }).join('');
+      return _inlineToText(element.children);
     } else if (element is ListElement) {
       final text = _inlineToText(element.children);
       return '${'  ' * element.indent}${element.ordered ? '${element.indent + 1}. ' : '- '}$text';
@@ -107,6 +103,12 @@ class TextExporter {
         lines.add('| ${row.join(' | ')} |');
       }
       return lines.join('\n');
+    } else if (element is TaskListItemElement) {
+      final text = _inlineToText(element.children);
+      final box = element.checked ? '[x]' : '[ ]';
+      return '${'  ' * element.indent}- $box $text';
+    } else if (element is HorizontalRuleElement) {
+      return '---';
     }
     return '';
   }
@@ -119,6 +121,16 @@ class TextExporter {
         buf.write(c.text);
       } else if (c is FormulaElement) {
         buf.write(' [${c.latex}] ');
+      } else if (c is ItalicElement) {
+        buf.write(_inlineToText(c.children));
+      } else if (c is StrikethroughElement) {
+        buf.write(_inlineToText(c.children));
+      } else if (c is InlineCodeElement) {
+        buf.write('`${c.code}`');
+      } else if (c is LinkElement) {
+        buf.write('[${c.text}](${c.url})');
+      } else if (c is ImageElement) {
+        buf.write('![${c.alt}](${c.url})');
       }
     }
     return buf.toString();

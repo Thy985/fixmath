@@ -7,6 +7,7 @@ import '../../data/models/document.dart';
 import 'heading_renderer.dart';
 import 'paragraph_renderer.dart';
 import 'list_renderer.dart';
+import 'task_list_item_renderer.dart';
 import 'code_renderer.dart';
 import 'blockquote_renderer.dart';
 import 'table_renderer.dart';
@@ -97,6 +98,14 @@ class PreviewContent extends StatelessWidget {
         ),
       TableElement(:final headers, :final rows) => TableRenderer(
           headers: headers, rows: rows, isDark: isDark),
+      TaskListItemElement(:final children, :final checked, :final indent) =>
+        TaskListItemRenderer(
+          children: children,
+          checked: checked,
+          indent: indent,
+          isDark: isDark,
+        ),
+      HorizontalRuleElement() => const Divider(height: AppSpacing.lg),
       EmptyLineElement() => const SizedBox(height: AppSpacing.lg),
     };
   }

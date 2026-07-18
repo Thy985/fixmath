@@ -276,6 +276,16 @@ class PdfExporter {
       return await _pdfTable(element.headers, element.rows, isDark: isDark, cjkFont: cjkFont);
     } else if (element is EmptyLineElement) {
       return pw.SizedBox(height: 6);
+    } else if (element is TaskListItemElement) {
+      final paragraph = await _pdfParagraphAsync(
+        element.children,
+        fontSize: 13,
+        isDark: isDark,
+        cjkFont: cjkFont,
+      );
+      return _wrapTaskItem(paragraph, element.checked, element.indent);
+    } else if (element is HorizontalRuleElement) {
+      return pw.Divider();
     }
     return null;
   }
@@ -311,6 +321,25 @@ class PdfExporter {
       } else if (c is BoldElement) {
         // 递归渲染 bold 内部
         widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, bold: true, isDark: isDark, cjkFont: cjkFont));
+      } else if (c is ItalicElement) {
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont));
+      } else if (c is StrikethroughElement) {
+        widgets.add(await _pdfParagraphAsync(c.children, fontSize: fontSize, isDark: isDark, cjkFont: cjkFont));
+      } else if (c is InlineCodeElement) {
+        widgets.add(pw.Text(
+          c.code,
+          style: pw.TextStyle(font: pw.Font.courier(), fontSize: fontSize, color: textColor),
+        ));
+      } else if (c is LinkElement) {
+        widgets.add(pw.Text(
+          c.text,
+          style: pw.TextStyle(font: cjkFont, fontSize: fontSize, color: PdfColors.blue, decoration: pw.TextDecoration.underline),
+        ));
+      } else if (c is ImageElement) {
+        widgets.add(pw.Text(
+          c.alt.isNotEmpty ? '[图片: ${c.alt}]' : '[图片]',
+          style: pw.TextStyle(font: cjkFont, fontSize: fontSize, color: PdfColors.grey),
+        ));
       }
     }
 
@@ -354,6 +383,28 @@ class PdfExporter {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+            ),
+          ),
+          pw.Expanded(child: paragraph),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _wrapTaskItem(pw.Widget paragraph, bool checked, int indent) {
+    final prefix = checked ? '\u2611 ' : '\u2610 ';
+    const double indentPt = 14.0;
+    final leftPad = indent * indentPt;
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 2, bottom: 2),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: leftPad + 24,
+            child: pw.Padding(
+              padding: pw.EdgeInsets.only(left: leftPad),
+              child: pw.Text(prefix, style: const pw.TextStyle(fontSize: 13)),
             ),
           ),
           pw.Expanded(child: paragraph),

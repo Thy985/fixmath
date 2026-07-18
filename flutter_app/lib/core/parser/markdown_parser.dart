@@ -1,7 +1,36 @@
 import '../../data/models/document.dart';
 import 'formula_extractor.dart';
 
+/// 行内 token 的语义类型，按 ADR-0004 优先级排列。
+enum _InlineKind { image, link, code, bold, italic, strike }
+
+/// 行内 token 命中结果，用于在多个候选中选最早 / 最高优先级的那个。
+class _InlineHit {
+  final _InlineKind kind;
+  final int start;
+  final int end;
+  final int priority;
+  final RegExpMatch match;
+
+  const _InlineHit({
+    required this.kind,
+    required this.start,
+    required this.end,
+    required this.priority,
+    required this.match,
+  });
+}
+
 class MarkdownParser {
+  /// 行内语法正则，按 ADR-0004 优先级组织：
+  /// 图片 > 链接 > 行内代码 > 加粗 > 斜体 > 删除线。
+  static final RegExp _imageRe = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
+  static final RegExp _linkRe = RegExp(r'\[([^\]]+)\]\(([^)]+)\)');
+  static final RegExp _codeRe = RegExp(r'`([^`]+)`');
+  static final RegExp _boldRe = RegExp(r'\*\*(.+?)\*\*');
+  static final RegExp _italicStarRe = RegExp(r'\*([^*\n]+?)\*');
+  static final RegExp _italicUnderRe = RegExp(r'_(?=\S)([^\n_]+?)_(?=\s|$)');
+  static final RegExp _strikeRe = RegExp(r'~~(.+?)~~');
   static List<DocumentElement> parse(String content) {
     if (content.isEmpty) return [];
 
@@ -112,6 +141,24 @@ class MarkdownParser {
       }
 
       final trimmedLine = line.trim();
+
+      // 任务列表：- [ ] / - [x]（ADR-0004 块级扩展，仅新增元素）
+      final taskMatch = RegExp(r'^\s*- \[( |x|X)\]\s+(.+)$').firstMatch(line);
+      if (taskMatch != null) {
+        flushParagraph();
+        flushListItems();
+        flushTable();
+        final checked = taskMatch.group(1) != ' ';
+        final itemText = taskMatch.group(2)!;
+        final indent = getIndent(line);
+        elements.add(TaskListItemElement(
+          children: _parseInline(itemText),
+          checked: checked,
+          indent: indent,
+        ));
+        continue;
+      }
+
       if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') ||
           trimmedLine.startsWith('+ ') || RegExp(r'^\d+\.\s').hasMatch(trimmedLine)) {
         flushParagraph();
@@ -191,6 +238,15 @@ class MarkdownParser {
         flushTable();
       }
 
+      // 水平分割线：--- / *** / ___（3 个及以上）
+      if (RegExp(r'^\s*(-{3,}|\*{3,}|_{3,})\s*$').hasMatch(line)) {
+        flushParagraph();
+        flushListItems();
+        flushTable();
+        elements.add(const HorizontalRuleElement());
+        continue;
+      }
+
       pendingParagraph ??= ParagraphElement(children: []);
       final inline = _parseInline(trimmedLine);
       pendingParagraph!.children.addAll(inline);
@@ -246,7 +302,7 @@ class MarkdownParser {
 
     if (formulas.isEmpty) {
       if (text.trim().isNotEmpty) {
-        elements.addAll(_parseBoldAndItalic(text.trim()));
+        elements.addAll(_parseInlineStyle(text.trim()));
       }
       return elements;
     }
@@ -256,7 +312,7 @@ class MarkdownParser {
       if (formula.start > lastEnd) {
         final textContent = text.substring(lastEnd, formula.start);
         if (textContent.isNotEmpty) {
-          elements.addAll(_parseBoldAndItalic(textContent));
+          elements.addAll(_parseInlineStyle(textContent));
         }
       }
       elements.add(FormulaElement(
@@ -269,41 +325,83 @@ class MarkdownParser {
     if (lastEnd < text.length) {
       final remaining = text.substring(lastEnd);
       if (remaining.isNotEmpty) {
-        elements.addAll(_parseBoldAndItalic(remaining));
+        elements.addAll(_parseInlineStyle(remaining));
       }
     }
 
     return elements;
   }
 
-  static List<InlineElement> _parseBoldAndItalic(String text) {
-    final List<InlineElement> elements = [];
-    final boldRegex = RegExp(r'\*\*(.+?)\*\*');
+  /// 按 ADR-0004 优先级解析行内样式：
+  /// 图片 > 链接 > 行内代码 > 加粗 > 斜体 > 删除线 > 纯文本。
+  ///
+  /// 在文本中从左到右扫描所有候选 token，取**最早起始**者；若多个 token
+  /// 起始位置相同，按优先级（图片最优先，删除线最低）裁决。命中处
+  /// 递归解析内层内容以支持嵌套（如加粗内嵌斜体）。
+  static List<InlineElement> _parseInlineStyle(String text) {
+    final List<InlineElement> out = [];
+    if (text.isEmpty) return out;
 
-    int lastEnd = 0;
-    for (final match in boldRegex.allMatches(text)) {
-      if (match.start > lastEnd) {
-        final before = text.substring(lastEnd, match.start);
-        if (before.isNotEmpty) {
-          elements.add(TextElement(before));
+    int pos = 0;
+    while (pos < text.length) {
+      _InlineHit? best;
+      void consider(RegExp re, int priority, _InlineKind kind) {
+        final m = re.firstMatch(text.substring(pos));
+        if (m == null) return;
+        final start = pos + m.start;
+        if (best == null ||
+            start < best!.start ||
+            (start == best!.start && priority < best!.priority)) {
+          best = _InlineHit(
+            kind: kind,
+            start: start,
+            end: pos + m.end,
+            priority: priority,
+            match: m,
+          );
         }
       }
-      final boldContent = match.group(1)!;
-      elements.add(BoldElement(children: [TextElement(boldContent)]));
-      lastEnd = match.end;
-    }
 
-    if (lastEnd < text.length) {
-      final remaining = text.substring(lastEnd);
-      if (remaining.isNotEmpty) {
-        elements.add(TextElement(remaining));
+      consider(_imageRe, 0, _InlineKind.image);
+      consider(_linkRe, 1, _InlineKind.link);
+      consider(_codeRe, 2, _InlineKind.code);
+      consider(_boldRe, 3, _InlineKind.bold);
+      consider(_italicStarRe, 4, _InlineKind.italic);
+      consider(_italicUnderRe, 4, _InlineKind.italic);
+      consider(_strikeRe, 5, _InlineKind.strike);
+
+      if (best == null) {
+        out.add(TextElement(text.substring(pos)));
+        break;
       }
+      if (best!.start > pos) {
+        out.add(TextElement(text.substring(pos, best!.start)));
+      }
+      out.add(_buildInline(best!));
+      pos = best!.end;
     }
+    return out;
+  }
 
-    if (elements.isEmpty && text.isNotEmpty) {
-      elements.add(TextElement(text));
+  /// 把命中的行内 token 转换为 [InlineElement]，内层内容递归解析以支持嵌套。
+  static InlineElement _buildInline(_InlineHit hit) {
+    switch (hit.kind) {
+      case _InlineKind.image:
+        return ImageElement(
+            alt: hit.match.group(1) ?? '', url: hit.match.group(2) ?? '');
+      case _InlineKind.link:
+        return LinkElement(
+            text: hit.match.group(1) ?? '', url: hit.match.group(2) ?? '');
+      case _InlineKind.code:
+        return InlineCodeElement(hit.match.group(1) ?? '');
+      case _InlineKind.bold:
+        return BoldElement(children: _parseInlineStyle(hit.match.group(1) ?? ''));
+      case _InlineKind.italic:
+        return ItalicElement(
+            children: _parseInlineStyle(hit.match.group(1) ?? ''));
+      case _InlineKind.strike:
+        return StrikethroughElement(
+            children: _parseInlineStyle(hit.match.group(1) ?? ''));
     }
-
-    return elements;
   }
 }
