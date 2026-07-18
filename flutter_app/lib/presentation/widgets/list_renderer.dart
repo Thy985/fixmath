@@ -120,7 +120,7 @@ class ListRenderer extends StatelessWidget {
       return [
         TextSpan(
           text: child.text,
-          style: TextStyle(
+          style: const TextStyle(
             color: AppColors.primary,
             decoration: TextDecoration.underline,
             fontSize: AppSpacing.body,

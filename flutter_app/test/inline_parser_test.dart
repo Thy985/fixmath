@@ -125,7 +125,7 @@ void main() {
 
   group('TextExporter 行内/块级一致性', () {
     test('保留行内代码与链接标记', () async {
-      final md = '普通 **粗** *斜* `code` [链接](http://x)';
+      const md = '普通 **粗** *斜* `code` [链接](http://x)';
       final bytes = await TextExporter.export(md);
       final txt = utf8.decode(bytes);
       expect(txt, contains('`code`'));
@@ -133,7 +133,7 @@ void main() {
     });
 
     test('导出任务列表与水平线', () async {
-      final md = '- [ ] 待办\n- [x] 完成\n\n---';
+      const md = '- [ ] 待办\n- [x] 完成\n\n---';
       final bytes = await TextExporter.export(md);
       final txt = utf8.decode(bytes);
       expect(txt, contains('- [ ] 待办'));

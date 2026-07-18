@@ -292,7 +292,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     }
 
     final ratio = dims.width / dims.height;
-    final widthEmu = maxWidthEmu;
+    const widthEmu = maxWidthEmu;
     final heightEmu = (widthEmu / ratio).round().clamp(minHeightEmu, maxWidthEmu);
     return (widthEmu, heightEmu);
   }
@@ -342,14 +342,6 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
   }) {
     final runs = _renderInlineRuns(inlines, formulaRels, bold: bold, inCell: true);
     return '<w:p>$runs</w:p>';
-  }
-
-  /// 渲染粗体内部的行内元素
-  static String _renderBoldInline(
-    List<InlineElement> children,
-    Map<String, FormulaImageInfo?> formulaRels,
-  ) {
-    return _renderInlineRuns(children, formulaRels, bold: true);
   }
 
   /// 统一的行内渲染：覆盖 Text / Formula / Bold / Italic / Strikethrough /

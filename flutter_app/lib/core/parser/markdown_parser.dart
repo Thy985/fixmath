@@ -182,14 +182,14 @@ class MarkdownParser {
         if (indent > 0 && pendingListItems.isNotEmpty) {
           final lastItem = pendingListItems.removeLast();
           final mergedText = lastItem.children
-              .where((c) => c is TextElement)
-              .map((c) => (c as TextElement).text)
+              .whereType<TextElement>()
+              .map((c) => c.text)
               .join();
           final lastInlineText = mergedText.isEmpty
               ? ''
               : '$mergedText\n${'  ' * indent}${inlineChildren
-                  .where((c) => c is TextElement)
-                  .map((c) => (c as TextElement).text)
+                  .whereType<TextElement>()
+                  .map((c) => c.text)
                   .join()}';
           final reParsed = lastInlineText.isEmpty
               ? <InlineElement>[]
