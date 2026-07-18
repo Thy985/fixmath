@@ -98,6 +98,21 @@ desktop.ini
 docs/_site/
 docs/.cache/
 
+# CI / 调试日志
+ci_logs*/
+logs/
+logs*.zip
+pub_get.log
+pub_get_error.txt
+pub_get_output.txt
+
+# Node.js（Flutter 项目不需要）
+node_modules/
+
+# Agent / 上传临时目录
+.agent/
+.uploads/
+
 # 临时备份文件
 *.bak
 *.tmp
