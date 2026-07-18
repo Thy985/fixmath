@@ -133,3 +133,6 @@ secrets/
 # Symbolication / obfuscation
 **/symbols/
 **/obfuscate/
+
+# Tool temp files
+.workbuddy/
