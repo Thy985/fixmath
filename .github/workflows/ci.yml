@@ -119,6 +119,11 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Fix compileSdk for Android 36
+        # file_picker 8.x → flutter_plugin_android_lifecycle 要求 compileSdk 36+
+        run: |
+          sed -i 's/compileSdkVersion = flutter.compileSdkVersion/compileSdkVersion = 36/' android/app/build.gradle
+
       - name: Cache pub packages
         uses: actions/cache@v4
         with:
