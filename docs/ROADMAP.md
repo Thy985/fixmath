@@ -19,16 +19,17 @@
 | 0.2 | 创建 `AGENTS.md`（AI 协作规范） | 架构师 | ✅ 已完成 |
 | 0.3 | 建立 `docs/` 文档体系（ARCHITECTURE / ROADMAP / CODING_RULES / GIT_WORKFLOW / ADR） | 架构师 | ✅ 已完成 |
 | 0.4 | 配置 GitHub Actions CI（pub get / analyze / test / build） | 架构师 | ✅ 已完成 |
-| 0.5 | 清理工程残留（`export_service_tail.txt` / `manifest.json` 默认描述） | 工程师 | ⏳ 待启动 |
-| 0.6 | 添加 `.gitignore`（忽略 `build/` `.dart_tool/` 等） | 工程师 | ⏳ 待启动 |
+| 0.5 | 清理工程残留（`export_service_tail.txt` / `manifest.json` 默认描述） | 工程师 | ✅ 已完成 |
+| 0.6 | 添加 `.gitignore`（忽略 `build/` `.dart_tool/` 等） | 工程师 | ✅ 已完成 |
 
 ### 退出条件
 
-- [ ] `flutter pub get` 在干净环境成功
-- [ ] `flutter analyze` 无 error
-- [ ] `flutter test` 全部通过
-- [ ] `flutter build apk --debug` + `flutter build web` 成功
-- [ ] CI 在 PR 上自动运行上述全部步骤
+- [x] `flutter pub get` 在干净环境成功（CI 已验证）
+- [x] `flutter analyze` 无 error（CI 0 error 0 warning）
+- [x] `flutter test` 全部通过（CI 已验证）
+- [ ] `flutter build apk --debug` 成功（缺 `android/` 目录，build-android job 临时禁用）
+- [x] `flutter build web` 成功（CI 已验证）
+- [x] CI 在 PR 上自动运行上述全部步骤
 
 ---
 

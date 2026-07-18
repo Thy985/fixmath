@@ -1,11 +1,11 @@
 {
-    "name": "formula_fix",
-    "short_name": "formula_fix",
+    "name": "FormulaFix",
+    "short_name": "FormulaFix",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "FormulaFix - 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
