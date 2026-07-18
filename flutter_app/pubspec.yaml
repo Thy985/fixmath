@@ -20,7 +20,7 @@ dependencies:
   # 本地存储 / 文件
   shared_preferences: ^2.2.2
   path_provider: ^2.1.1
-  file_picker: 6.1.1
+  file_picker: ^8.0.0
 
   # 分享
   share_plus: ^7.2.1
