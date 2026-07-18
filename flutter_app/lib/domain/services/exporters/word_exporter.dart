@@ -10,7 +10,6 @@
 library;
 
 import 'dart:convert' show utf8;
-import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/parser/markdown_parser.dart';

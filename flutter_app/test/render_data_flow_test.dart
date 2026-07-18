@@ -8,7 +8,6 @@
 //      - 主路径：JS 把 SVG 写入 #payload-{id} div，Dart 读 innerHTML
 //      - Fallback：SVG 通过 b64:<base64> 在 console 协议中传输（避免 '|' 字符问题）
 //   5) FormulaSvgService 缓存同时按 entry 数 (256) 和字节数 (32MB) 限制
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 

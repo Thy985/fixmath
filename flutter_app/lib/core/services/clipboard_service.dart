@@ -27,7 +27,6 @@ class ClipboardService {
 
 class ClipboardListener {
   String? _lastClipboardContent;
-  bool _isListening = false;
 
   Future<String?> checkForNewContent() async {
     try {
