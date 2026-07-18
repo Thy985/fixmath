@@ -12,6 +12,7 @@
 - 不是"带预览的 Markdown 编辑器"，而是 **所见即所得（WYSIWYG）** 编辑器
 - 不是"桌面端 Typora 的功能搬运"，而是 **手机优先（mobile-first）** 的重新设计
 - 不是"通用笔记 App"，而是 **以公式 / 图表 / 学术写作为特色** 的专业写作工具
+- 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
 **当前阶段定位**：原型 → 工程化 → 范式重构前的工程基建阶段。  
 **当前阶段禁区**：不引入新业务功能，只完成工程基础设施。
@@ -169,6 +170,20 @@ import '../../data/models/document.dart';
 
 详见 [docs/GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md)。要点：
 
+### 5.0 AI / Human 提交分工（核心规则）
+
+| 行为 | AI | Human Owner |
+|------|----|-------------|
+| 创建独立 branch | ✅ 必须 | ✅ |
+| 创建 commit | ✅ 可以 | ✅ |
+| Commit message 含任务范围 | ✅ 必须 | — |
+| 创建 PR | ✅ 必须 | ✅ |
+| 直接 push 到 `main` | ❌ 禁止 | ✅ |
+| Merge PR | ❌ 禁止 | ✅ 专属权限 |
+| 架构决策类文件 commit | ❌ 禁止（除非明确授权） | ✅ 专属权限 |
+
+详见 [§6.4](#64-ai--human-提交分工)。
+
 ### 5.1 Commit Message 格式（Conventional Commits）
 
 ```
@@ -183,14 +198,26 @@ import '../../data/models/document.dart';
 
 **scope**：模块名（如 `parser` / `exporter` / `ui` / `ci` / `docs`）
 
-**示例**：
+**AI commit 强制要求**：body 必须包含任务范围，格式：
+```
+Task scope: <ROADMAP phase.task 或 issue 编号>
+```
+
+**示例（AI commit）**：
 ```
 feat(parser): 支持 Markdown 行内代码与链接语法
 
 补齐 _parseBoldAndItalic 中缺失的 `code` 与 [text](url) 解析分支
-对应 ROADMAP Phase 1 的 P0 任务 #5
 
+Task scope: ROADMAP 1.5
 Closes #12
+```
+
+**示例（Human commit，架构决策）**：
+```
+docs(adr): 新增 ADR-0007 StorageMigration 设计
+
+按重构方案 R1 要求，补充存储迁移的幂等性、备份、回滚策略。
 ```
 
 ### 5.2 Branch 策略
@@ -243,9 +270,28 @@ PR 描述必须包含：
 2. ❌ **禁止跨阶段实现**：当前阶段为 Phase 0 工程化，禁止在未完成 P0 修复前实现新业务功能
 3. ❌ **禁止大规模重构与功能改动混在同一 PR**：重构 PR 必须 0 业务行为变化
 4. ❌ **禁止删除测试以通过 CI**：测试失败必须修代码，不修测试（除非测试本身有 bug）
-5. ❌ **禁止 AI 自动 commit / push**：必须由人工确认后执行
 
-### 6.4 当前阶段特别禁止
+### 6.4 AI / Human 提交分工
+
+| 行为 | AI | Human Owner |
+|------|----|-------------|
+| 创建 branch | ✅ 必须（独立分支） | ✅ |
+| 创建 commit | ✅ 可以 | ✅ |
+| Commit 必须包含任务范围 | ✅ 必须 | — |
+| 创建 PR | ✅ 必须 | ✅ |
+| 直接 push 到 `main` | ❌ 禁止 | ✅ |
+| Merge PR | ❌ 禁止 | ✅ 专属权限 |
+| 架构决策类文件 commit | ❌ 禁止 | ✅ 专属权限 |
+
+**架构决策类文件**指：
+- `docs/ADR/*.md`（架构决策记录）
+- `AGENTS.md`（协作规范本身）
+- `docs/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/REFACTOR_DESIGN.md` 等顶层架构文档
+- `docs/CRITICAL_REVIEW.md`（架构评审）
+
+**例外**：当 Human Owner 明确授权时（如在任务说明里写明"请你同时更新 ADR-XXXX"），AI 可以 commit 架构决策类文件，但仍必须走 PR 流程。
+
+### 6.5 当前阶段特别禁止
 
 在 Phase 0 工程化阶段，额外禁止：
 

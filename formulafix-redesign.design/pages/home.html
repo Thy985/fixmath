@@ -462,30 +462,28 @@
         </div>
       </div>
 
-      <!-- Bottom tab bar -->
-      <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[var(--ff-card)]/95 backdrop-blur border-t border-[var(--ff-border)]">
-        <div class="mx-auto max-w-md h-16 flex items-stretch px-2">
-          <button class="flex-1 flex flex-col items-center justify-center gap-0.5 text-[var(--ff-primary)]" data-nav-key="home" data-active="true">
-            <i data-lucide="home" class="w-[22px] h-[22px]"></i>
-            <span class="text-[11px] font-medium whitespace-nowrap">首页</span>
+      <!-- Bottom tab bar (legacy home — kept for comparison; structure aligned with home-v2) -->
+      <nav class="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-[var(--ff-border)] bg-[var(--ff-card)]/95 backdrop-blur">
+        <div class="mx-auto grid h-16 grid-cols-4">
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-primary)]" data-nav-key="home" data-active="true">
+            <i data-lucide="home" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px] font-medium">首页</span>
           </button>
-          <button class="flex-1 flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="write">
-            <i data-lucide="edit-3" class="w-[22px] h-[22px]"></i>
-            <span class="text-[11px] whitespace-nowrap">写作</span>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="files">
+            <i data-lucide="folder-open" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">文件</span>
           </button>
-          <button class="flex-1 flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="outline">
-            <i data-lucide="list" class="w-[22px] h-[22px]"></i>
-            <span class="text-[11px] whitespace-nowrap">大纲</span>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="reader">
+            <i data-lucide="book-open" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">阅读</span>
           </button>
-          <button class="flex-1 flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="me">
-            <i data-lucide="user" class="w-[22px] h-[22px]"></i>
-            <span class="text-[11px] whitespace-nowrap">我的</span>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="me">
+            <i data-lucide="user" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">我的</span>
           </button>
         </div>
-        <!-- Home indicator -->
-        <div class="pb-1 flex justify-center">
-          <div class="w-32 h-1 bg-black/20 rounded-full"></div>
-        </div>
+        <!-- iOS home indicator -->
+        <div class="mx-auto my-1 h-1 w-32 rounded-full bg-black/20"></div>
       </nav>
     </main>
     <script>lucide.createIcons();</script>

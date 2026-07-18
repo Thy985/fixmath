@@ -4,6 +4,59 @@
 
 ---
 
+## 0. AI / Human 提交分工
+
+### 0.1 核心规则
+
+| 行为 | AI | Human Owner | 备注 |
+|------|----|-------------|------|
+| 创建独立 branch | ✅ 必须 | ✅ | AI 不允许在 `main` 直接工作 |
+| 创建 commit | ✅ 可以 | ✅ | — |
+| Commit message 含任务范围 | ✅ 必须 | — | 见 §2.5 |
+| 创建 PR | ✅ 必须 | ✅ | 所有改动必须经 PR |
+| 直接 push 到 `main` | ❌ 禁止 | ✅ | `main` 受保护 |
+| Merge PR | ❌ 禁止 | ✅ 专属权限 | 仅 Human Owner 可 merge |
+| 架构决策类文件 commit | ❌ 禁止（除非明确授权） | ✅ 专属权限 | 见 §0.3 |
+
+### 0.2 AI 标准工作流
+
+```
+1. git checkout -b <type>/<scope>-<short-desc>
+2. 修改文件 / 创建 commit（必须含 Task scope）
+3. git push -u origin <branch>
+4. gh pr create ...（或通过 GitHub UI 创建 PR）
+5. 通知 Human Owner review + merge
+```
+
+**禁止**：
+- ❌ `git push origin main`
+- ❌ `git merge` / `gh pr merge`
+- ❌ 修改 `main` 分支
+
+### 0.3 架构决策类文件清单
+
+以下文件的 commit **专属 Human Owner**，AI 不得自行 commit：
+
+- `docs/ADR/*.md`（架构决策记录）
+- `AGENTS.md`（协作规范本身）
+- `docs/ARCHITECTURE.md` / `docs/ROADMAP.md` / `docs/REFACTOR_DESIGN.md` 等顶层架构文档
+- `docs/CRITICAL_REVIEW.md`（架构评审）
+
+**例外**：当 Human Owner 在任务说明中明确授权时（如"请你同时更新 ADR-0007"），AI 可以 commit 该次涉及的具体架构决策文件，但仍必须走独立 branch + PR 流程，且不得自行 merge。
+
+### 0.4 Merge 流程（Human Owner）
+
+```
+1. 收到 AI 创建的 PR
+2. 检查 PR 描述（关联 issue / 改动说明 / 测试方式 / 任务范围）
+3. 等 CI 全绿（analyze + test + build）
+4. Code review
+5. Squash and merge（默认）或 Rebase and merge（大重构）
+6. 删除 feature branch
+```
+
+---
+
 ## 1. Branch 策略
 
 ### 1.1 分支模型
@@ -113,6 +166,11 @@ main              受保护，只接受 PR 合入；始终可构建可发布
 - 每行 ≤ 72 字符
 - 关联 issue / ROADMAP 任务
 
+**AI commit 强制要求**：body 必须包含任务范围，格式：
+```
+Task scope: <ROADMAP phase.task 或 issue 编号>
+```
+
 ### 2.6 footer 规则
 
 - `Closes #<issue>` 关闭 issue
@@ -122,25 +180,39 @@ main              受保护，只接受 PR 合入；始终可构建可发布
 
 ### 2.7 示例
 
-**功能**：
+**AI commit（功能）**：
 ```
 feat(parser): 支持 Markdown 行内代码语法
 
 补齐 _parseBoldAndItalic 中缺失的 `code` 解析分支，
 对应工具栏已存在但解析器未识别的不一致问题。
 
-ROADMAP 1.5
+Task scope: ROADMAP 1.5
 Closes #12
 ```
 
-**修复**：
+**AI commit（修复）**：
 ```
 fix(exporter): 缩短超时消息避免 SnackBar 换行
 
 旧文案含"WebView 渲染卡死"等技术术语，普通用户困惑。
 新文案：'导出超时，请减少文档内容后重试'。
 
-ROADMAP 1.7
+Task scope: ROADMAP 1.7
+```
+
+**Human commit（架构决策）**：
+```
+docs(adr): 新增 ADR-0007 StorageMigration 设计
+
+按重构方案 R1 要求，补充存储迁移的幂等性、备份、回滚策略。
+```
+
+**Human commit（顶层规范变更）**：
+```
+docs: 更新 AI/Human 提交分工规则
+
+明确 AI 可创建 commit 但不得 merge、不得 commit 架构决策类文件。
 ```
 
 **重构**：
