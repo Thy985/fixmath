@@ -58,18 +58,18 @@
 | 1.3 | 处理 `DocumentListScreen`：合并到 `FileManagerScreen` 或注册路由 | P0 | - | ✅ b36d930 |
 | 1.4 | 修正路由初始位置为文件列表，而非空白编辑器 | P0 | - | ✅ b36d930 |
 | 1.5 | 补齐解析器：行内代码 / 链接 / 图片 / 斜体 / 删除线 / 任务列表 / 引用链接 | P0 | ADR-0004 | ✅ da4ab00 |
-| 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 | ⏳ 待确认 |
+| 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 | ✅ d57d2f2 |
 | 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - | ✅ f6a73af |
-| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | 🔄 部分（1.3/1.4 ✓ 1.7 ✓） |
+| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | 🔄 部分（1.3/1.4 ✓ 1.6 ✓ 1.7 ✓）；严格测试方案见 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md) |
 
 ### 退出条件
 
 - [x] 单一存储源，.md 文件为唯一数据源
-- [ ] 解析器与工具栏一致，无自相矛盾（待 1.6 确认）
+- [x] 解析器与工具栏一致，无自相矛盾（1.6 已修复）
 - [x] 所有 Provider 定义唯一
 - [x] 路由无死代码
 - [x] 错误消息对用户友好
-- [ ] 核心模块测试覆盖（1.8 部分完成）
+- [ ] 核心模块测试覆盖（1.8 待按 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md) 严格测试通过）
 
 ---
 
@@ -176,6 +176,6 @@
 
 ---
 
-**当前阶段**：Phase 1（底层重构，进度 6/8）  
+**当前阶段**：Phase 1（底层重构，进度 7/8，待 1.8 严格测试通过后退出）  
 **最近更新**：2026-07-18  
 **维护人**：首席架构工程师
