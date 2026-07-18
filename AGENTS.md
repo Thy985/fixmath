@@ -240,7 +240,9 @@ PR 描述必须包含：
 - [ ] 是否更新文档
 - [ ] 自测：`flutter analyze` 无 error
 - [ ] 自测：`flutter test` 全部通过
-- [ ] 自测：`flutter build apk --debug` / `flutter build web` 成功
+- [ ] 自测：`flutter build apk --debug` 成功（Android 构建）
+- [ ] 自测：`flutter build web` 成功
+- [ ] 修改 `android/` 或 `pubspec.yaml` 后：本地验证 compileSdk / AGP / Gradle 版本兼容性
 
 ---
 
@@ -263,6 +265,12 @@ PR 描述必须包含：
 3. ❌ **禁止** 提交 `pubspec.lock`（如果是 App 项目；库项目需要提交）
 4. ❌ **禁止** 提交含密钥的文件（`.env` / `google-services.json` 等）
 5. ❌ **禁止** 跳过 CI 直接 push `main`
+6. ❌ **禁止** 在 PowerShell 中直接调用 `flutter.bat`（stdout 缓冲死锁，用 Git Bash 代替）
+7. ❌ **禁止** 升级 AGP / Gradle / Kotlin 版本而不验证 inappwebview 全家桶编译通过
+8. ❌ **禁止** 移除 `pubspec.yaml` 中 `flutter_inappwebview_*` 的 `dependency_overrides` 稳定版锁定
+9. ❌ **禁止** 用 `sed` / `afterEvaluate` / 多 `subprojects` 块修补 compileSdk（用 `gradle.afterProject`）
+10. ❌ **禁止** 直接修改 pub cache 中插件的源文件（污染全局，用 `dependency_overrides` 替代）
+11. ❌ **禁止** 在项目根目录遗留一次性文件（CI 日志、调试输出、临时压缩包）—— 用完即删，不入库
 
 ### 6.3 AI 协作禁区
 

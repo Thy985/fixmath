@@ -414,7 +414,152 @@ static Future<Uint8List> exportToPdf(String markdown, {...}) { ... }
 
 ---
 
-## 12. 相关文档
+## 12. Android 构建配置
+
+### 12.1 工具链版本（锁定，不可随意升级）
+
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| AGP (Android Gradle Plugin) | **8.7.3** | AGP 9.0+ 不支持 `proguard-android.txt`，与 `flutter_inappwebview_android 1.1.3` 不兼容 |
+| Gradle | **8.12.1** | AGP 8.7.x 要求 Gradle 8.9-8.12 |
+| Kotlin | **2.1.0** | 与 AGP 8.7.3 兼容 |
+| Java | **17** | CI 中使用 `temurin-17` |
+
+升级任一组件前必须验证：`flutter_inappwebview_android`、`file_picker`、`flutter_plugin_android_lifecycle` 三个插件的 `build.gradle` 全部能通过编译。
+
+### 12.2 compileSdk 策略
+
+Flutter 3.44.6 的 `flutter.compileSdkVersion` = **36**。
+
+但第三方插件可能硬编码旧版 compileSdk：
+
+| 插件 | 原始 compileSdk | 问题 |
+|------|----------------|------|
+| `file_picker` 8.x | 33 | `flutter_plugin_android_lifecycle` 要求 ≥36 |
+| `flutter_inappwebview_android` 1.1.3 | 34 | 同上 |
+
+**正确修复方式**：在根 `build.gradle.kts` 中用 `gradle.afterProject` 统一覆盖：
+
+```kotlin
+// android/build.gradle.kts
+gradle.afterProject {
+    if (project != rootProject) {
+        extensions.findByType<com.android.build.api.dsl.LibraryExtension>()?.let {
+            it.compileSdk = 36
+        }
+        extensions.findByType<com.android.build.api.dsl.ApplicationExtension>()?.let {
+            it.compileSdk = 36
+        }
+    }
+}
+```
+
+**禁止的做法**：
+- ❌ 用 `afterEvaluate`（会与 `evaluationDependsOn(":app")` 冲突）
+- ❌ 用多个 `subprojects {}` 块（时序不可控）
+- ❌ 直接修改 pub cache 中插件的 `build.gradle`（污染全局）
+- ❌ 用 `sed` 在 CI 中修补（脆弱、难维护）
+
+### 12.3 inappwebview 依赖锁定
+
+`flutter_inappwebview` 的 pub.dev 存在稳定版与 beta 版混合发布的问题。pub 解析器会自动选择 beta 版（如 `1.4.0-beta.3`、`1.2.0-beta.3`），导致 API 不兼容。
+
+**必须通过 `dependency_overrides` 锁定到稳定版**：
+
+```yaml
+# pubspec.yaml
+dependency_overrides:
+  flutter_inappwebview_platform_interface: 1.3.0+1
+  flutter_inappwebview_ios: 1.1.2
+  flutter_inappwebview_macos: 1.1.2
+  flutter_inappwebview_web: 1.1.2
+```
+
+升级 `flutter_inappwebview` 时必须同步验证所有子包版本一致性，避免 beta 混入。
+
+### 12.4 android/ 目录已纳入版本控制
+
+`flutter_app/android/` 目录已提交到仓库（AGP 8.7.3 + Gradle 8.12.1 + compileSdk 36 override）。
+
+CI 不再需要 `flutter create --platforms=android .` 动态生成，也不需要 `sed` 修补 compileSdk。
+
+修改 `android/` 下的 Gradle 文件后，必须本地验证：
+```bash
+flutter build apk --debug --target-platform android-arm64
+```
+
+---
+
+## 13. 开发环境约束
+
+### 13.1 Flutter CLI 执行环境
+
+**禁止在 PowerShell 中直接调用 `flutter.bat`**。PowerShell 读取 `.bat` 子进程 stdout 时存在缓冲死锁问题，表现为进程卡死无输出。
+
+**正确方式**：使用 Git Bash 执行所有 Flutter CLI 命令：
+
+```bash
+# Git Bash 中
+export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"
+cd /d/Projects/Active/math/flutter_app
+flutter pub get
+flutter build apk --debug
+```
+
+PowerShell 中调用 Git Bash 的方式：
+```powershell
+bash -c 'export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"; cd /d/Projects/Active/math/flutter_app && flutter pub get 2>&1'
+```
+
+### 13.2 Flutter 进程锁管理
+
+Flutter 使用文件锁（`cache/flutter.bat.lock`、`cache/lockfile`）防止并发。以下情况会导致锁残留：
+
+- 后台化的 Flutter 进程被 kill
+- `flutter precache` 中途取消
+- 多个终端同时执行 Flutter 命令
+
+**症状**：`Waiting for another flutter command to release the startup lock...`
+
+**修复**：
+```powershell
+# 1. 杀掉所有残留进程
+taskkill /F /IM flutter.bat; taskkill /F /IM dart.exe; taskkill /F /IM java.exe
+
+# 2. 清理锁文件
+Remove-Item "$env:USERPROFILE\SDK\flutter\bin\cache\flutter.bat.lock" -ErrorAction SilentlyContinue
+Remove-Item "$env:USERPROFILE\SDK\flutter\bin\cache\lockfile" -ErrorAction SilentlyContinue
+```
+
+### 13.3 一次性文件清理
+
+以下类型的文件用完必须立即删除，**禁止提交到仓库、禁止长期留存**：
+
+| 类型 | 示例 | 处置 |
+|------|------|------|
+| CI/调试日志 | `ci_logs/`、`logs.zip`、`pub_get.log` | 用完即删 |
+| 临时压缩包 | `logs2.zip` ~ `logs6.zip` | 分析后删除 |
+| 包管理器残留 | `node_modules/` | Flutter 项目不需要，删除 |
+| 构建产物 | `build/`、`.dart_tool/` | 已在 `.gitignore` 中排除 |
+
+**原则**：根目录只保留 `AGENTS.md`、`README.md`、`LICENSE`、`docs/`、`flutter_app/`、`design-system/`、`.github/`。出现其他目录/文件时先问"这是永久的还是临时的"，临时的用完即删。
+
+### 13.4 首次环境搭建
+
+新机器或清空 cache 后，必须先完成 `flutter precache`：
+
+```bash
+export PATH="/c/Users/lenovo/SDK/flutter/bin:$PATH"
+flutter precache
+```
+
+`precache` 会下载 `cache/artifacts/` 和 `cache/pkg/sky_engine/`。缺失时 `flutter pub get` 会报 `sky_engine not found`。
+
+`precache` 首次运行耗时较长（10-20 分钟），中途不可 kill，否则需重新开始。
+
+---
+
+## 14. 相关文档
 
 - [AGENTS.md](file:///d:/Projects/Active/math/AGENTS.md) — 总体规范
 - [GIT_WORKFLOW.md](file:///d:/Projects/Active/math/docs/GIT_WORKFLOW.md) — Git 流程
