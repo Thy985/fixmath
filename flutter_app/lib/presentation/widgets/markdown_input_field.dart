@@ -223,6 +223,38 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
               tooltip: '链接 []()',
               onTap: () => _insertAtCursor('[text](url)'),
             ),
+            Container(
+              width: 1,
+              height: 20,
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              color: iconColor.withOpacity(0.2),
+            ),
+            toolBtn(
+              icon: Icons.image,
+              tooltip: '图片 ![]()',
+              onTap: () => _insertAtCursor('![alt](url)'),
+            ),
+            toolBtn(
+              icon: Icons.check_box,
+              tooltip: '任务列表 - [ ]',
+              onTap: () => _insertAtCursor('\n- [ ] '),
+            ),
+            toolBtn(
+              icon: Icons.horizontal_rule,
+              tooltip: '水平分割线 ---',
+              onTap: () => _insertAtCursor('\n---\n'),
+            ),
+            toolBtn(
+              icon: Icons.data_object,
+              tooltip: '代码块 ```',
+              onTap: () => _insertAtCursor('\n```\n\n```\n'),
+            ),
+            toolBtn(
+              icon: Icons.table_chart,
+              tooltip: '表格 |...|',
+              onTap: () =>
+                  _insertAtCursor('\n| 列1 | 列2 |\n| --- | --- |\n| 内容 | 内容 |\n'),
+            ),
           ],
         ),
       ),
