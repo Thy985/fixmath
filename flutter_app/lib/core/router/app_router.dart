@@ -2,22 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
+import '../../presentation/screens/document_list_screen.dart';
 import '../../core/constants/app_constants.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/editor',
+  initialLocation: '/files',
   errorBuilder: (context, state) => _ErrorScreen(error: state.error?.toString()),
   routes: [
+    GoRoute(
+      path: '/files',
+      builder: (context, state) => const FileManagerScreen(),
+    ),
+    GoRoute(
+      path: '/documents',
+      builder: (context, state) => const DocumentListScreen(),
+    ),
     GoRoute(
       path: '/editor',
       builder: (context, state) {
         final openPath = state.extra as String?;
         return EditorScreen(initialPath: openPath);
       },
-    ),
-    GoRoute(
-      path: '/files',
-      builder: (context, state) => const FileManagerScreen(),
     ),
   ],
 );
@@ -61,7 +66,7 @@ class _ErrorScreen extends StatelessWidget {
               ],
               const SizedBox(height: AppSpacing.xl),
               ElevatedButton.icon(
-                onPressed: () => context.go('/editor'),
+                onPressed: () => context.go('/files'),
                 icon: const Icon(Icons.home),
                 label: const Text('返回首页'),
                 style: ElevatedButton.styleFrom(

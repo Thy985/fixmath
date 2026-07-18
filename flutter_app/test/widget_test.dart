@@ -46,6 +46,7 @@ void main() {
       ),
     );
 
-    expect(find.text('FormulaFix'), findsOneWidget);
+    // 初始路由已修正为 /files（文件管理），见 ROADMAP 1.4
+    expect(find.text('文件管理'), findsOneWidget);
   });
 }
