@@ -51,25 +51,25 @@
 
 ### 任务
 
-| # | 任务 | 优先级 | 关联 ADR |
-|---|------|--------|---------|
-| 1.1 | 合并重复 Provider（`sharedPreferencesProvider` / `darkModeProvider`） | P0 | ADR-0002 |
-| 1.2 | 存储统一为 .md 文件单一真相；废弃 `formula_fix_documents.json` 与 `pref_last_content` | P0 | ADR-0003 |
-| 1.3 | 处理 `DocumentListScreen`：合并到 `FileManagerScreen` 或注册路由 | P0 | - |
-| 1.4 | 修正路由初始位置为文件列表，而非空白编辑器 | P0 | - |
-| 1.5 | 补齐解析器：行内代码 / 链接 / 图片 / 斜体 / 删除线 / 任务列表 / 引用链接 | P0 | ADR-0004 |
-| 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 |
-| 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - |
-| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - |
+| # | 任务 | 优先级 | 关联 ADR | 状态 |
+|---|------|--------|---------|------|
+| 1.1 | 合并重复 Provider（`sharedPreferencesProvider` / `darkModeProvider`） | P0 | ADR-0002 | ✅ ec76f06 |
+| 1.2 | 存储统一为 .md 文件单一真相；废弃 `formula_fix_documents.json` 与 `pref_last_content` | P0 | ADR-0003 | ✅ b43e5c1 |
+| 1.3 | 处理 `DocumentListScreen`：合并到 `FileManagerScreen` 或注册路由 | P0 | - | ✅ b36d930 |
+| 1.4 | 修正路由初始位置为文件列表，而非空白编辑器 | P0 | - | ✅ b36d930 |
+| 1.5 | 补齐解析器：行内代码 / 链接 / 图片 / 斜体 / 删除线 / 任务列表 / 引用链接 | P0 | ADR-0004 | ✅ da4ab00 |
+| 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 | ⏳ 待确认 |
+| 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - | ✅ f6a73af |
+| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | 🔄 部分（1.3/1.4 ✓ 1.7 ✓） |
 
 ### 退出条件
 
-- [ ] 单一存储源，.md 文件为唯一数据源
-- [ ] 解析器与工具栏一致，无自相矛盾
-- [ ] 所有 Provider 定义唯一
-- [ ] 路由无死代码
-- [ ] 错误消息对用户友好
-- [ ] 核心模块测试覆盖
+- [x] 单一存储源，.md 文件为唯一数据源
+- [ ] 解析器与工具栏一致，无自相矛盾（待 1.6 确认）
+- [x] 所有 Provider 定义唯一
+- [x] 路由无死代码
+- [x] 错误消息对用户友好
+- [ ] 核心模块测试覆盖（1.8 部分完成）
 
 ---
 
@@ -176,6 +176,6 @@
 
 ---
 
-**当前阶段**：Phase 0  
+**当前阶段**：Phase 1（底层重构，进度 6/8）  
 **最近更新**：2026-07-18  
 **维护人**：首席架构工程师
