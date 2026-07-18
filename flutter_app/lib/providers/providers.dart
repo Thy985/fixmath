@@ -111,18 +111,34 @@ final isExportingProvider = StateProvider<bool>((ref) => false);
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 final editorContentProvider = StateNotifierProvider<EditorContentNotifier, String>((ref) {
-  return EditorContentNotifier();
+  final prefsAsync = ref.watch(sharedPreferencesProvider);
+  return EditorContentNotifier(prefsAsync.valueOrNull);
 });
 
 class EditorContentNotifier extends StateNotifier<String> {
-  EditorContentNotifier() : super('');
+  final SharedPreferences? _prefs;
+  static const _key = 'pref_last_content';
+  DateTime? _lastSave;
 
-  void setContent(String content) {
-    state = content;
+  EditorContentNotifier(this._prefs) : super(_prefs?.getString(_key) ?? '');
+
+  @override
+  set state(String v) {
+    super.state = v;
+    _debouncedSave(v);
   }
 
-  void clear() {
-    state = '';
+  void _debouncedSave(String v) {
+    final now = DateTime.now();
+    if (_lastSave != null && now.difference(_lastSave!).inMilliseconds < 500) {
+      return;
+    }
+    _lastSave = now;
+    _prefs?.setString(_key, v);
+  }
+
+  Future<void> forceSave() async {
+    _prefs?.setString(_key, state);
   }
 }
 

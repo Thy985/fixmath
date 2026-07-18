@@ -8,7 +8,7 @@ import '../../domain/services/export_service.dart';
 import '../../core/services/formula_pdf_renderer.dart';
 import '../../core/services/formula_svg_service.dart';
 import '../../core/services/mermaid_service.dart';
-import '../../providers/editor_providers.dart';
+import '../../providers/providers.dart';
 import '../widgets/markdown_input_field.dart';
 import '../widgets/editor_bottom_bar.dart';
 import '../widgets/export_menu.dart';

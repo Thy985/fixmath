@@ -4,7 +4,7 @@ import 'core/router/app_router.dart';
 import 'core/services/formula_pdf_renderer.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mermaid_host.dart';
-import 'providers/editor_providers.dart';
+import 'providers/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
