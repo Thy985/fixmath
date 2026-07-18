@@ -108,7 +108,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _controller.text = content;
       _showSnackBar('文件导入成功');
     } catch (e) {
-      _showSnackBar('文件导入失败: $e');
+      debugPrint('文件导入失败: $e');
+      _showSnackBar('文件导入失败，请确认文件存在且为文本或 Markdown 格式');
     }
   }
 
@@ -117,7 +118,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       await FileService.saveToFile(_controller.text);
       _showSnackBar('已保存');
     } catch (e) {
-      _showSnackBar('保存失败: $e');
+      debugPrint('文件保存失败: $e');
+      _showSnackBar('保存失败，请检查存储空间与文件权限');
     }
   }
 
@@ -133,7 +135,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final content = await FileService.loadFromPath(path);
       _controller.text = content;
     } catch (e) {
-      _showSnackBar('加载失败: $e');
+      debugPrint('文件加载失败: $e');
+      _showSnackBar('文件加载失败，请确认文件未被其他程序占用');
     }
   }
 
