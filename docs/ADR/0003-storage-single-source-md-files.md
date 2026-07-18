@@ -1,8 +1,12 @@
-# ADR-0003: 存储统一为 .md 文件作为单一真相
+# ADR-0003: 存储统一为 .md 文件作为文档内容单一真相
 
-- **状态**：Proposed（Phase 1 执行）
-- **生效日期**：待 Phase 1 P0 #2 启动时 Accept
+- **状态**：Accepted（Phase 1 进行中；Phase 1 完成后转 Implemented）
+- **生效日期**：2026-07-18（Phase 1 P0 #2 启动时 Accept）
 - **决策者**：首席架构工程师
+- **状态流**：`Proposed → Accepted → Implemented → Deprecated`
+  - 进入 Phase 1 前：`Accepted`
+  - Phase 1 P0 #2 实施完成、CI 全绿、文档迁移验证通过：`Implemented`
+  - 未来被新方案（如 SQLite + 全文索引）取代：`Deprecated`
 
 ## 背景
 
@@ -65,41 +69,155 @@
 
 | 废弃项 | 替代方案 | 迁移方式 |
 |--------|---------|---------|
-| `formula_fix_documents.json` | .md 文件 + 文档目录扫描 | 一次性迁移：JSON 内每个 doc 写成 `<title>.md` |
+| `formula_fix_documents.json` | .md 文件 + 文档目录扫描 | 一次性迁移：JSON 内每个 doc 写成 `<uuid>.md`，并注入最小 front matter（见 §边界约束 3/4） |
 | `SharedPreferences['pref_last_content']` | 自动保存到当前打开的 .md 文件 | 编辑器每次切换文档时记下当前 path，防抖写入该 path |
 | `DocumentService` | 新建 `FileRepository`（Phase 2 重命名） | 接口兼容包装 |
 | `DocumentListScreen` | 合并到 `FileManagerScreen` 或注册路由（Phase 1 P0 #3 决策） | - |
 
-### 迁移逻辑（幂等）
+### 迁移逻辑（幂等 + 验证阶段）
+
+迁移遵循严格阶段，任一阶段失败都**不删除源数据**、不标记完成，保证可安全重跑：
 
 ```dart
 class StorageMigration {
-  static Future<void> migrateIfNeeded() async {
+  static const _markerFile = 'documents/.storage_version';
+  static const _expectedVersion = '1';
+
+  /// 返回 true 表示已执行（或无需）迁移。
+  static Future<bool> migrateIfNeeded() async {
     final dir = await getApplicationDocumentsDirectory();
     final jsonFile = File('${dir.path}/formula_fix_documents.json');
-    if (!await jsonFile.exists()) return;  // 无需迁移
-    
-    // 备份
+    final marker = File('${dir.path}/$_markerFile');
+
+    // 1. 已完成（marker 命中）或无需迁移（无 JSON）→ 跳过（幂等）
+    if (await marker.exists()) {
+      if (await _readMarker(marker) == _expectedVersion) return true;
+    }
+    if (!await jsonFile.exists()) {
+      // 没有旧数据，仅写 marker 占位，避免后续重复判断
+      await _writeMarker(marker, _expectedVersion);
+      return true;
+    }
+
+    // 2. Backup：保留 .json.bak，全程不删源
     final backup = await jsonFile.copy('${jsonFile.path}.bak');
     debugPrint('Backup created: ${backup.path}');
-    
-    // 读取 JSON
+
+    // 3. Parse JSON
     final docs = await _readJsonDocuments(jsonFile);
-    
-    // 写成 .md
+
+    // 4. Generate：每个 doc 写成 <uuid>.md，并注入最小 front matter
     final docsDir = Directory('${dir.path}/documents');
     await docsDir.create(recursive: true);
+    final written = <String, String>{}; // uuid -> content hash
     for (final doc in docs) {
-      final safeTitle = _sanitizeFilename(doc.title);
-      final file = File('${docsDir.path}/$safeTitle.md');
-      await file.writeAsString(doc.content);
+      final uuid = doc.id ?? _newUuid();
+      final file = File('${docsDir.path}/$uuid.md');
+      final body = _buildMarkdown(doc, uuid); // 含 front matter
+      await _atomicWrite(file, body);
+      written[uuid] = _sha256(body);
     }
-    
-    // 保留 JSON 作为 .bak（不删）
+
+    // 5. Validate count
+    if (written.length != docs.length) {
+      debugPrint('Migration validation failed: count mismatch '
+          '(${written.length} != ${docs.length})');
+      return false; // 保留 .bak，不标记完成
+    }
+
+    // 6. Validate hash：重新读回每个 .md，比对内容哈希
+    for (final entry in written.entries) {
+      final reRead =
+          await File('${docsDir.path}/${entry.key}.md').readAsString();
+      if (_sha256(reRead) != entry.value) {
+        debugPrint('Migration validation failed: hash mismatch for ${entry.key}');
+        return false;
+      }
+    }
+
+    // 7. Mark completed（写 marker，idempotent 守卫）
+    await _writeMarker(marker, _expectedVersion);
     debugPrint('Migrated ${docs.length} documents to .md files');
+    return true;
   }
 }
 ```
+
+### 边界约束（Accept 时补充）
+
+> 下述 7 条为 Phase 1 P0 #2 正式实施前的硬边界，违反任一条均视为架构回退。
+
+#### 1. Single Source Truth 范围（三层模型）
+
+单一真相源**仅限文档内容**，不涵盖所有数据。明确三层：
+
+| 层 | 内容 | 真相属性 | 可重建？ |
+|----|------|---------|---------|
+| **内容层** | `.md` 文件（含 front matter 中的 canonical 元数据） | **唯一真相源** | 否 |
+| **索引/缓存层** | 运行时目录扫描结果 /（未来）SQLite 索引 / 全文索引 | 派生，非真相 | 是（可随时重建） |
+| **偏好/状态层** | 深色模式、最近打开 path、收藏、排序方式 | UI 状态，非内容 | 是（丢失不影响文档） |
+
+索引/缓存层**禁止**反向成为真相源（这正是被废弃的 JSON 文档库之病）。
+
+#### 2. File Write Policy（原子写，禁止业务层直写）
+
+- 业务层（UI / Provider / domain）**不得**直接调用 `File.writeAsString` 或 `FileService.saveToFile` 写文档；所有文档 I/O 必须经过 `FileRepository`。
+- `FileRepository` 内部统一使用原子替换：
+
+  ```dart
+  // 写 .md：tmp → flush/fsync → rename
+  final tmp = File('${path}.tmp');
+  await tmp.writeAsString(content);
+  await tmp.flush();      // 落盘
+  await tmp.rename(path); // 原子替换（POSIX 语义）
+  ```
+
+  任何异常都先 `tmp.delete()` 清理半截文件，绝不留下损坏的 `.md`。
+
+#### 3. 最小 front matter 提前到 Phase 1
+
+不再推迟到 Phase 2。每个 `.md` 头部统一：
+
+```
+---
+id: <uuid>
+createdAt: 2026-07-18T17:20:14+08:00
+updatedAt: 2026-07-18T17:20:14+08:00
+---
+```
+
+- `title` **不**写入 front matter（避免与正文/文件名漂移）；展示标题由正文首个 `# H1` 推导，无 H1 时回退为 `<uuid>` 展示名。
+- 解析由 `FrontMatterParser` 剥离 `---` 块，返回 `(metadata, body)`。
+
+#### 4. 文件名用 `<uuid>.md` 而非 `<title>.md`
+
+- 标题会冲突、含非法字符、会随编辑改变；以标题作文件名会导致重命名改写 Git 历史、破坏交叉链接。
+- `uuid` 稳定、无冲突、无需 sanitize、Git diff 稳定。
+- 人类可见的"标题"与文件名解耦（见 §3）。
+
+#### 5. 不建议 SharedPreferences 缓存文件列表
+
+- 原风险表曾建议"SP 缓存文件列表 + mtime 增量更新"，**撤回**：这等于重新引入第二真相源，正是本 ADR 要消灭的 bug。
+- 决策：
+  - **Phase 1 小规模**（< 数百文件）：加载时直接扫 `documents/`，开销可忽略。
+  - **Phase 2+ 中/大规模**：引入 SQLite 索引或全文索引作为**可重建派生缓存**（由 `.md` 重建，非真相），不存内容。
+
+#### 6. FileRepository 扩展 API
+
+在 CRUD（`listDocuments` / `readDocument` / `writeDocument` / `deleteDocument` / `renameDocument`）之外，新增：
+
+| API | 用途 |
+|-----|------|
+| `Future<DocMetadata> getMetadata(String path)` | 仅读 front matter，不解析正文 |
+| `Stream<List<DocMetadata>> watchDocuments()` | 监听目录变化，驱动响应式列表 |
+| `Future<List<DocMetadata>> searchDocuments(String query)` | 按标题/正文包含匹配 |
+| `Future<bool> exists(String path)` | 廉价存在性检查 |
+
+#### 7. 迁移验证阶段 + `storage_version` marker
+
+- 阶段顺序：**Backup → Parse → Generate → Validate count → Validate hash → Mark completed**。
+- `documents/.storage_version`（内容 `"1"`）作为幂等守卫：已标记且源 JSON 已不存在 → 跳过；源 JSON 存在但 marker 命中 → 也跳过（视为已迁移）。
+- 任一 Validate 失败：保留 `.bak`、记录 `debugPrint`、友好提示用户、**不标记完成**、不删源。
 
 ## 动机
 
@@ -154,7 +272,7 @@ class StorageMigration {
 | 迁移丢数据 | 备份 .json → .bak；幂等迁移；保留 .bak 至少 30 天 |
 | 文件名冲突 | 自动追加 `_2`、`_3` |
 | 元数据丢失（如 createdAt） | 写入 .md front matter（YAML header） |
-| 大目录扫描慢 | SharedPreferences 缓存文件列表 + mtime，启动时增量更新 |
+| 大目录扫描慢 | Phase1 小规模直接扫 `documents/`（< 数百文件开销可忽略）；中/大规模在 Phase 2+ 引入**可重建**的 SQLite 索引或全文索引作为派生缓存，绝不引入第二真相源（见 §边界约束 5） |
 
 ## 实施计划
 
