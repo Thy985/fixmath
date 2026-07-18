@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormulaFix · 插入公式</title>
+    <style id="theme-vars">
+/**
+ * FormulaFix Redesign — Design Tokens
+ * 学术写作工具，沉稳、专业、沉浸式
+ */
+
+:root, .light {
+  /* Brand */
+  --ff-primary: #1E3A5F;
+  --ff-primary-foreground: #FFFFFF;
+  --ff-primary-hover: #16304F;
+  --ff-accent: #E76F51;
+  --ff-accent-foreground: #FFFFFF;
+
+  /* Semantic */
+  --ff-success: #2D6A4F;
+  --ff-warning: #E9C46A;
+  --ff-error: #C1121F;
+
+  /* Surface — 纸张质感 */
+  --ff-background: #FAFAF7;
+  --ff-foreground: #1A1D23;
+  --ff-card: #FFFFFF;
+  --ff-card-foreground: #1A1D23;
+  --ff-popover: #FFFFFF;
+  --ff-popover-foreground: #1A1D23;
+  --ff-muted: #F0EFEA;
+  --ff-muted-foreground: #6B7280;
+  --ff-border: #E5E4DF;
+  --ff-input: #E5E4DF;
+  --ff-ring: #1E3A5F;
+
+  /* Editor specific */
+  --ff-editor-bg: #FDFDFB;
+  --ff-editor-line: #EFEDE6;
+  --ff-toolbar-bg: rgba(255,255,255,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #EBF0F5 0%, #E8EEF2 100%);
+
+  /* Radius */
+  --ff-radius-sm: 6px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 16px;
+  --ff-radius-xl: 24px;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(26,29,35,0.04);
+  --ff-shadow-md: 0 4px 12px rgba(26,29,35,0.06);
+  --ff-shadow-lg: 0 12px 40px rgba(26,29,35,0.10);
+  --ff-shadow-xl: 0 24px 60px rgba(26,29,35,0.14);
+
+  /* Typography */
+  --ff-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --ff-font-serif: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --ff-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.dark {
+  /* Brand — 深色模式下调和亮度 */
+  --ff-primary: #5B8DB8;
+  --ff-primary-foreground: #0F1419;
+  --ff-primary-hover: #7AA5CA;
+  --ff-accent: #F4A261;
+  --ff-accent-foreground: #0F1419;
+
+  /* Semantic */
+  --ff-success: #52B788;
+  --ff-warning: #E9C46A;
+  --ff-error: #E76F51;
+
+  /* Surface — 深墨 */
+  --ff-background: #0F1419;
+  --ff-foreground: #E8EAED;
+  --ff-card: #1A1D23;
+  --ff-card-foreground: #E8EAED;
+  --ff-popover: #1A1D23;
+  --ff-popover-foreground: #E8EAED;
+  --ff-muted: #242830;
+  --ff-muted-foreground: #9AA0A6;
+  --ff-border: #2A2F38;
+  --ff-input: #2A2F38;
+  --ff-ring: #5B8DB8;
+
+  /* Editor specific */
+  --ff-editor-bg: #13171D;
+  --ff-editor-line: #22272F;
+  --ff-toolbar-bg: rgba(26,29,35,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #1E2A36 0%, #1C2530 100%);
+
+  /* Shadows — 更深但透明 */
+  --ff-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --ff-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --ff-shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --ff-shadow-xl: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ---------- Semantic alias mapping for fill-html-head ---------- */
+:root {
+  --background: var(--ff-background);
+  --foreground: var(--ff-foreground);
+  --card: var(--ff-card);
+  --card-foreground: var(--ff-card-foreground);
+  --popover: var(--ff-popover);
+  --popover-foreground: var(--ff-popover-foreground);
+  --primary: var(--ff-primary);
+  --primary-foreground: var(--ff-primary-foreground);
+  --muted: var(--ff-muted);
+  --muted-foreground: var(--ff-muted-foreground);
+  --border: var(--ff-border);
+  --input: var(--ff-input);
+  --ring: var(--ff-ring);
+  --radius-sm: var(--ff-radius-sm);
+  --radius-md: var(--ff-radius-md);
+  --radius-lg: var(--ff-radius-lg);
+  --success: var(--ff-success);
+  --warning: var(--ff-warning);
+  --error: var(--ff-error);
+  --accent: var(--ff-accent);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--ff-background);
+    --color-foreground: var(--ff-foreground);
+    --color-card: var(--ff-card);
+    --color-card-foreground: var(--ff-card-foreground);
+    --color-popover: var(--ff-popover);
+    --color-popover-foreground: var(--ff-popover-foreground);
+    --color-primary: var(--ff-primary);
+    --color-primary-foreground: var(--ff-primary-foreground);
+    --color-muted: var(--ff-muted);
+    --color-muted-foreground: var(--ff-muted-foreground);
+    --color-accent: var(--ff-accent);
+    --color-border: var(--ff-border);
+    --color-input: var(--ff-input);
+    --color-ring: var(--ff-ring);
+    --radius-sm: var(--ff-radius-sm);
+    --radius-md: var(--ff-radius-md);
+    --radius-lg: var(--ff-radius-lg);
+  }
+  @layer base {
+    body { background: var(--background); color: var(--foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--ff-background); }
+      .text-background { color: var(--ff-background); }
+      .border-background { border-color: var(--ff-background); }
+      .ring-background { --tw-ring-color: var(--ff-background); }
+      .bg-foreground { background-color: var(--ff-foreground); }
+      .text-foreground { color: var(--ff-foreground); }
+      .border-foreground { border-color: var(--ff-foreground); }
+      .ring-foreground { --tw-ring-color: var(--ff-foreground); }
+      .bg-card { background-color: var(--ff-card); }
+      .text-card { color: var(--ff-card); }
+      .border-card { border-color: var(--ff-card); }
+      .ring-card { --tw-ring-color: var(--ff-card); }
+      .bg-card-foreground { background-color: var(--ff-card-foreground); }
+      .text-card-foreground { color: var(--ff-card-foreground); }
+      .border-card-foreground { border-color: var(--ff-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--ff-card-foreground); }
+      .bg-popover { background-color: var(--ff-popover); }
+      .text-popover { color: var(--ff-popover); }
+      .border-popover { border-color: var(--ff-popover); }
+      .ring-popover { --tw-ring-color: var(--ff-popover); }
+      .bg-popover-foreground { background-color: var(--ff-popover-foreground); }
+      .text-popover-foreground { color: var(--ff-popover-foreground); }
+      .border-popover-foreground { border-color: var(--ff-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--ff-popover-foreground); }
+      .bg-primary { background-color: var(--ff-primary); }
+      .text-primary { color: var(--ff-primary); }
+      .border-primary { border-color: var(--ff-primary); }
+      .ring-primary { --tw-ring-color: var(--ff-primary); }
+      .bg-primary-foreground { background-color: var(--ff-primary-foreground); }
+      .text-primary-foreground { color: var(--ff-primary-foreground); }
+      .border-primary-foreground { border-color: var(--ff-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--ff-primary-foreground); }
+      .bg-muted { background-color: var(--ff-muted); }
+      .text-muted { color: var(--ff-muted); }
+      .border-muted { border-color: var(--ff-muted); }
+      .ring-muted { --tw-ring-color: var(--ff-muted); }
+      .bg-muted-foreground { background-color: var(--ff-muted-foreground); }
+      .text-muted-foreground { color: var(--ff-muted-foreground); }
+      .border-muted-foreground { border-color: var(--ff-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--ff-muted-foreground); }
+      .bg-accent { background-color: var(--ff-accent); }
+      .text-accent { color: var(--ff-accent); }
+      .border-accent { border-color: var(--ff-accent); }
+      .ring-accent { --tw-ring-color: var(--ff-accent); }
+      .bg-border { background-color: var(--ff-border); }
+      .text-border { color: var(--ff-border); }
+      .border-border { border-color: var(--ff-border); }
+      .ring-border { --tw-ring-color: var(--ff-border); }
+      .bg-input { background-color: var(--ff-input); }
+      .text-input { color: var(--ff-input); }
+      .border-input { border-color: var(--ff-input); }
+      .ring-input { --tw-ring-color: var(--ff-input); }
+      .bg-ring { background-color: var(--ff-ring); }
+      .text-ring { color: var(--ff-ring); }
+      .border-ring { border-color: var(--ff-ring); }
+      .ring-ring { --tw-ring-color: var(--ff-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="relative min-h-screen pb-48">
+      <!-- ============ Background: Editor dimmed ============ -->
+      <div class="relative opacity-30 pointer-events-none select-none" aria-hidden="true">
+        <!-- Status bar spacer -->
+        <div class="h-11 bg-transparent"></div>
+        <!-- Top bar -->
+        <header class="sticky top-0 z-10 border-b border-[var(--ff-border)] bg-[var(--ff-editor-bg)]/95 backdrop-blur">
+          <div class="flex h-12 items-center px-4 gap-2">
+            <button class="inline-flex h-8 w-8 items-center justify-center rounded-lg">
+              <i data-lucide="chevron-left" class="h-5 w-5 text-[var(--ff-foreground)]"></i>
+            </button>
+            <div class="min-w-0 flex-1">
+              <div class="text-[15px] font-semibold tracking-[-0.01em] truncate font-[var(--ff-font-serif)]">广义相对论场方程推导</div>
+              <div class="flex items-center gap-1 text-[11px] text-[var(--ff-muted-foreground)]">
+                <i data-lucide="check" class="h-3 w-3 text-[var(--ff-success)]"></i>
+                <span>已保存</span>
+                <span class="mx-1">·</span>
+                <span>2 分钟前</span>
+              </div>
+            </div>
+            <button class="inline-flex h-8 w-8 items-center justify-center rounded-lg">
+              <i data-lucide="share-2" class="h-4 w-4 text-[var(--ff-foreground)]"></i>
+            </button>
+            <button class="inline-flex h-8 w-8 items-center justify-center rounded-lg">
+              <i data-lucide="more-horizontal" class="h-4 w-4 text-[var(--ff-foreground)]"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- Document body -->
+        <article class="px-5 py-6 bg-[var(--ff-editor-bg)]">
+          <h1 class="font-[var(--ff-font-serif)] text-[26px] font-semibold leading-tight text-[var(--ff-foreground)] mb-5" style="text-wrap:balance;">广义相对论场方程推导</h1>
+
+          <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
+            爱因斯坦场方程是广义相对论的核心方程，描述了引力如何由时空曲率产生。在这篇笔记中，我们从等效原理出发，逐步推导出真空场方程的形式。
+          </p>
+
+          <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
+            1915 年 11 月 25 日，爱因斯坦向普鲁士科学院提交了最终形式的引力场方程。该方程将时空的几何结构（左侧的爱因斯坦张量）与其中的物质能量分布（右侧的能量-动量张量）联系起来。
+          </p>
+
+          <!-- Schwarzschild formula block -->
+          <div class="my-6 rounded-xl p-5 border border-[var(--ff-primary)]/15" style="background:var(--ff-formula-bg);">
+            <div class="text-[10px] uppercase tracking-widest text-[var(--ff-muted-foreground)] mb-2">Schwarzschild Metric</div>
+            <div class="font-[var(--ff-font-serif)] text-[18px] text-[var(--ff-primary)] italic leading-[1.6] text-center px-2">
+              ds² = −(1 − 2GM/rc²) c²dt² + (1 − 2GM/rc²)⁻¹ dr² + r²(dθ² + sin²θ dφ²)
+            </div>
+            <div class="mt-2 text-[10px] font-mono text-[var(--ff-muted-foreground)] text-center opacity-80">
+              $$ ds^2 = -\left(1-\frac{2GM}{rc^2}\right)c^2 dt^2 + \left(1-\frac{2GM}{rc^2}\right)^{-1} dr^2 + r^2 d\Omega^2 $$
+            </div>
+          </div>
+
+          <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
+            史瓦西解是场方程在球对称、静态、真空条件下的第一个精确解，由卡尔·史瓦西于 1916 年在第一次世界大战的战壕中得到。它描述了一个不旋转、不带电的球对称天体外部的引力场。
+          </p>
+
+          <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
+            当半径 r 趋近于史瓦西半径 r_s = 2GM/c² 时，度规的时间分量趋于零，空间分量发散，这标志着事件视界的形成。
+          </p>
+
+          <div class="my-6 rounded-xl p-5 border border-[var(--ff-primary)]/15" style="background:var(--ff-formula-bg);">
+            <div class="font-[var(--ff-font-serif)] text-[20px] text-[var(--ff-primary)] italic text-center">
+              Gμν + Λgμν = (8πG/c⁴) Tμν
+            </div>
+          </div>
+
+          <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
+            上述方程中，Gμν 是爱因斯坦张量，gμν 是度规张量，Λ 是宇宙学常数，Tμν 是能量-动量张量。这个方程的简洁性掩盖了其背后深刻的物理内涵。
+          </p>
+        </article>
+      </div>
+
+      <!-- ============ Backdrop overlay ============ -->
+      <div class="fixed inset-0 z-40 bg-black/40"></div>
+
+      <!-- ============ Bottom Sheet: Formula Insertion ============ -->
+      <div class="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-[var(--ff-card)] rounded-t-2xl shadow-[0_-12px_40px_rgba(26,29,35,0.18)]" style="box-shadow:0 -20px 60px rgba(26,29,35,0.20), 0 -4px 16px rgba(26,29,35,0.08);">
+        <!-- Sheet header -->
+        <div class="flex flex-col">
+          <div class="w-10 h-1 bg-[var(--ff-border)] rounded-full mx-auto mt-3 mb-2"></div>
+          <div class="px-5 pb-3 flex items-center justify-between">
+            <h2 class="text-[17px] font-semibold font-[var(--ff-font-serif)] text-[var(--ff-foreground)] tracking-[-0.01em]">插入公式</h2>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-[var(--ff-primary)]/10 text-[var(--ff-primary)] font-mono font-medium">KaTeX</span>
+              <button class="inline-flex w-8 h-8 items-center justify-center rounded-full hover:bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)]" aria-label="关闭">
+                <i data-lucide="x" class="h-4 w-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live preview card -->
+        <div class="mx-4 mb-3 rounded-xl border border-[var(--ff-primary)]/20 p-4 flex flex-col items-center" style="background:var(--ff-formula-bg);">
+          <span class="text-[10px] text-[var(--ff-muted-foreground)] uppercase tracking-wider self-start mb-1.5 font-medium">预览</span>
+          <div class="font-[var(--ff-font-serif)] italic text-[22px] text-[var(--ff-primary)] leading-[1.4] text-center px-2" style="font-style:italic; font-weight:500;">
+            ∫<sub class="text-[13px] not-italic">0</sub><sup class="text-[13px] not-italic">∞</sup> e<sup class="text-[13px] not-italic">−x²</sup> dx = √π/2
+          </div>
+          <div class="mt-1.5 text-[11px] font-mono text-[var(--ff-muted-foreground)] text-center font-[var(--ff-font-mono)] opacity-80 truncate max-w-full px-2">
+            $$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
+          </div>
+        </div>
+
+        <!-- Search / input row -->
+        <div class="mx-4 mb-3 h-10 rounded-lg bg-[var(--ff-muted)] flex items-center px-3 gap-2">
+          <i data-lucide="search" class="h-3.5 w-3.5 text-[var(--ff-muted-foreground)] shrink-0"></i>
+          <span class="text-[13px] text-[var(--ff-muted-foreground)] flex-1 truncate">搜索符号、函数、命令...</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--ff-card)] border border-[var(--ff-border)] text-[var(--ff-muted-foreground)] whitespace-nowrap shrink-0">常用</span>
+        </div>
+
+        <!-- Category tabs -->
+        <div class="px-4 mb-2 flex gap-2 overflow-x-auto no-scrollbar">
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-primary)] text-white text-[12px] font-medium whitespace-nowrap">常用</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">希腊字母</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">运算符</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">箭头</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">矩阵</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">微积分</button>
+          <button class="shrink-0 px-3 py-1 rounded-full bg-[var(--ff-muted)] text-[var(--ff-muted-foreground)] text-[12px] whitespace-nowrap">逻辑</button>
+        </div>
+
+        <!-- Symbol grid -->
+        <div class="px-4 pb-3 grid grid-cols-8 gap-1.5 max-h-[220px] overflow-hidden relative">
+          <!-- Row 1 -->
+          <button class="relative aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">
+            ∑
+            <span class="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[var(--ff-primary)]"></span>
+          </button>
+          <button class="relative aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">
+            ∫
+            <span class="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[var(--ff-primary)]"></span>
+          </button>
+          <button class="relative aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">
+            √
+            <span class="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[var(--ff-primary)]"></span>
+          </button>
+          <button class="relative aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">
+            π
+            <span class="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[var(--ff-primary)]"></span>
+          </button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∞</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">=</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">≠</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">≈</button>
+
+          <!-- Row 2 -->
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">±</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">×</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">÷</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">≤</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">≥</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">→</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∂</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∇</button>
+
+          <!-- Row 3 -->
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">α</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">β</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">γ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">δ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">θ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">λ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">μ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">σ</button>
+
+          <!-- Row 4 -->
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">φ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] italic hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">ω</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">Δ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">Ω</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">ℏ</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∈</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∉</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">⊂</button>
+
+          <!-- Row 5 (truncated with fade) -->
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∪</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∩</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">¬</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∧</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∨</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∀</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">∃</button>
+          <button class="aspect-square flex items-center justify-center text-[18px] font-[var(--ff-font-serif)] hover:bg-[var(--ff-primary)]/10 active:bg-[var(--ff-primary)]/20 cursor-pointer bg-[var(--ff-muted)]/60 rounded-lg text-[var(--ff-foreground)]">⇒</button>
+
+          <!-- Fade overlay for truncation -->
+          <div class="absolute bottom-0 left-0 right-0 h-10 pointer-events-none" style="background:linear-gradient(to bottom, rgba(255,255,255,0), var(--ff-card) 90%);"></div>
+        </div>
+
+        <!-- Pre-built formula templates -->
+        <div class="px-4 pb-3">
+          <div class="text-[11px] text-[var(--ff-muted-foreground)] mb-2 flex items-center gap-1 font-medium">
+            <i data-lucide="sparkles" class="h-3 w-3 text-[var(--ff-accent)]"></i>
+            <span>快速模板</span>
+          </div>
+          <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">分数</span>
+              <span class="text-[16px] font-[var(--ff-font-serif)] italic text-[var(--ff-foreground)]">a/b</span>
+            </button>
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">根号</span>
+              <span class="text-[16px] font-[var(--ff-font-serif)] text-[var(--ff-foreground)]">√x</span>
+            </button>
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">积分</span>
+              <span class="text-[15px] font-[var(--ff-font-serif)] italic text-[var(--ff-foreground)]">∫f(x)dx</span>
+            </button>
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">求和</span>
+              <span class="text-[15px] font-[var(--ff-font-serif)] text-[var(--ff-foreground)]">∑aᵢ</span>
+            </button>
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">矩阵</span>
+              <span class="text-[14px] font-mono text-[var(--ff-foreground)] font-[var(--ff-font-mono)]">[a b; c d]</span>
+            </button>
+            <button class="shrink-0 rounded-lg border border-[var(--ff-border)] px-3 py-2 bg-[var(--ff-card)] min-w-[100px] flex flex-col items-start hover:border-[var(--ff-primary)]/30 hover:bg-[var(--ff-primary)]/5 transition-colors">
+              <span class="text-[10px] text-[var(--ff-muted-foreground)] mb-0.5">极限</span>
+              <span class="text-[15px] font-[var(--ff-font-serif)] text-[var(--ff-foreground)]">lim→0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Action bar -->
+        <div class="pt-2 pb-3 px-4 border-t border-[var(--ff-border)] flex items-center gap-2">
+          <button class="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--ff-muted)] text-[13px] text-[var(--ff-foreground)] whitespace-nowrap">
+            <i data-lucide="type" class="h-3.5 w-3.5"></i>
+            <span>行内</span>
+          </button>
+          <div class="w-px h-5 bg-[var(--ff-border)]"></div>
+          <button class="inline-flex items-center px-3 py-2 rounded-lg bg-[var(--ff-primary)]/10 text-[var(--ff-primary)] text-[13px] font-medium whitespace-nowrap">
+            块级
+          </button>
+          <div class="flex-1"></div>
+          <button class="inline-flex items-center gap-1.5 rounded-lg px-5 py-2 bg-[var(--ff-primary)] text-white text-[13px] font-medium shadow-sm hover:bg-[var(--ff-primary-hover)] transition-colors whitespace-nowrap">
+            <i data-lucide="corner-down-left" class="h-3.5 w-3.5"></i>
+            <span>插入</span>
+          </button>
+        </div>
+
+        <!-- iOS home indicator -->
+        <div class="w-32 h-1 bg-black/10 rounded-full mx-auto mb-1"></div>
+      </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

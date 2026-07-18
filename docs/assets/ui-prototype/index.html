@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FormulaFix UI Prototype</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 960px; margin: 0 auto; padding: 40px 20px; background: #f5f5f3; color: #1A1D23; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    p.sub { color: #6B7280; margin-bottom: 32px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    .card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #E5E4DF; box-shadow: 0 1px 3px rgba(0,0,0,0.06); transition: box-shadow 0.2s; text-decoration: none; color: inherit; }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card img, .card .preview { width: 100%; aspect-ratio: 9/19.5; background: #FAFAF7; object-fit: cover; border-bottom: 1px solid #E5E4DF; }
+    .card .info { padding: 12px; }
+    .card .info h3 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+    .card .info span { font-size: 12px; color: #6B7280; }
+    .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #1E3A5F0F; color: #1E3A5F; font-weight: 500; margin-right: 4px; }
+    .badge.new { background: #E76F510F; color: #E76F51; }
+    .badge.core { background: #2D6A4F0F; color: #2D6A4F; }
+  </style>
+</head>
+<body>
+  <h1>FormulaFix UI Prototype</h1>
+  <p class="sub">Mobile-first WYSIWYG academic editor + portable Markdown viewer. 9 screens.</p>
+
+  <div class="grid">
+    <a class="card" href="pages/home-v2.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge new">v2</span>首页 · 便携查看器</h3>
+        <span>Hero CTA + 外部文件入口</span>
+      </div>
+    </a>
+    <a class="card" href="pages/home.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge">旧版</span>首页 · 文档库</h3>
+        <span>对比参考</span>
+      </div>
+    </a>
+    <a class="card" href="pages/editor.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge core">核心</span>WYSIWYG 编辑器</h3>
+        <span>沉浸式写作 + 公式渲染</span>
+      </div>
+    </a>
+    <a class="card" href="pages/reader.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge core">核心</span>阅读器 · 亮色</h3>
+        <span>外部文件即开即看</span>
+      </div>
+    </a>
+    <a class="card" href="pages/reader-dark.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge new">深色</span>阅读器 · 暗色模式</h3>
+        <span>夜间阅读体验</span>
+      </div>
+    </a>
+    <a class="card" href="pages/formula-sheet.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3><span class="badge core">核心</span>公式插入面板</h3>
+        <span>符号栅格 + 实时预览</span>
+      </div>
+    </a>
+    <a class="card" href="pages/export-sheet.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3>导出与分享面板</h3>
+        <span>6 格式 + 分享渠道</span>
+      </div>
+    </a>
+    <a class="card" href="pages/files.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3>文件浏览器</h3>
+        <span>文件夹 + 最近文件</span>
+      </div>
+    </a>
+    <a class="card" href="pages/profile.html" target="_blank">
+      <div class="preview"></div>
+      <div class="info">
+        <h3>我的 · 个人中心</h3>
+        <span>统计 + 写作连续 + 设置</span>
+      </div>
+    </a>
+  </div>
+
+  <p style="margin-top:32px; font-size:12px; color:#9AA0A6;">
+    Tokens: <a href="../../design-system/tokens.json">design-system/tokens.json</a> ·
+    Spec: <a href="../../docs/UI_SPEC.md">UI_SPEC.md</a> ·
+    Design: <a href="../../docs/DESIGN.md">DESIGN.md</a>
+  </p>
+</body>
+</html>

@@ -14,8 +14,8 @@
 - 不是"通用笔记 App"，而是 **以公式 / 图表 / 学术写作为特色** 的专业写作工具
 - 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
-**当前阶段定位**：原型 → 工程化 → 范式重构前的工程基建阶段。  
-**当前阶段禁区**：不引入新业务功能，只完成工程基础设施。
+**当前阶段定位**：Phase 0：工程化 + UI Prototype Freeze。UI 冻结为重构基线，Phase 1-2 期间 UI 退化不视为 bug。  
+**当前阶段禁区**：不修改业务代码，不新增功能，不修改 UI 行为。
 
 ---
 
@@ -240,7 +240,9 @@ PR 描述必须包含：
 - [ ] 是否更新文档
 - [ ] 自测：`flutter analyze` 无 error
 - [ ] 自测：`flutter test` 全部通过
-- [ ] 自测：`flutter build apk --debug` / `flutter build web` 成功
+- [ ] 自测：`flutter build apk --debug` 成功（Android 构建）
+- [ ] 自测：`flutter build web` 成功
+- [ ] 修改 `android/` 或 `pubspec.yaml` 后：本地验证 compileSdk / AGP / Gradle 版本兼容性
 
 ---
 
@@ -263,6 +265,12 @@ PR 描述必须包含：
 3. ❌ **禁止** 提交 `pubspec.lock`（如果是 App 项目；库项目需要提交）
 4. ❌ **禁止** 提交含密钥的文件（`.env` / `google-services.json` 等）
 5. ❌ **禁止** 跳过 CI 直接 push `main`
+6. ❌ **禁止** 在 PowerShell 中直接调用 `flutter.bat`（stdout 缓冲死锁，用 Git Bash 代替）
+7. ❌ **禁止** 升级 AGP / Gradle / Kotlin 版本而不验证 inappwebview 全家桶编译通过
+8. ❌ **禁止** 移除 `pubspec.yaml` 中 `flutter_inappwebview_*` 的 `dependency_overrides` 稳定版锁定
+9. ❌ **禁止** 用 `sed` / `afterEvaluate` / 多 `subprojects` 块修补 compileSdk（用 `gradle.afterProject`）
+10. ❌ **禁止** 直接修改 pub cache 中插件的源文件（污染全局，用 `dependency_overrides` 替代）
+11. ❌ **禁止** 在项目根目录遗留一次性文件（CI 日志、调试输出、临时压缩包）—— 用完即删，不入库
 
 ### 6.3 AI 协作禁区
 
@@ -293,7 +301,7 @@ PR 描述必须包含：
 
 ### 6.5 当前阶段特别禁止
 
-在 Phase 0 工程化阶段，额外禁止：
+在 Phase 0 工程化 + UI Prototype Freeze 阶段，额外禁止：
 
 1. ❌ 修改 `lib/` 下任何业务逻辑代码
 2. ❌ 新增业务功能（主题、TOC、图片等）—— 等到 P0 修复完
@@ -305,11 +313,19 @@ PR 描述必须包含：
 ## 7. 文档体系
 
 ```
+.agent/                        AI 工程治理层
+├── AI_POLICY.md               Agent 身份、权限、行为协议
+├── context/
+│   └── loading-rules.md       分级上下文加载规则
+└── templates/
+    └── task-contract.md        任务契约模板
+
 docs/
 ├── ARCHITECTURE.md          架构总览（当前 + 目标 + 问题 + 风险）
 ├── ROADMAP.md                路线图（Phase 0-4）
 ├── CODING_RULES.md           详细编码规范
 ├── GIT_WORKFLOW.md           Git 详细流程
+├── WORKFLOW.md                开发流程与 CI/CD
 ├── CRITICAL_REVIEW.md        现状严厉批判报告
 └── ADR/                      架构决策记录（每条决策一份）
     ├── 0001-project-naming-and-structure.md
@@ -339,7 +355,7 @@ docs/
 3. `flutter test` 全部通过
 4. `flutter build` 成功（apk + web 两平台）
 
-**当前阻塞**：项目缺 `pubspec.yaml`，CI 在该文件补齐前会失败。已在 [ROADMAP.md](file:///d:/Projects/Active/math/docs/ROADMAP.md) Phase 0 列为前置阻塞。
+**当前状态**：全部 4 项门禁通过。
 
 ---
 
@@ -356,14 +372,25 @@ docs/
 7. **写文档**：架构决策必须落 ADR
 8. **自检**：参照本文档禁止事项逐条确认
 
-### 9.2 不确定时的升级路径
+### 9.2 编码前必须回答的四个问题
+
+AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/Active/math/.agent/templates/task-contract.md)，明确回答：
+
+1. **What changes?** — 修改哪些文件？为什么？
+2. **How to verify?** — 测试在哪里？如何证明正确？
+3. **What feedback signals exist?** — 成功指标是什么？失败指标是什么？
+4. **What is done?** — 什么条件满足才算完成？
+
+复杂任务（Risk Medium+ 或涉及架构变更）的 Task Contract 须提交 Human Owner 审批后再开始实现。
+
+### 9.3 不确定时的升级路径
 
 - 业务范围不清 → 看 ROADMAP / 问用户
 - 架构选型不清 → 看 ADR / 提新 ADR
 - API 兼容性疑问 → 看相关模块 dartdoc
 - 测试策略疑问 → 看 CODING_RULES.md 第 6 章
 
-### 9.3 PR 提交前的自检清单
+### 9.4 PR 提交前的自检清单
 
 - [ ] 读了 AGENTS.md 相关章节
 - [ ] 没有违反任何 Hard Rules
@@ -380,13 +407,12 @@ docs/
 
 | 问题 | 修复 Phase |
 |------|----------|
-| 缺 `pubspec.yaml` | Phase 0 |
-| Provider 重复定义 | Phase 1 P0 #4 |
-| 三套存储并存 | Phase 1 P0 #2 |
-| 解析器缺 7 类元素 | Phase 1 P0 #5 |
-| 编辑/预览分离模式 | Phase 2 范式重构 |
-| DocumentListScreen 死代码 | Phase 1 P0 #3 |
-| 错误 detail 透传 UI | Phase 1 P1 |
+| Provider 重复定义 | Phase 1 1.1 |
+| 三套存储并存 | Phase 1 1.2 |
+| 解析器缺 7 类元素 | Phase 1 1.5 |
+| 编辑/预览分离模式 | Phase 3 UI Implementation |
+| DocumentListScreen 死代码 | Phase 1 1.3 |
+| 错误 detail 透传 UI | Phase 1 1.7 |
 | 静态状态污染测试 | Phase 2 |
 
 新增代码不得延续以上问题，必须按目标架构编写。

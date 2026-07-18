@@ -69,11 +69,14 @@ math/
 │   ├── CODING_RULES.md
 │   ├── GIT_WORKFLOW.md
 │   └── ADR/
+├── design-system/               # 设计系统
 └── flutter_app/                 # Flutter 工程目录
     ├── lib/                     # 源代码（6 层架构）
     ├── test/                    # 测试
+    ├── android/                 # Android 平台（AGP 8.7.3）
+    ├── ios/                     # iOS 平台
     ├── web/                     # PWA 资产
-    └── README.md                # Flutter 工程细节
+    └── pubspec.yaml             # 依赖配置
 ```
 
 详细的 `lib/` 内部结构见 [flutter_app/README.md](flutter_app/README.md) 与 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
@@ -147,7 +150,7 @@ Commit message 遵循 [Conventional Commits](docs/GIT_WORKFLOW.md#2-commit-messa
 - Provider 重复定义
 
 **P3 工程化**：
-- 缺 `flutter_app/android/` 目录（build-android job 已临时禁用）
+- ~~缺 `flutter_app/android/` 目录~~ ✅ 已补齐（AGP 8.7.3 + compileSdk 36）
 - 测试覆盖不足
 
 这些问题已记入 [ROADMAP.md](docs/ROADMAP.md)，按 Phase 修复。新增代码不得延续以上问题。

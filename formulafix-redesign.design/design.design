@@ -2,7 +2,7 @@
   "data": [
     {
       "id": "page-home-v2",
-      "title": "首页 · 便携查看器（新）",
+      "title": "首页 · 便携查看器",
       "type": "page",
       "version": 1,
       "createdAt": 1784333400000,
@@ -18,7 +18,7 @@
     },
     {
       "id": "page-home",
-      "title": "首页 · 文档库（旧）",
+      "title": "首页 · 文档库（旧版对比）",
       "type": "page",
       "version": 1,
       "createdAt": 1784330000000,
@@ -65,13 +65,29 @@
       }
     },
     {
+      "id": "page-reader-dark",
+      "title": "阅读器 · 深色模式",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784344600000,
+      "canvasData": {
+        "x": 1680,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/reader-dark.html",
+        "interactions": []
+      }
+    },
+    {
       "id": "page-formula-sheet",
       "title": "公式插入面板",
       "type": "page",
       "version": 1,
       "createdAt": 1784330002000,
       "canvasData": {
-        "x": 1680,
+        "x": 2100,
         "y": 0,
         "group": 0
       },
@@ -79,11 +95,61 @@
         "htmlSrc": "pages/formula-sheet.html",
         "interactions": []
       }
+    },
+    {
+      "id": "page-export-sheet",
+      "title": "导出与分享面板",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784344601000,
+      "canvasData": {
+        "x": 2520,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/export-sheet.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-files",
+      "title": "文件浏览器",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784344602000,
+      "canvasData": {
+        "x": 2940,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/files.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-profile",
+      "title": "我的 · 个人中心",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784344603000,
+      "canvasData": {
+        "x": 3360,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/profile.html",
+        "interactions": []
+      }
     }
   ],
   "config": {
     "autoLayout": true,
     "deviceType": "mobile",
-    "projectName": "FormulaFix Redesign"
+    "projectName": "FormulaFix Redesign",
+    "showEdge": false,
+    "visualEditorEnabled": false
   }
 }

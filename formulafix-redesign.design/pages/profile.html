@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormulaFix · 我的</title>
+    <style id="theme-vars">
+/**
+ * FormulaFix Redesign — Design Tokens
+ * 学术写作工具，沉稳、专业、沉浸式
+ */
+
+:root, .light {
+  /* Brand */
+  --ff-primary: #1E3A5F;
+  --ff-primary-foreground: #FFFFFF;
+  --ff-primary-hover: #16304F;
+  --ff-accent: #E76F51;
+  --ff-accent-foreground: #FFFFFF;
+
+  /* Semantic */
+  --ff-success: #2D6A4F;
+  --ff-warning: #E9C46A;
+  --ff-error: #C1121F;
+
+  /* Surface — 纸张质感 */
+  --ff-background: #FAFAF7;
+  --ff-foreground: #1A1D23;
+  --ff-card: #FFFFFF;
+  --ff-card-foreground: #1A1D23;
+  --ff-popover: #FFFFFF;
+  --ff-popover-foreground: #1A1D23;
+  --ff-muted: #F0EFEA;
+  --ff-muted-foreground: #6B7280;
+  --ff-border: #E5E4DF;
+  --ff-input: #E5E4DF;
+  --ff-ring: #1E3A5F;
+
+  /* Editor specific */
+  --ff-editor-bg: #FDFDFB;
+  --ff-editor-line: #EFEDE6;
+  --ff-toolbar-bg: rgba(255,255,255,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #EBF0F5 0%, #E8EEF2 100%);
+
+  /* Radius */
+  --ff-radius-sm: 6px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 16px;
+  --ff-radius-xl: 24px;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(26,29,35,0.04);
+  --ff-shadow-md: 0 4px 12px rgba(26,29,35,0.06);
+  --ff-shadow-lg: 0 12px 40px rgba(26,29,35,0.10);
+  --ff-shadow-xl: 0 24px 60px rgba(26,29,35,0.14);
+
+  /* Typography */
+  --ff-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --ff-font-serif: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --ff-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.dark {
+  /* Brand — 深色模式下调和亮度 */
+  --ff-primary: #5B8DB8;
+  --ff-primary-foreground: #0F1419;
+  --ff-primary-hover: #7AA5CA;
+  --ff-accent: #F4A261;
+  --ff-accent-foreground: #0F1419;
+
+  /* Semantic */
+  --ff-success: #52B788;
+  --ff-warning: #E9C46A;
+  --ff-error: #E76F51;
+
+  /* Surface — 深墨 */
+  --ff-background: #0F1419;
+  --ff-foreground: #E8EAED;
+  --ff-card: #1A1D23;
+  --ff-card-foreground: #E8EAED;
+  --ff-popover: #1A1D23;
+  --ff-popover-foreground: #E8EAED;
+  --ff-muted: #242830;
+  --ff-muted-foreground: #9AA0A6;
+  --ff-border: #2A2F38;
+  --ff-input: #2A2F38;
+  --ff-ring: #5B8DB8;
+
+  /* Editor specific */
+  --ff-editor-bg: #13171D;
+  --ff-editor-line: #22272F;
+  --ff-toolbar-bg: rgba(26,29,35,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #1E2A36 0%, #1C2530 100%);
+
+  /* Shadows — 更深但透明 */
+  --ff-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --ff-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --ff-shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --ff-shadow-xl: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ---------- Semantic alias mapping for fill-html-head ---------- */
+:root {
+  --background: var(--ff-background);
+  --foreground: var(--ff-foreground);
+  --card: var(--ff-card);
+  --card-foreground: var(--ff-card-foreground);
+  --popover: var(--ff-popover);
+  --popover-foreground: var(--ff-popover-foreground);
+  --primary: var(--ff-primary);
+  --primary-foreground: var(--ff-primary-foreground);
+  --muted: var(--ff-muted);
+  --muted-foreground: var(--ff-muted-foreground);
+  --border: var(--ff-border);
+  --input: var(--ff-input);
+  --ring: var(--ff-ring);
+  --radius-sm: var(--ff-radius-sm);
+  --radius-md: var(--ff-radius-md);
+  --radius-lg: var(--ff-radius-lg);
+  --success: var(--ff-success);
+  --warning: var(--ff-warning);
+  --error: var(--ff-error);
+  --accent: var(--ff-accent);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--ff-background);
+    --color-foreground: var(--ff-foreground);
+    --color-card: var(--ff-card);
+    --color-card-foreground: var(--ff-card-foreground);
+    --color-popover: var(--ff-popover);
+    --color-popover-foreground: var(--ff-popover-foreground);
+    --color-primary: var(--ff-primary);
+    --color-primary-foreground: var(--ff-primary-foreground);
+    --color-muted: var(--ff-muted);
+    --color-muted-foreground: var(--ff-muted-foreground);
+    --color-accent: var(--ff-accent);
+    --color-border: var(--ff-border);
+    --color-input: var(--ff-input);
+    --color-ring: var(--ff-ring);
+    --radius-sm: var(--ff-radius-sm);
+    --radius-md: var(--ff-radius-md);
+    --radius-lg: var(--ff-radius-lg);
+  }
+  @layer base {
+    body { background: var(--background); color: var(--foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--ff-background); }
+      .text-background { color: var(--ff-background); }
+      .border-background { border-color: var(--ff-background); }
+      .ring-background { --tw-ring-color: var(--ff-background); }
+      .bg-foreground { background-color: var(--ff-foreground); }
+      .text-foreground { color: var(--ff-foreground); }
+      .border-foreground { border-color: var(--ff-foreground); }
+      .ring-foreground { --tw-ring-color: var(--ff-foreground); }
+      .bg-card { background-color: var(--ff-card); }
+      .text-card { color: var(--ff-card); }
+      .border-card { border-color: var(--ff-card); }
+      .ring-card { --tw-ring-color: var(--ff-card); }
+      .bg-card-foreground { background-color: var(--ff-card-foreground); }
+      .text-card-foreground { color: var(--ff-card-foreground); }
+      .border-card-foreground { border-color: var(--ff-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--ff-card-foreground); }
+      .bg-popover { background-color: var(--ff-popover); }
+      .text-popover { color: var(--ff-popover); }
+      .border-popover { border-color: var(--ff-popover); }
+      .ring-popover { --tw-ring-color: var(--ff-popover); }
+      .bg-popover-foreground { background-color: var(--ff-popover-foreground); }
+      .text-popover-foreground { color: var(--ff-popover-foreground); }
+      .border-popover-foreground { border-color: var(--ff-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--ff-popover-foreground); }
+      .bg-primary { background-color: var(--ff-primary); }
+      .text-primary { color: var(--ff-primary); }
+      .border-primary { border-color: var(--ff-primary); }
+      .ring-primary { --tw-ring-color: var(--ff-primary); }
+      .bg-primary-foreground { background-color: var(--ff-primary-foreground); }
+      .text-primary-foreground { color: var(--ff-primary-foreground); }
+      .border-primary-foreground { border-color: var(--ff-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--ff-primary-foreground); }
+      .bg-muted { background-color: var(--ff-muted); }
+      .text-muted { color: var(--ff-muted); }
+      .border-muted { border-color: var(--ff-muted); }
+      .ring-muted { --tw-ring-color: var(--ff-muted); }
+      .bg-muted-foreground { background-color: var(--ff-muted-foreground); }
+      .text-muted-foreground { color: var(--ff-muted-foreground); }
+      .border-muted-foreground { border-color: var(--ff-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--ff-muted-foreground); }
+      .bg-accent { background-color: var(--ff-accent); }
+      .text-accent { color: var(--ff-accent); }
+      .border-accent { border-color: var(--ff-accent); }
+      .ring-accent { --tw-ring-color: var(--ff-accent); }
+      .bg-border { background-color: var(--ff-border); }
+      .text-border { color: var(--ff-border); }
+      .border-border { border-color: var(--ff-border); }
+      .ring-border { --tw-ring-color: var(--ff-border); }
+      .bg-input { background-color: var(--ff-input); }
+      .text-input { color: var(--ff-input); }
+      .border-input { border-color: var(--ff-input); }
+      .ring-input { --tw-ring-color: var(--ff-input); }
+      .bg-ring { background-color: var(--ff-ring); }
+      .text-ring { color: var(--ff-ring); }
+      .border-ring { border-color: var(--ff-ring); }
+      .ring-ring { --tw-ring-color: var(--ff-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="max-w-md mx-auto min-h-screen" style="background:var(--ff-background);">
+
+      <!-- 1. Top bar -->
+      <div class="px-5 pt-4 pb-2 flex items-center justify-between">
+        <h2 class="text-[20px] font-semibold" style="font-family:var(--ff-font-serif);">我的</h2>
+        <button class="inline-flex items-center justify-center w-9 h-9 rounded-lg hover:bg-[var(--ff-muted)] transition-colors" aria-label="设置">
+          <i data-lucide="settings" class="w-[18px] h-[18px]" style="color:var(--ff-muted-foreground);"></i>
+        </button>
+      </div>
+
+      <!-- 2. User card -->
+      <div class="mx-5 mt-2 rounded-2xl p-5 text-white relative overflow-hidden" style="background:var(--ff-primary);">
+        <!-- Decorative Sigma -->
+        <span class="absolute top-2 right-4 text-[120px] font-bold leading-none select-none" style="font-family:var(--ff-font-serif); opacity:0.08;">&#931;</span>
+        <!-- Avatar + info row -->
+        <div class="flex items-center gap-3 relative z-10">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center" style="background:rgba(255,255,255,0.2);">
+            <span class="text-2xl font-bold" style="font-family:var(--ff-font-serif);">&#931;</span>
+          </div>
+          <div>
+            <div class="text-[18px] font-bold" style="font-family:var(--ff-font-serif);">学者</div>
+            <div class="text-[12px]" style="color:rgba(255,255,255,0.7);">formulafix@example.com</div>
+          </div>
+        </div>
+        <!-- Stats row -->
+        <div class="mt-4 flex justify-around relative z-10">
+          <div class="flex flex-col items-center">
+            <span class="text-[24px] font-bold" style="font-family:var(--ff-font-serif);">47</span>
+            <span class="text-[11px]" style="color:rgba(255,255,255,0.7);">文档</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span class="text-[24px] font-bold" style="font-family:var(--ff-font-serif);">347</span>
+            <span class="text-[11px]" style="color:rgba(255,255,255,0.7);">公式</span>
+          </div>
+          <div class="flex flex-col items-center">
+            <span class="text-[24px] font-bold" style="font-family:var(--ff-font-serif);">86.2k</span>
+            <span class="text-[11px]" style="color:rgba(255,255,255,0.7);">总字数</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Writing streak card -->
+      <div class="mx-5 mt-4 rounded-xl p-4" style="background:var(--ff-card); border:1px solid var(--ff-border);">
+        <div class="flex justify-between items-center">
+          <div>
+            <div class="text-[14px] font-semibold" style="color:var(--ff-foreground);">连续写作</div>
+            <div class="text-[11px] mt-0.5" style="color:var(--ff-muted-foreground);">已坚持 23 天</div>
+          </div>
+          <div>
+            <div class="flex gap-1.5">
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-primary);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-primary);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-primary);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-primary);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-primary);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-accent);"></div>
+              <div class="w-6 h-6 rounded-full" style="background:var(--ff-muted);"></div>
+            </div>
+            <div class="flex gap-1.5 mt-0.5">
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">一</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">二</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">三</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">四</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">五</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">六</span>
+              <span class="w-6 text-center text-[8px]" style="color:var(--ff-muted-foreground);">日</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Settings list -->
+
+      <!-- Group 1: 通用 -->
+      <div class="mx-5 mt-5 rounded-xl overflow-hidden" style="background:var(--ff-card); border:1px solid var(--ff-border);">
+        <div class="px-4 py-2.5 text-[12px] font-medium" style="color:var(--ff-muted-foreground);">通用</div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="moon" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">深色模式</span>
+          </div>
+          <!-- Toggle ON -->
+          <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+            <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="sun" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">编辑器主题</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">默认</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group 2: 编辑器 -->
+      <div class="mx-5 mt-2 rounded-xl overflow-hidden" style="background:var(--ff-card); border:1px solid var(--ff-border);">
+        <div class="px-4 py-2.5 text-[12px] font-medium" style="color:var(--ff-muted-foreground);">编辑器</div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="type" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">字号大小</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">标准</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="ruler" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">行间距</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">1.8</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="palette" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">公式配色</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">蓝调</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="code" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">代码高亮</span>
+          </div>
+          <!-- Toggle ON -->
+          <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+            <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="spell-check" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">自动补全括号</span>
+          </div>
+          <!-- Toggle ON -->
+          <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+            <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group 3: 导出 -->
+      <div class="mx-5 mt-2 rounded-xl overflow-hidden" style="background:var(--ff-card); border:1px solid var(--ff-border);">
+        <div class="px-4 py-2.5 text-[12px] font-medium" style="color:var(--ff-muted-foreground);">导出</div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="file-down" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">默认导出格式</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">PDF</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="image" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">导出分辨率</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">2x</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="printer" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">纸张大小</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[12px]" style="color:var(--ff-muted-foreground);">A4</span>
+            <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="hard-drive" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">字体嵌入</span>
+          </div>
+          <!-- Toggle ON -->
+          <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+            <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group 4: 关于 -->
+      <div class="mx-5 mt-2 rounded-xl overflow-hidden" style="background:var(--ff-card); border:1px solid var(--ff-border);">
+        <div class="px-4 py-2.5 text-[12px] font-medium" style="color:var(--ff-muted-foreground);">关于</div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="info" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">关于 FormulaFix</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(229,228,223,0.6);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="star" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">给个好评</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="message-circle" class="w-4 h-4" style="color:var(--ff-muted-foreground);"></i>
+            <span class="text-[14px]" style="color:var(--ff-foreground);">反馈建议</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+        </div>
+      </div>
+
+      <!-- Group 5: 危险区域 -->
+      <div class="mx-5 mt-4 rounded-xl overflow-hidden" style="background:var(--ff-card); border:1px solid rgba(193,18,31,0.2);">
+        <div class="flex items-center justify-between px-4 py-3.5" style="border-bottom:1px solid rgba(193,18,31,0.1);">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="trash-2" class="w-4 h-4" style="color:var(--ff-error);"></i>
+            <span class="text-[14px]" style="color:rgba(193,18,31,0.8);">清除缓存</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+        </div>
+        <div class="flex items-center justify-between px-4 py-3.5">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="log-out" class="w-4 h-4" style="color:var(--ff-error);"></i>
+            <span class="text-[14px]" style="color:rgba(193,18,31,0.8);">退出登录</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-[14px] h-[14px]" style="color:var(--ff-muted-foreground);"></i>
+        </div>
+      </div>
+
+      <!-- 5. Version footer -->
+      <div class="mt-6 mb-4 text-center">
+        <div class="text-[11px]" style="color:var(--ff-muted-foreground);">FormulaFix v0.1.0</div>
+        <div class="text-[10px] mt-0.5" style="color:rgba(107,114,128,0.6); font-family:var(--ff-font-serif); font-style:italic;">Made with &#8747; for scholars</div>
+      </div>
+
+      <!-- Bottom spacer for tab bar -->
+      <div class="h-16"></div>
+
+      <!-- 6. Bottom tab bar -->
+      <nav class="fixed bottom-0 left-1/2 z-40 w-full max-w-md -translate-x-1/2 border-t border-[var(--ff-border)] bg-[var(--ff-card)]/95 backdrop-blur">
+        <div class="mx-auto grid h-16 grid-cols-4">
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="home">
+            <i data-lucide="home" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">首页</span>
+          </button>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="files">
+            <i data-lucide="folder-open" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">文件</span>
+          </button>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-muted-foreground)]" data-nav-key="reader">
+            <i data-lucide="book-open" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px]">阅读</span>
+          </button>
+          <button class="flex flex-col items-center justify-center gap-0.5 text-[var(--ff-primary)]" data-nav-key="me" data-active="true">
+            <i data-lucide="user" class="h-[22px] w-[22px]"></i>
+            <span class="whitespace-nowrap text-[11px] font-medium">我的</span>
+          </button>
+        </div>
+        <div class="mx-auto my-1 h-1 w-32 rounded-full bg-black/20"></div>
+      </nav>
+
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

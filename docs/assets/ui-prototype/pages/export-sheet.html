@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormulaFix · 导出</title>
+    <style id="theme-vars">
+/**
+ * FormulaFix Redesign — Design Tokens
+ * 学术写作工具，沉稳、专业、沉浸式
+ */
+
+:root, .light {
+  /* Brand */
+  --ff-primary: #1E3A5F;
+  --ff-primary-foreground: #FFFFFF;
+  --ff-primary-hover: #16304F;
+  --ff-accent: #E76F51;
+  --ff-accent-foreground: #FFFFFF;
+
+  /* Semantic */
+  --ff-success: #2D6A4F;
+  --ff-warning: #E9C46A;
+  --ff-error: #C1121F;
+
+  /* Surface — 纸张质感 */
+  --ff-background: #FAFAF7;
+  --ff-foreground: #1A1D23;
+  --ff-card: #FFFFFF;
+  --ff-card-foreground: #1A1D23;
+  --ff-popover: #FFFFFF;
+  --ff-popover-foreground: #1A1D23;
+  --ff-muted: #F0EFEA;
+  --ff-muted-foreground: #6B7280;
+  --ff-border: #E5E4DF;
+  --ff-input: #E5E4DF;
+  --ff-ring: #1E3A5F;
+
+  /* Editor specific */
+  --ff-editor-bg: #FDFDFB;
+  --ff-editor-line: #EFEDE6;
+  --ff-toolbar-bg: rgba(255,255,255,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #EBF0F5 0%, #E8EEF2 100%);
+
+  /* Radius */
+  --ff-radius-sm: 6px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 16px;
+  --ff-radius-xl: 24px;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(26,29,35,0.04);
+  --ff-shadow-md: 0 4px 12px rgba(26,29,35,0.06);
+  --ff-shadow-lg: 0 12px 40px rgba(26,29,35,0.10);
+  --ff-shadow-xl: 0 24px 60px rgba(26,29,35,0.14);
+
+  /* Typography */
+  --ff-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --ff-font-serif: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --ff-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.dark {
+  /* Brand — 深色模式下调和亮度 */
+  --ff-primary: #5B8DB8;
+  --ff-primary-foreground: #0F1419;
+  --ff-primary-hover: #7AA5CA;
+  --ff-accent: #F4A261;
+  --ff-accent-foreground: #0F1419;
+
+  /* Semantic */
+  --ff-success: #52B788;
+  --ff-warning: #E9C46A;
+  --ff-error: #E76F51;
+
+  /* Surface — 深墨 */
+  --ff-background: #0F1419;
+  --ff-foreground: #E8EAED;
+  --ff-card: #1A1D23;
+  --ff-card-foreground: #E8EAED;
+  --ff-popover: #1A1D23;
+  --ff-popover-foreground: #E8EAED;
+  --ff-muted: #242830;
+  --ff-muted-foreground: #9AA0A6;
+  --ff-border: #2A2F38;
+  --ff-input: #2A2F38;
+  --ff-ring: #5B8DB8;
+
+  /* Editor specific */
+  --ff-editor-bg: #13171D;
+  --ff-editor-line: #22272F;
+  --ff-toolbar-bg: rgba(26,29,35,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #1E2A36 0%, #1C2530 100%);
+
+  /* Shadows — 更深但透明 */
+  --ff-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --ff-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --ff-shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --ff-shadow-xl: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ---------- Semantic alias mapping for fill-html-head ---------- */
+:root {
+  --background: var(--ff-background);
+  --foreground: var(--ff-foreground);
+  --card: var(--ff-card);
+  --card-foreground: var(--ff-card-foreground);
+  --popover: var(--ff-popover);
+  --popover-foreground: var(--ff-popover-foreground);
+  --primary: var(--ff-primary);
+  --primary-foreground: var(--ff-primary-foreground);
+  --muted: var(--ff-muted);
+  --muted-foreground: var(--ff-muted-foreground);
+  --border: var(--ff-border);
+  --input: var(--ff-input);
+  --ring: var(--ff-ring);
+  --radius-sm: var(--ff-radius-sm);
+  --radius-md: var(--ff-radius-md);
+  --radius-lg: var(--ff-radius-lg);
+  --success: var(--ff-success);
+  --warning: var(--ff-warning);
+  --error: var(--ff-error);
+  --accent: var(--ff-accent);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--ff-background);
+    --color-foreground: var(--ff-foreground);
+    --color-card: var(--ff-card);
+    --color-card-foreground: var(--ff-card-foreground);
+    --color-popover: var(--ff-popover);
+    --color-popover-foreground: var(--ff-popover-foreground);
+    --color-primary: var(--ff-primary);
+    --color-primary-foreground: var(--ff-primary-foreground);
+    --color-muted: var(--ff-muted);
+    --color-muted-foreground: var(--ff-muted-foreground);
+    --color-accent: var(--ff-accent);
+    --color-border: var(--ff-border);
+    --color-input: var(--ff-input);
+    --color-ring: var(--ff-ring);
+    --radius-sm: var(--ff-radius-sm);
+    --radius-md: var(--ff-radius-md);
+    --radius-lg: var(--ff-radius-lg);
+  }
+  @layer base {
+    body { background: var(--background); color: var(--foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--ff-background); }
+      .text-background { color: var(--ff-background); }
+      .border-background { border-color: var(--ff-background); }
+      .ring-background { --tw-ring-color: var(--ff-background); }
+      .bg-foreground { background-color: var(--ff-foreground); }
+      .text-foreground { color: var(--ff-foreground); }
+      .border-foreground { border-color: var(--ff-foreground); }
+      .ring-foreground { --tw-ring-color: var(--ff-foreground); }
+      .bg-card { background-color: var(--ff-card); }
+      .text-card { color: var(--ff-card); }
+      .border-card { border-color: var(--ff-card); }
+      .ring-card { --tw-ring-color: var(--ff-card); }
+      .bg-card-foreground { background-color: var(--ff-card-foreground); }
+      .text-card-foreground { color: var(--ff-card-foreground); }
+      .border-card-foreground { border-color: var(--ff-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--ff-card-foreground); }
+      .bg-popover { background-color: var(--ff-popover); }
+      .text-popover { color: var(--ff-popover); }
+      .border-popover { border-color: var(--ff-popover); }
+      .ring-popover { --tw-ring-color: var(--ff-popover); }
+      .bg-popover-foreground { background-color: var(--ff-popover-foreground); }
+      .text-popover-foreground { color: var(--ff-popover-foreground); }
+      .border-popover-foreground { border-color: var(--ff-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--ff-popover-foreground); }
+      .bg-primary { background-color: var(--ff-primary); }
+      .text-primary { color: var(--ff-primary); }
+      .border-primary { border-color: var(--ff-primary); }
+      .ring-primary { --tw-ring-color: var(--ff-primary); }
+      .bg-primary-foreground { background-color: var(--ff-primary-foreground); }
+      .text-primary-foreground { color: var(--ff-primary-foreground); }
+      .border-primary-foreground { border-color: var(--ff-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--ff-primary-foreground); }
+      .bg-muted { background-color: var(--ff-muted); }
+      .text-muted { color: var(--ff-muted); }
+      .border-muted { border-color: var(--ff-muted); }
+      .ring-muted { --tw-ring-color: var(--ff-muted); }
+      .bg-muted-foreground { background-color: var(--ff-muted-foreground); }
+      .text-muted-foreground { color: var(--ff-muted-foreground); }
+      .border-muted-foreground { border-color: var(--ff-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--ff-muted-foreground); }
+      .bg-accent { background-color: var(--ff-accent); }
+      .text-accent { color: var(--ff-accent); }
+      .border-accent { border-color: var(--ff-accent); }
+      .ring-accent { --tw-ring-color: var(--ff-accent); }
+      .bg-border { background-color: var(--ff-border); }
+      .text-border { color: var(--ff-border); }
+      .border-border { border-color: var(--ff-border); }
+      .ring-border { --tw-ring-color: var(--ff-border); }
+      .bg-input { background-color: var(--ff-input); }
+      .text-input { color: var(--ff-input); }
+      .border-input { border-color: var(--ff-input); }
+      .ring-input { --tw-ring-color: var(--ff-input); }
+      .bg-ring { background-color: var(--ff-ring); }
+      .text-ring { color: var(--ff-ring); }
+      .border-ring { border-color: var(--ff-ring); }
+      .ring-ring { --tw-ring-color: var(--ff-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased pb-48">
+    <main>
+
+    <!-- Backdrop: dimmed editor page -->
+    <div class="relative min-h-screen bg-[var(--ff-background)]" style="opacity:0.3; pointer-events:none;" aria-hidden="true">
+      <!-- Simplified top bar -->
+      <div class="flex items-center justify-between px-4 pt-12 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="chevron-left" class="w-5 h-5 text-[var(--ff-foreground)]"></i>
+          <span class="text-[15px] font-medium text-[var(--ff-foreground)] truncate">广义相对论场方程推导</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <i data-lucide="undo-2" class="w-5 h-5 text-[var(--ff-foreground)]"></i>
+          <i data-lucide="redo-2" class="w-5 h-5 text-[var(--ff-foreground)]"></i>
+          <i data-lucide="more-vertical" class="w-5 h-5 text-[var(--ff-foreground)]"></i>
+        </div>
+      </div>
+      <!-- Simplified editor content lines -->
+      <div class="px-5 space-y-3">
+        <div class="h-4 w-3/4 rounded bg-[var(--ff-foreground)]/20"></div>
+        <div class="h-4 w-full rounded bg-[var(--ff-foreground)]/15"></div>
+        <div class="h-4 w-5/6 rounded bg-[var(--ff-foreground)]/15"></div>
+        <div class="h-16 w-full rounded-lg bg-[var(--ff-foreground)]/8 mt-4" style="background:linear-gradient(135deg,rgba(30,58,95,0.06) 0%,rgba(30,58,95,0.03) 100%);border:1px solid var(--ff-border);"></div>
+        <div class="h-4 w-full rounded bg-[var(--ff-foreground)]/15"></div>
+        <div class="h-4 w-2/3 rounded bg-[var(--ff-foreground)]/15"></div>
+        <div class="h-4 w-4/5 rounded bg-[var(--ff-foreground)]/12"></div>
+        <div class="h-4 w-full rounded bg-[var(--ff-foreground)]/10"></div>
+        <div class="h-4 w-3/5 rounded bg-[var(--ff-foreground)]/10"></div>
+      </div>
+    </div>
+    <!-- Black overlay -->
+    <div class="fixed inset-0 bg-black/40 z-40" aria-hidden="true"></div>
+
+    <!-- Bottom Sheet -->
+    <div class="fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+      <div class="w-full max-w-md bg-card rounded-t-2xl shadow-2xl max-h-[88vh] flex flex-col overflow-hidden" style="box-shadow:0 -8px 40px rgba(26,29,35,0.14);">
+
+        <!-- 1. Sheet Header -->
+        <div class="px-5 pt-3 pb-2 flex-shrink-0">
+          <div class="w-10 h-1 bg-border rounded-full mx-auto mb-3"></div>
+          <div class="flex justify-between items-center">
+            <span class="text-[17px] font-semibold" style="font-family:var(--ff-font-serif);color:var(--ff-foreground);">导出与分享</span>
+            <button class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" aria-label="关闭">
+              <i data-lucide="x" class="w-4 h-4 text-muted-foreground"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable content area -->
+        <div class="overflow-y-auto flex-1 min-h-0">
+
+        <!-- 2. Preview Card -->
+        <div class="mx-4 mb-3 rounded-xl p-4 flex items-center gap-3" style="background:rgba(240,239,234,0.6);border:1px solid var(--ff-border);">
+          <div class="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(30,58,95,0.1);">
+            <i data-lucide="file-text" class="w-6 h-6 text-primary"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-[14px] font-medium text-foreground truncate">广义相对论场方程推导</div>
+            <div class="text-[11px] text-muted-foreground mt-0.5 truncate">2,341 字 · 47 公式 · 修改于 2小时前</div>
+          </div>
+        </div>
+
+        <!-- 3. Format Options Grid -->
+        <div class="px-4 mb-4 grid grid-cols-3 gap-2.5">
+          <!-- Card 1: Markdown (SELECTED) -->
+          <div class="rounded-xl border p-3 flex flex-col items-center gap-2 aspect-[3/4] transition-colors cursor-pointer" style="border-color:var(--ff-primary);background:rgba(30,58,95,0.05);box-shadow:0 0 0 1px rgba(30,58,95,0.2);">
+            <i data-lucide="file-text" class="w-6 h-6 text-primary"></i>
+            <span class="text-[13px] font-medium text-foreground">Markdown</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">.md</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded mt-auto" style="background:rgba(30,58,95,0.1);color:var(--ff-primary);">原始</span>
+          </div>
+          <!-- Card 2: PDF -->
+          <div class="rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-2 aspect-[3/4] hover:border-primary/30 transition-colors cursor-pointer">
+            <i data-lucide="file-down" class="w-6 h-6" style="color:#C1121F;"></i>
+            <span class="text-[13px] font-medium text-foreground">PDF</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">.pdf</span>
+            <span class="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded mt-auto">公式渲染</span>
+          </div>
+          <!-- Card 3: Word -->
+          <div class="rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-2 aspect-[3/4] hover:border-primary/30 transition-colors cursor-pointer">
+            <i data-lucide="file-text" class="w-6 h-6" style="color:#2B579A;"></i>
+            <span class="text-[13px] font-medium text-foreground">Word</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">.docx</span>
+            <span class="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded mt-auto">公式嵌入</span>
+          </div>
+          <!-- Card 4: 纯文本 -->
+          <div class="rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-2 aspect-[3/4] hover:border-primary/30 transition-colors cursor-pointer">
+            <i data-lucide="file-text" class="w-6 h-6 text-muted-foreground"></i>
+            <span class="text-[13px] font-medium text-foreground">纯文本</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">.txt</span>
+            <span class="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded mt-auto">无格式</span>
+          </div>
+          <!-- Card 5: 图片 -->
+          <div class="rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-2 aspect-[3/4] hover:border-primary/30 transition-colors cursor-pointer">
+            <i data-lucide="image" class="w-6 h-6 text-muted-foreground"></i>
+            <span class="text-[13px] font-medium text-foreground">图片</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">.png</span>
+            <span class="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded mt-auto">长截图</span>
+          </div>
+          <!-- Card 6: 分享链接 (即将推出) -->
+          <div class="rounded-xl border border-border bg-card p-3 flex flex-col items-center gap-2 aspect-[3/4] cursor-not-allowed" style="opacity:0.55;">
+            <i data-lucide="link" class="w-6 h-6 text-muted-foreground"></i>
+            <span class="text-[13px] font-medium text-foreground">分享链接</span>
+            <span class="text-[11px] text-muted-foreground" style="font-family:var(--ff-font-mono);">&mdash;</span>
+            <span class="text-[10px] bg-muted px-1.5 py-0.5 rounded mt-auto" style="color:rgba(107,114,128,0.6);">即将推出</span>
+          </div>
+        </div>
+
+        <!-- 4. Share Targets Row -->
+        <div class="px-4 mb-3">
+          <div class="flex items-center gap-1 mb-2">
+            <i data-lucide="share-2" class="w-3 h-3 text-muted-foreground"></i>
+            <span class="text-[12px] text-muted-foreground">快速分享到</span>
+          </div>
+          <div class="flex gap-3">
+            <!-- WeChat -->
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background:rgba(7,193,96,0.15);">
+                <i data-lucide="message-circle" class="w-[22px] h-[22px]" style="color:#07C160;"></i>
+              </div>
+              <span class="text-[9px] text-muted-foreground">微信</span>
+            </div>
+            <!-- Email -->
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background:rgba(30,58,95,0.1);">
+                <i data-lucide="mail" class="w-5 h-5 text-primary"></i>
+              </div>
+              <span class="text-[9px] text-muted-foreground">邮件</span>
+            </div>
+            <!-- AirDrop -->
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background:rgba(30,58,95,0.1);">
+                <i data-lucide="wifi" class="w-5 h-5 text-primary"></i>
+              </div>
+              <span class="text-[9px] text-muted-foreground">隔空投送</span>
+            </div>
+            <!-- System share -->
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <i data-lucide="share" class="w-5 h-5 text-muted-foreground"></i>
+              </div>
+              <span class="text-[9px] text-muted-foreground">更多</span>
+            </div>
+            <!-- Copy link -->
+            <div class="flex flex-col items-center gap-1">
+              <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <i data-lucide="link" class="w-5 h-5 text-muted-foreground"></i>
+              </div>
+              <span class="text-[9px] text-muted-foreground">复制</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Advanced Options Toggle (expanded) -->
+        <div class="px-4 mb-2">
+          <div class="flex items-center justify-between py-2 cursor-pointer">
+            <span class="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+              <i data-lucide="settings-2" class="w-[14px] h-[14px] text-muted-foreground"></i>
+              高级选项
+            </span>
+            <i data-lucide="chevron-down" class="w-[14px] h-[14px] text-muted-foreground" style="transform:rotate(180deg);"></i>
+          </div>
+          <!-- Expanded advanced panel -->
+          <div class="space-y-2.5 pb-3">
+            <!-- Toggle: 包含公式渲染 (ON) -->
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] text-foreground">包含公式渲染</span>
+              <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+                <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white shadow-sm"></div>
+              </div>
+            </div>
+            <!-- Toggle: 包含目录 (ON) -->
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] text-foreground">包含目录</span>
+              <div class="w-10 h-6 rounded-full relative cursor-pointer" style="background:var(--ff-primary);">
+                <div class="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white shadow-sm"></div>
+              </div>
+            </div>
+            <!-- Toggle: 嵌入字体 (OFF) -->
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] text-foreground">嵌入字体</span>
+              <div class="w-10 h-6 rounded-full relative cursor-pointer bg-muted">
+                <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm"></div>
+              </div>
+            </div>
+            <!-- Dropdown: 纸张大小 -->
+            <div class="flex items-center justify-between">
+              <span class="text-[13px] text-foreground">纸张大小</span>
+              <span class="flex items-center gap-1 text-[13px] text-muted-foreground cursor-pointer" style="font-family:var(--ff-font-mono);">
+                A4
+                <i data-lucide="chevron-down" class="w-3 h-3"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        </div>
+        <!-- End scrollable content area -->
+
+        <!-- 6. Action Bar (pinned at bottom of sheet) -->
+        <div class="pt-2 pb-3 px-4 flex items-center gap-2 flex-shrink-0" style="border-top:1px solid var(--ff-border);">
+          <button class="flex items-center gap-1 px-3 py-2 rounded-lg bg-muted text-[13px] text-foreground">
+            <i data-lucide="download" class="w-[14px] h-[14px]"></i>
+            保存到文件
+          </button>
+          <div class="flex-1"></div>
+          <button class="flex items-center gap-1.5 px-5 py-2 rounded-lg text-[13px] font-medium text-white shadow-sm" style="background:var(--ff-primary);box-shadow:var(--ff-shadow-sm);">
+            <i data-lucide="download" class="w-[14px] h-[14px]"></i>
+            导出 PDF
+          </button>
+        </div>
+
+        <!-- Home Indicator -->
+        <div class="flex justify-center pb-1 flex-shrink-0">
+          <div class="w-32 h-1 rounded-full" style="background:rgba(0,0,0,0.1);"></div>
+        </div>
+
+      </div>
+    </div>
+
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
