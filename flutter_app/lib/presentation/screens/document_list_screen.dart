@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
+import '../../core/services/file_repository.dart';
+import '../../providers/current_path_provider.dart';
 import '../../data/models/document.dart';
 import '../components/loading.dart';
 
@@ -154,13 +156,15 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
   void _createNew() {
     ref.read(currentDocumentProvider.notifier).clear();
     ref.read(editorContentProvider.notifier).clear();
+    ref.read(currentPathProvider.notifier).state = null;
     context.push('/editor');
   }
 
-  void _openDoc(Document doc) {
+  void _openDoc(Document doc) async {
     ref.read(currentDocumentProvider.notifier).setDocument(doc);
-    ref.read(editorContentProvider.notifier).setContent(doc.content);
-    context.push('/editor');
+    final path = await ref.read(fileRepositoryProvider).documentPathFor(doc.id);
+    ref.read(currentPathProvider.notifier).state = path;
+    if (mounted) context.push('/editor');
   }
 
   Future<void> _renameDoc(Document doc) async {
@@ -189,13 +193,14 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen> {
 
     if (newTitle != null && newTitle.isNotEmpty && newTitle != doc.title) {
       try {
-        await ref.read(documentServiceProvider).updateDocument(
-          doc.copyWith(title: newTitle),
-        );
+        final repo = ref.read(fileRepositoryProvider);
+        final path = await repo.documentPathFor(doc.id);
+        await repo.renameDocument(path, newTitle);
         ref.invalidate(documentsProvider);
         _showSnackBar('文档已重命名');
       } catch (e) {
-        _showSnackBar('重命名失败: $e');
+        debugPrint('Rename failed: $e');
+        _showSnackBar('重命名失败，请重试');
       }
     }
   }

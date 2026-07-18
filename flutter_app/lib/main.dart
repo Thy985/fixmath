@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/services/storage_migration.dart';
 import 'core/services/formula_pdf_renderer.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/widgets/mermaid_host.dart';
@@ -8,6 +10,13 @@ import 'providers/editor_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 启动时执行一次性存储迁移（JSON 文档库 → .md 单一真相源）。
+  // 失败不阻塞启动，仅记录日志，旧数据保留为 .bak。
+  try {
+    await StorageMigration.migrateIfNeeded();
+  } catch (e) {
+    debugPrint('Storage migration skipped: $e');
+  }
   runApp(
     ProviderScope(
       child: FormulaFixApp(),
