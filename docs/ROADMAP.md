@@ -157,7 +157,7 @@
 
 | 风险 | 影响范围 | 缓解措施 |
 |------|---------|---------|
-| `flutter_app/android/` 目录缺失 | build-android job | CI 中 `flutter create --platforms=android .` 动态生成 |
+| `flutter_app/android/` 目录缺失 | build-android job | ~~CI 中 `flutter create --platforms=android .` 动态生成~~ ✅ 已补齐（AGP 8.7.3 + compileSdk 36） |
 | 依赖版本兼容性（inappwebview / file_picker / pdf） | Phase 0 阻塞 | ~~逐个 pin 版本或 dependency_overrides~~ ✅ 已解决（0.7） |
 | 范式重构失败 | Phase 2 延期 | 渐进式、feature flag |
 | 数据迁移丢用户文档 | Phase 1.2 | 备份 + 回滚脚本 |

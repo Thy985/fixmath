@@ -116,22 +116,13 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate Android project
-        run: flutter create --platforms=android .
-
-      - name: Fix compileSdk for Android 36
-        # file_picker 8.x → flutter_plugin_android_lifecycle 要求 compileSdk 36+
-        # Flutter 3.44.6 生成 build.gradle.kts (Kotlin DSL)，不是 build.gradle
-        run: |
-          sed -i 's/compileSdk = flutter.compileSdkVersion.toInt()/compileSdk = 36/' android/app/build.gradle.kts
-
       - name: Cache pub packages
         uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
             flutter_app/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter_app/pubspec.yaml', 'flutter_app/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -141,9 +132,9 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          # android/ 由 flutter create 动态生成，无法用 hashFiles 引用其内容
-          key: ${{ runner.os }}-gradle-${{ env.FLUTTER_VERSION }}
+          key: ${{ runner.os }}-gradle-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter_app/android/**/*.gradle*', 'flutter_app/android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
+            ${{ runner.os }}-gradle-${{ env.FLUTTER_VERSION }}-
             ${{ runner.os }}-gradle-
 
       - name: Download dependencies
