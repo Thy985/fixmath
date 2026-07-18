@@ -1,0 +1,56 @@
+name: formula_fix
+description: "FormulaFix - 移动端 Typora 类 Markdown 写作工具，以公式 / 图表 / 学术写作为特色。"
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 状态管理
+  flutter_riverpod: ^2.4.9
+
+  # 路由
+  go_router: ^12.1.1
+
+  # 本地存储 / 文件
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1
+  file_picker: ^6.1.1
+
+  # 分享
+  share_plus: ^7.2.1
+
+  # 公式 / 图表渲染
+  flutter_math_fork: ^0.7.2
+  flutter_svg: ^2.0.9
+  flutter_inappwebview: ^6.0.0
+  flutter_inappwebview_platform_interface: ^1.0.0
+
+  # 导出
+  pdf: ^3.10.7
+  archive: ^3.4.9
+  xml: ^6.4.2
+  vector_math: ^2.1.4
+
+  # 工具
+  crypto: ^3.0.3
+  uuid: ^4.3.3
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  # TODO: 补齐 assets 目录后启用
+  # assets:
+  #   - assets/fonts/
+  #   - assets/templates/

@@ -15,7 +15,7 @@
 
 | # | 任务 | 责任人 | 状态 |
 |---|------|--------|------|
-| 0.1 | 补齐 `pubspec.yaml`（含依赖最小集 + assets 声明） | 架构师 | ⏳ 待启动 |
+| 0.1 | 补齐 `pubspec.yaml`（含依赖最小集 + assets 声明） | 架构师 | ✅ 已完成（assets 待补齐目录后启用） |
 | 0.2 | 创建 `AGENTS.md`（AI 协作规范） | 架构师 | ✅ 已完成 |
 | 0.3 | 建立 `docs/` 文档体系（ARCHITECTURE / ROADMAP / CODING_RULES / GIT_WORKFLOW / ADR） | 架构师 | ✅ 已完成 |
 | 0.4 | 配置 GitHub Actions CI（pub get / analyze / test / build） | 架构师 | ✅ 已完成 |
@@ -134,7 +134,8 @@
 
 | 风险 | 影响范围 | 缓解措施 |
 |------|---------|---------|
-| pubspec.yaml 缺失 | Phase 0 阻塞 | 0.1 优先解决 |
+| pubspec.yaml 缺失 | Phase 0 阻塞 | ✅ 0.1 已解决 |
+| `flutter_app/android/` 目录缺失 | build-android job 禁用 | Phase 1 前补齐，临时 `if: false` |
 | 范式重构失败 | Phase 2 延期 | 渐进式、feature flag |
 | 数据迁移丢用户文档 | Phase 1.2 | 备份 + 回滚脚本 |
 | WebView 性能瓶颈 | Phase 2 | 预热 + 缓存 + 异步渲染 |

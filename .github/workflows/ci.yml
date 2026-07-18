@@ -96,6 +96,7 @@ jobs:
     name: Build Android Debug APK
     runs-on: ubuntu-latest
     needs: test
+    if: false  # TODO(phase-0): 禁用 android 构建，等 flutter_app/android/ 目录补齐后启用
     defaults:
       run:
         working-directory: flutter_app

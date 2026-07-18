@@ -80,11 +80,6 @@ math/
 
 ## 快速开始
 
-> ⚠️ **当前阻塞**：`flutter_app/` 下缺 `pubspec.yaml`，项目暂无法 `flutter pub get`。
-> 这是 [ROADMAP.md](docs/ROADMAP.md) Phase 0 的前置阻塞，待修复。
-
-补齐 `pubspec.yaml` 后：
-
 ```bash
 cd flutter_app
 flutter pub get
@@ -152,7 +147,7 @@ Commit message 遵循 [Conventional Commits](docs/GIT_WORKFLOW.md#2-commit-messa
 - Provider 重复定义
 
 **P3 工程化**：
-- 缺 `pubspec.yaml`（CI 阻塞）
+- 缺 `flutter_app/android/` 目录（build-android job 已临时禁用）
 - 测试覆盖不足
 
 这些问题已记入 [ROADMAP.md](docs/ROADMAP.md)，按 Phase 修复。新增代码不得延续以上问题。
@@ -161,7 +156,7 @@ Commit message 遵循 [Conventional Commits](docs/GIT_WORKFLOW.md#2-commit-messa
 
 | Stage | 目标 | 状态 |
 |-------|------|------|
-| Phase 0 / R0 | 工程化基础（文档 / CI / 规范） | ✅ 基本完成（缺 `pubspec.yaml`） |
+| Phase 0 / R0 | 工程化基础（文档 / CI / 规范） | ✅ 基本完成 |
 | Phase 1 / R1 | 地基重构（存储 + Provider） | ⏳ 待启动 |
 | R2 | 完整 AST + 解析器 | ⏳ |
 | R3 | 渲染系统统一 | ⏳ |
