@@ -132,6 +132,15 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
       return _mermaidSvg(element.code, mermaidRels: mermaidRels);
     } else if (element is TableElement) {
       return _table(element.headers, element.rows, formulaRels: formulaRels);
+    } else if (element is TaskListItemElement) {
+      return _taskListItem(
+        element.children,
+        element.checked,
+        element.indent,
+        formulaRels: formulaRels,
+      );
+    } else if (element is HorizontalRuleElement) {
+      return _horizontalRule();
     } else if (element is EmptyLineElement) {
       return '<w:p/>';
     }
@@ -155,21 +164,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     List<InlineElement> children, {
     required Map<String, FormulaImageInfo?> formulaRels,
   }) {
-    final runs = StringBuffer();
-    for (final c in children) {
-      if (c is FormulaElement) {
-        final info = formulaRels[c.latex];
-        if (info != null) {
-          runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
-        } else {
-          runs.write(_formulaFallback(c.latex));
-        }
-      } else if (c is TextElement) {
-        runs.write(
-          '''<w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
-        );
-      }
-    }
+    final runs = _renderInlineRuns(children, formulaRels);
     return '<w:p>$runs</w:p>';
   }
 
@@ -187,21 +182,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
         ? WordOoxmlTemplates.numIdOrdered
         : WordOoxmlTemplates.numIdBullet;
     final leftIndent = 360 + (indent * 360);
-    final runs = StringBuffer();
-    for (final c in children) {
-      if (c is TextElement) {
-        runs.write(
-          '''<w:r><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
-        );
-      } else if (c is FormulaElement) {
-        final info = formulaRels[c.latex];
-        if (info != null) {
-          runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
-        } else {
-          runs.write(_formulaFallback(c.latex));
-        }
-      }
-    }
+    final runs = _renderInlineRuns(children, formulaRels);
     return '''<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="$indent"/><w:numId w:val="$numId"/></w:numPr><w:ind w:left="$leftIndent" w:hanging="360"/></w:pPr>$runs</w:p>''';
   }
 
@@ -311,7 +292,7 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     }
 
     final ratio = dims.width / dims.height;
-    final widthEmu = maxWidthEmu;
+    const widthEmu = maxWidthEmu;
     final heightEmu = (widthEmu / ratio).round().clamp(minHeightEmu, maxWidthEmu);
     return (widthEmu, heightEmu);
   }
@@ -359,36 +340,68 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
     Map<String, FormulaImageInfo?> formulaRels, {
     bool bold = false,
   }) {
+    final runs = _renderInlineRuns(inlines, formulaRels, bold: bold, inCell: true);
+    return '<w:p>$runs</w:p>';
+  }
+
+  /// 统一的行内渲染：覆盖 Text / Formula / Bold / Italic / Strikethrough /
+  /// InlineCode / Link / Image，供段落 / 列表 / 表格单元格 / 粗体内部复用。
+  ///
+  /// [bold] 在 TextElement run 上附加 `<w:b/>`；[inCell] 让字号用 22
+  /// （表格单元格更小）。嵌套元素（如加粗内的斜体）递归处理。
+  static String _renderInlineRuns(
+    List<InlineElement> children,
+    Map<String, FormulaImageInfo?> formulaRels, {
+    bool bold = false,
+    bool inCell = false,
+  }) {
     final runs = StringBuffer();
-    for (final c in inlines) {
-      if (c is FormulaElement) {
+    final sz = inCell ? '22' : '24';
+    for (final c in children) {
+      if (c is TextElement) {
+        final style = bold
+            ? '<w:rPr><w:b/><w:sz w:val="$sz"/></w:rPr>'
+            : '<w:rPr><w:sz w:val="$sz"/></w:rPr>';
+        runs.write(
+          '''<w:r>$style<w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
+        );
+      } else if (c is FormulaElement) {
         final info = formulaRels[c.latex];
         if (info != null) {
           runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
         } else {
           runs.write(_formulaFallback(c.latex));
         }
-      } else if (c is TextElement) {
-        final style = bold ? '<w:rPr><w:b/><w:sz w:val="24"/></w:rPr>' : '<w:rPr><w:sz w:val="22"/></w:rPr>';
-        runs.write('''<w:r>$style<w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''');
       } else if (c is BoldElement) {
-        // 递归处理粗体内部的内容
-        runs.write(_renderBoldInline(c.children, formulaRels));
+        runs.write(_renderInlineRuns(c.children, formulaRels,
+            bold: true, inCell: inCell));
+      } else if (c is ItalicElement) {
+        runs.write(_renderItalicInline(c.children, formulaRels, inCell: inCell));
+      } else if (c is StrikethroughElement) {
+        runs.write(_renderStrikeInline(c.children, formulaRels, inCell: inCell));
+      } else if (c is InlineCodeElement) {
+        runs.write(_renderCodeInline(c.code));
+      } else if (c is LinkElement) {
+        runs.write(_renderLinkInline(c.text, c.url));
+      } else if (c is ImageElement) {
+        runs.write(_renderImageInline(c.alt, c.url));
       }
-      // 注意：MarkdownParser.parseInline 暂不支持行内代码（`code`），因此不处理 CodeElement
     }
-    return '<w:p>$runs</w:p>';
+    return runs.toString();
   }
 
-  /// 渲染粗体内部的行内元素
-  static String _renderBoldInline(
+  static String _renderItalicInline(
     List<InlineElement> children,
-    Map<String, FormulaImageInfo?> formulaRels,
-  ) {
+    Map<String, FormulaImageInfo?> formulaRels, {
+    bool inCell = false,
+  }) {
+    final sz = inCell ? '22' : '24';
     final runs = StringBuffer();
     for (final c in children) {
       if (c is TextElement) {
-        runs.write('''<w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''');
+        runs.write(
+          '''<w:r><w:rPr><w:i/><w:sz w:val="$sz"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
+        );
       } else if (c is FormulaElement) {
         final info = formulaRels[c.latex];
         if (info != null) {
@@ -397,9 +410,63 @@ $buf${WordOoxmlTemplates.documentRelsFooter}''';
           runs.write(_formulaFallback(c.latex));
         }
       }
-      // MarkdownParser.parseInline 暂不支持行内代码
     }
     return runs.toString();
+  }
+
+  static String _renderStrikeInline(
+    List<InlineElement> children,
+    Map<String, FormulaImageInfo?> formulaRels, {
+    bool inCell = false,
+  }) {
+    final sz = inCell ? '22' : '24';
+    final runs = StringBuffer();
+    for (final c in children) {
+      if (c is TextElement) {
+        runs.write(
+          '''<w:r><w:rPr><w:strike/><w:sz w:val="$sz"/></w:rPr><w:t xml:space="preserve">${_esc(c.text)}</w:t></w:r>''',
+        );
+      } else if (c is FormulaElement) {
+        final info = formulaRels[c.latex];
+        if (info != null) {
+          runs.write(_formulaImage(info.relId, info.widthEmu, info.heightEmu));
+        } else {
+          runs.write(_formulaFallback(c.latex));
+        }
+      }
+    }
+    return runs.toString();
+  }
+
+  static String _renderCodeInline(String code) {
+    return '''<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${_esc(code)}</w:t></w:r>''';
+  }
+
+  static String _renderLinkInline(String text, String url) {
+    return '''<w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${_esc(text)}</w:t></w:r>''';
+  }
+
+  static String _renderImageInline(String alt, String url) {
+    final label = alt.isNotEmpty ? '[图片: $alt]' : '[图片]';
+    return '''<w:r><w:rPr><w:color w:val="888888"/></w:rPr><w:t xml:space="preserve">${_esc(label)}</w:t></w:r>''';
+  }
+
+  /// 渲染任务列表项（- [ ] / - [x]）。
+  static String _taskListItem(
+    List<InlineElement> children,
+    bool checked,
+    int indent, {
+    required Map<String, FormulaImageInfo?> formulaRels,
+  }) {
+    final box = checked ? '\u2611' : '\u2610';
+    final leftIndent = 360 + (indent * 360);
+    final runs = _renderInlineRuns(children, formulaRels);
+    return '''<w:p><w:pPr><w:ind w:left="$leftIndent" w:hanging="360"/></w:pPr><w:r><w:t xml:space="preserve">$box </w:t></w:r>$runs</w:p>''';
+  }
+
+  /// 渲染水平分割线（--- / *** / ___）。
+  static String _horizontalRule() {
+    return '''<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="999999"/></w:pBdr></w:pPr></w:p>''';
   }
 
   // --- XML escape ---
