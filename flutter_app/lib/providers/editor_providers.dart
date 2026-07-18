@@ -27,33 +27,18 @@ final previewModeProvider = StateProvider<bool>((ref) => false);
 final isExportingProvider = StateProvider<bool>((ref) => false);
 
 final editorContentProvider = StateNotifierProvider<EditorContentNotifier, String>((ref) {
-  final prefsAsync = ref.watch(sharedPreferencesProvider);
-  return EditorContentNotifier(prefsAsync.valueOrNull);
+  return EditorContentNotifier();
 });
 
+/// 编辑器文本缓冲区（纯内存，不含持久化）。
+///
+/// 草稿持久化已在 Phase 1 由 ADR-0003 废除：不再写入
+/// `SharedPreferences['pref_last_content']`，改为编辑器对当前打开的
+/// .md 文件做防抖自动保存（见 [EditorScreen]）。
 class EditorContentNotifier extends StateNotifier<String> {
-  final SharedPreferences? _prefs;
-  static const _key = 'pref_last_content';
-  DateTime? _lastSave;
+  EditorContentNotifier() : super('');
 
-  EditorContentNotifier(this._prefs) : super(_prefs?.getString(_key) ?? '');
+  void setContent(String content) => state = content;
 
-  @override
-  set state(String v) {
-    super.state = v;
-    _debouncedSave(v);
-  }
-
-  void _debouncedSave(String v) {
-    final now = DateTime.now();
-    if (_lastSave != null && now.difference(_lastSave!).inMilliseconds < 500) {
-      return;
-    }
-    _lastSave = now;
-    _prefs?.setString(_key, v);
-  }
-
-  Future<void> forceSave() async {
-    _prefs?.setString(_key, state);
-  }
+  void clear() => state = '';
 }

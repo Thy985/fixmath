@@ -6,6 +6,9 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/document.dart';
 import 'file_service.dart' show decodeBytesAuto;
 
+@Deprecated(
+  'Phase 1 存储统一（ADR-0003）后由 FileRepository 取代；待 cleanup PR 删除。',
+)
 class DocumentService {
   static const String _fileName = 'formula_fix_documents.json';
   final Uuid _uuid = const Uuid();

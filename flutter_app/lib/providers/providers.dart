@@ -1,18 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/document.dart';
-import '../../core/services/document_service.dart';
+import '../../core/services/file_repository.dart';
 
 // ============ SharedPreferences ============
 
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
   return SharedPreferences.getInstance();
-});
-
-// ============ Document Service ============
-
-final documentServiceProvider = Provider<DocumentService>((ref) {
-  return DocumentService();
 });
 
 // ============ Dark Mode ============
@@ -37,21 +31,21 @@ class DarkModeNotifier extends StateNotifier<bool> {
 // ============ Documents List ============
 
 final documentsProvider = StateNotifierProvider<DocumentsNotifier, AsyncValue<List<Document>>>((ref) {
-  final service = ref.watch(documentServiceProvider);
-  return DocumentsNotifier(service);
+  final repo = ref.watch(fileRepositoryProvider);
+  return DocumentsNotifier(repo);
 });
 
 class DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>> {
-  final DocumentService _service;
+  final FileRepository _repo;
 
-  DocumentsNotifier(this._service) : super(const AsyncValue.loading()) {
+  DocumentsNotifier(this._repo) : super(const AsyncValue.loading()) {
     loadDocuments();
   }
 
   Future<void> loadDocuments() async {
     state = const AsyncValue.loading();
     try {
-      final docs = await _service.getAllDocuments();
+      final docs = await _repo.listDocuments();
       state = AsyncValue.data(docs);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -59,7 +53,8 @@ class DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   }
 
   Future<Document> createDocument(String title, String content) async {
-    final doc = await _service.createDocument(title, content);
+    final path = await _repo.createDocument(title, content);
+    final doc = await _repo.readDocument(path);
     state.whenData((docs) {
       state = AsyncValue.data([doc, ...docs]);
     });
@@ -67,7 +62,8 @@ class DocumentsNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   }
 
   Future<void> deleteDocument(String id) async {
-    await _service.deleteDocument(id);
+    final path = await _repo.documentPathFor(id);
+    await _repo.deleteDocument(path);
     state.whenData((docs) {
       state = AsyncValue.data(docs.where((d) => d.id != id).toList());
     });

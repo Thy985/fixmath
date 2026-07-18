@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/file_repository.dart';
+import '../../providers/current_path_provider.dart';
+import '../../providers/providers.dart' as providers;
 import '../../core/services/file_service.dart';
 import '../../domain/services/export_service.dart';
 import '../../core/services/formula_pdf_renderer.dart';
@@ -41,15 +45,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (_isInitialized) return;
     _isInitialized = true;
 
-    _controller.text = ref.read(editorContentProvider);
-    if (widget.initialPath != null) {
-      await _loadPath(widget.initialPath!);
+    final openPath = ref.read(currentPathProvider) ?? widget.initialPath;
+    if (openPath != null) {
+      await _loadPath(openPath);
+    } else {
+      _controller.text = ref.read(editorContentProvider);
     }
     await _checkClipboard();
   }
 
   @override
   void dispose() {
+    _autosaveTimer?.cancel();
     _controller.dispose();
     _clearExportCaches();
     super.dispose();
@@ -65,7 +72,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _onTextChanged() {
-    ref.read(editorContentProvider.notifier).state = _controller.text;
+    final text = _controller.text;
+    ref.read(editorContentProvider.notifier).setContent(text);
+    _scheduleAutosave(text);
+  }
+
+  /// 防抖自动保存：仅在已打开 / 已保存的文档（[currentPathProvider]
+  /// 非空）上生效。新建未保存文档不触发，避免产生无主 .md 文件。
+  Timer? _autosaveTimer;
+  void _scheduleAutosave(String text) {
+    final path = ref.read(currentPathProvider);
+    if (path == null) return;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(milliseconds: 500), () async {
+      final title = _extractTitle(text) ?? '未命名文档';
+      try {
+        await ref
+            .read(fileRepositoryProvider)
+            .writeDocument(path, title: title, content: text);
+      } catch (e) {
+        debugPrint('Autosave failed: $e');
+      }
+    });
   }
 
   Future<void> _checkClipboard() async {
@@ -108,16 +136,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _controller.text = content;
       _showSnackBar('文件导入成功');
     } catch (e) {
-      _showSnackBar('文件导入失败: $e');
+      debugPrint('Import failed: $e');
+      _showSnackBar('文件导入失败，请确认文件存在且为文本或 Markdown 格式');
     }
   }
 
   Future<void> _saveToFile() async {
+    final text = _controller.text;
+    if (text.isEmpty) {
+      _showSnackBar('空白内容无需保存');
+      return;
+    }
     try {
-      await FileService.saveToFile(_controller.text);
+      final repo = ref.read(fileRepositoryProvider);
+      var path = ref.read(currentPathProvider);
+      final title = _extractTitle(text) ?? '未命名文档';
+      if (path == null) {
+        path = await repo.createDocument(title, text);
+        ref.read(currentPathProvider.notifier).state = path;
+      } else {
+        await repo.writeDocument(path, title: title, content: text);
+      }
+      ref.invalidate(providers.documentsProvider);
       _showSnackBar('已保存');
     } catch (e) {
-      _showSnackBar('保存失败: $e');
+      debugPrint('Save failed: $e');
+      _showSnackBar('保存失败，请检查存储空间与文件权限');
     }
   }
 
@@ -132,8 +176,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       final content = await FileService.loadFromPath(path);
       _controller.text = content;
+      ref.read(currentPathProvider.notifier).state = path;
     } catch (e) {
-      _showSnackBar('加载失败: $e');
+      debugPrint('Load failed: $e');
+      _showSnackBar('文件加载失败，请确认文件未被其他程序占用');
     }
   }
 
