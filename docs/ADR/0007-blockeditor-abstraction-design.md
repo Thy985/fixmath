@@ -478,6 +478,8 @@ historyManager.endBatch();  // 1 个 Undo 单元
 - 评估 `TableElement` 是否拆为 `TableRow` / `TableCell` 块
 - ADR-0007 修订（如需）
 
+> **状态**：2026-07-19 完成，结论见 [Phase 2.4 Evaluation Addendum](#phase-24-evaluation-addendum)。
+
 ### Phase 2.5（IME 兼容）
 
 - 实现 `ComposingRegion` 抽象
@@ -495,6 +497,106 @@ historyManager.endBatch();  // 1 个 Undo 单元
 
 - 完善 `BlockTypeDetector` 全部 6 类规则
 - 集成到 `split` / `onSourceChanged` 触发点
+
+---
+
+## Phase 2.4 Evaluation Addendum
+
+**追加日期**：2026-07-19
+**状态**：Phase 2.4 评估完成，AST 保持稳定，不重构。
+
+> **ADR 生命周期原则**：本 Addendum 不修改原 §决策、§动机、§后果 等历史决策正文，
+> 仅追加 Phase 2.4 评估结论，保持 ADR 历史可追踪性。
+
+### 评估结论
+
+| 评估项 | 结论 | 核心理由 |
+|--------|------|---------|
+| EmptyLineElement 移除 | **保留** | 属于 **Document Formatting Node**，非 **Editable Block Node** |
+| TableElement 拆分 | **不拆** | TableRow/TableCell 是 **Composite Block 内部节点**，非 **Document-level Block** |
+| ADR-0007 修订 | **Addendum 追加** | 不修改历史决策正文，保持可追踪性 |
+
+### 1. EmptyLineElement 保留理由
+
+**概念区分**：
+
+- **Document Formatting Node**：表达 Markdown 文档结构（含空行格式），影响 source round-trip / 导出格式 / 编辑体验。`EmptyLineElement` 属此类。
+- **Editable Block Node**：BlockEditor 可编辑单元（Block = 用户可感知编辑单元）。空行不是 Block。
+
+**职责分离**：
+
+```
+AST 层    : EmptyLineElement ✅（保留 Markdown 空行格式）
+Editor 层 : EmptyLineElement ❌（不在 BlockType 枚举中）
+```
+
+**风险**：移除 EmptyLineElement 会导致：
+
+```markdown
+# Title
+
+
+Paragraph
+```
+
+解析后变：
+
+```
+HeadingElement
+ParagraphElement
+```
+
+重新生成 Markdown 时丢空行格式：
+
+```markdown
+# Title
+Paragraph
+```
+
+**结论**：AST 与 BlockEditor 职责已正确分离（[block_types.dart:70](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) 抛 `ArgumentError`），无需改 AST。
+
+### 2. TableElement 不拆理由
+
+**层级边界论点**：
+
+```
+Document
+   |
+   Block (Document-level，用户可感知编辑单元)
+   |    ├── HeadingBlock
+   |    ├── ParagraphBlock
+   |    └── TableBlock  ← Block 边界止于此
+   |
+   Composite Block 内部节点（非 Document-level）
+        ├── TableRow
+        └── TableCell
+              |
+              Inline
+```
+
+**核心理由**：用户不认为"第二行第三列"是一个 Block，它是 Table 的内部结构。
+若拆分为 `TableRowBlock` / `TableCellBlock`，会破坏 ADR-0007 §1.3 Wrapping 决策
+"Block 与 DocumentElement 1:1 映射"，并让 BlockEditor 的光标模型（§2）失效
+（光标如何在 row/cell 间导航？）。
+
+**cell inline 解析**：[markdown_parser.dart:295](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart)
+已公开 `MarkdownParser.parseInline()`，pdf/word exporter 已用，无需改 TableElement 结构。
+
+**未来扩展**：Phase 3+ UI 层做表格 cell 编辑时，可在 `TableBlock.source` 内部
+实现 cell-level cursor，不影响 BlockEditor 抽象。
+
+### 3. 附带 cleanup
+
+移除 `enum ElementType`（Phase 1 遗留死代码，全项目无引用）。
+`BlockType`（[block_types.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart)）
+才是 BlockEditor 使用的类型枚举。
+
+### 决策
+
+**AST 在 Phase 2 保持稳定，不重构。**
+
+未来若要移除 EmptyLineElement 或拆分 TableElement，应作为单独 ADR
+（如 ADR-0011+）在 Phase 4+ 评估，并附完整迁移方案。
 
 ---
 
