@@ -64,9 +64,10 @@ void main() {
           reason: 'AppBar 应有刷新按钮');
 
       // Golden 图像比对（首次运行需 --update-goldens 生成基线）
+      // 引用名与文件顶部注释一致：golden/file_manager.png
       await expectLater(
         find.byType(MaterialApp),
-        matchesGoldenFile('golden/file_manager_empty.png'),
+        matchesGoldenFile('golden/file_manager.png'),
       );
     });
 
