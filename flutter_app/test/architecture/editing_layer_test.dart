@@ -44,15 +44,17 @@ void main() {
       );
     });
 
-    test('TC-ARCH-11.1 sanity: Phase 2.3 新增文件被守门覆盖', () {
-      // 确保新增的 block_serializer.dart / block_type_detector.dart 存在
+    test('TC-ARCH-11.1 sanity: Phase 2.3 + Phase 2.5 新增文件被守门覆盖', () {
+      // 确保新增的 editing/ 下文件存在
       // 且能被 Directory.listSync 检测到（防止文件名误写或路径错误）。
       final requiredFiles = <String>[
-        'lib/core/editing/block_editor.dart',         // Phase 2.2
-        'lib/core/editing/block_editor_state.dart',   // Phase 2.2
-        'lib/core/editing/block_types.dart',          // Phase 2.2
-        'lib/core/editing/block_serializer.dart',     // Phase 2.3
-        'lib/core/editing/block_type_detector.dart',  // Phase 2.3
+        'lib/core/editing/block_editor.dart',           // Phase 2.2
+        'lib/core/editing/block_editor_state.dart',     // Phase 2.2
+        'lib/core/editing/block_types.dart',            // Phase 2.2
+        'lib/core/editing/block_serializer.dart',       // Phase 2.3
+        'lib/core/editing/block_type_detector.dart',    // Phase 2.3
+        'lib/core/editing/composing_state.dart',        // Phase 2.5
+        'lib/core/editing/composing_controller.dart',   // Phase 2.5
       ];
       for (final path in requiredFiles) {
         expect(
