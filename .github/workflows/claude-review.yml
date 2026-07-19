@@ -1,28 +1,28 @@
-# 文件2: PR 自动代码审查 — PR 创建/更新时自动运行
-名称：Claude 自动审查
+# PR 自动代码审查 — PR 创建/更新时自动运行
+name: Claude 自动审查
 
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
 
-拉取请求：
-    类型：[已打开、同步、准备评审、重新打开]
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
 
-权限：
-内容：读取
-拉取请求：写入
-身份令牌：写入
+jobs:
+  auto-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-作业：
-
-    运行于：ubuntu-latest
-    步骤：
-      - 使用：actions/checkout@v4
-        参数：
-          检出深度：1
-
-      - 使用：anthropics/claude-code-action@v1
-    环境变量：
+      - uses: anthropics/claude-code-action@v1
+        env:
           ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic"
           ANTHROPIC_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        参数：
+        with:
           track_progress: true
           prompt: |
             REPO: ${{ github.repository }}
