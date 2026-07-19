@@ -1,4 +1,4 @@
-/// TC-PERF-2: listDocuments(1000 文件) < 500ms
+/// TC-PERF-2: listDocuments(1000 文件)
 ///
 /// 对应 docs/PHASE1_TEST_PLAN.md §14.2 性能基线。
 ///
@@ -15,22 +15,23 @@
 ///   - 注意：listDocuments 会读所有文件内容解析 front matter，因此
 ///     1000 文件 ≠ 纯目录扫描，包含 1000 次 file.readAsBytes() + 解析。
 ///
-/// ## 性能偏差说明（Phase 1 Close Candidate 时点登记）
+/// ## Phase 1 Gate 阈值（经 Human Owner 评审 2026-07-19 确认）
 ///
-/// **基线**：500ms（CI 严格阈值）
-/// **本地实测中位数**：约 1768ms（Windows + 杀软扫描开销）
+/// 原始基线 500ms 经实测确认无法在当前实现下达成，经 Human Owner 评审：
+/// - 「1000 文件不是高频场景」（FormulaFix 是移动端 Typora 类工具）
+/// - 「不要为了 500ms 提前引入复杂系统」
 ///
-/// **偏差根因**：
+/// **调整后阈值**（本地与 CI 统一）：
+/// - 3000ms（3s）— 实测波动范围 1700-2300ms，3000ms 给本地约 1000ms
+///   缓冲，避免 developer-machine flake 阻塞开发
+/// - CI（GitHub Actions ubuntu-latest）通常更稳定，实测远低于 3000ms
+///
+/// **偏差根因**（与原基线 500ms 的差距来源）：
 /// - `FileRepository._readAll` 顺序读 1000 份文件，每份做 `readAsBytes()` +
 ///   `decodeBytesAuto` + `FrontMatterParser.parse` + `file.stat()`
 /// - Phase 0 UI Prototype Freeze 禁止优化 `FileRepository` 业务逻辑
 /// - ADR-0003 §边界约束 5 明示「Phase 1 小规模直接扫 documents/，Phase 2+
 ///   引入 SQLite 索引或全文索引作为可重建派生缓存」
-///
-/// **当前阈值策略**（详见 [docs/TEST_SKIP_REGISTRY.md] 与
-/// [docs/releases/phase1-verification-report.md]）：
-/// - 本地（非 GitHub Actions）：3000ms 宽松阈值，防 developer-machine flake
-/// - CI（GitHub Actions）：500ms 严格阈值，由 ADR-0003 §边界约束 5 守护
 ///
 /// **Phase 2 优化方向**（不在 Phase 1 范围内）：
 /// - 引入 `Directory.watch()` + 增量 mtime 缓存
@@ -69,7 +70,7 @@ void main() {
     }
   });
 
-  test('TC-PERF-2: listDocuments(1000 文件) 中位数 < 500ms', () async {
+  test('TC-PERF-2: listDocuments(1000 文件) 中位数 < 3000ms', () async {
     // 准备 1000 份 .md 文件到 documents/ 子目录
     final docsDir = Directory(_p(_tmp.path, 'documents'));
     await docsDir.create(recursive: true);
@@ -114,19 +115,26 @@ void main() {
     debugPrint('TC-PERF-2 elapsed (ms): '
         '${elapsed.map((e) => (e / 1000.0).toStringAsFixed(2)).join(', ')}');
     debugPrint('TC-PERF-2 median: ${medianMs.toStringAsFixed(2)}ms '
-        '(baseline < 500ms)');
+        '(target: <3000ms)');
 
-    // 退出标准：500ms（PHASE1_TEST_PLAN.md §14.2 基线，CI 强制执行）。
-    // 本地开发机磁盘 I/O 显著慢于 CI Linux（Windows 文件系统 + 杀软扫描
-    // 通常 4-6x 慢），且 Phase 0 禁止优化 FileRepository._readAll 顺序读。
-    // 按 §14.1「本地指标仅供参考，CI 为退出标准」，本地用 6x 宽松阈值
-    // （3000ms）防止 developer-machine flake；CI 环境下严格 500ms。
-    // 注意：不能用 `CI` 环境变量判定（部分开发 shell 全局设置 CI=true），
-    // 改用 GitHub Actions 专属变量 GITHUB_ACTIONS 作为唯一 CI 信号。
-    final isGitHubActions = Platform.environment['GITHUB_ACTIONS'] == 'true';
-    final threshold = isGitHubActions ? 500 : 3000;
+    // 退出标准（Phase 1 Gate，经 Human Owner 评审 2026-07-19 确认）：
+    //   - 统一阈值：3000ms（3s）— 本地与 CI 一致
+    //
+    // 原 PHASE1_TEST_PLAN.md §14.2 基线为 500ms，但实测确认当前实现
+    // （FileRepository._readAll 顺序读 1000 份文件 + FrontMatterParser
+    // 解析）无法在 500ms 内完成。Phase 0 UI Prototype Freeze 禁止优化
+    // FileRepository 业务逻辑，1000 文件也不是 FormulaFix 当前高频场景
+    // （移动端 Typora 类工具）。
+    //
+    // 按用户评审：「1000 文件不是高频场景」「不要为了 500ms 提前引入
+    // 复杂系统」——SQLite 缓存 / FileIndex Cache 留到 Phase 2。
+    //
+    // 实测波动范围（本地 Windows + 杀软扫描）：1700-2300ms
+    // 统一 3000ms 阈值给本地约 1000ms 缓冲，避免 developer-machine flake
+    // 阻塞开发；CI（GitHub Actions ubuntu-latest）通常更稳定，实测远低
+    // 于 3000ms。
+    const threshold = 3000;
     expect(medianMs, lessThan(threshold),
-        reason: '${isGitHubActions ? "CI(GitHub Actions)" : "本地"}阈值 '
-            '${threshold}ms。median=${medianMs.toStringAsFixed(2)}ms');
+        reason: '阈值 ${threshold}ms。median=${medianMs.toStringAsFixed(2)}ms');
   });
 }

@@ -119,12 +119,17 @@
 
 | 指标 | 实测 | 基线 | 状态 |
 |------|------|------|------|
-| listDocuments(1000 文件) 中位数 - 本地 | 1768ms | <3000ms（本地阈值） | ✅ Pass |
-| listDocuments(1000 文件) 中位数 - CI | 待 CI 验证 | <500ms（CI 严格阈值） | ⏳ 待 CI 验证 |
+| listDocuments(1000 文件) 中位数 - 本地 | 1768-2283ms（波动） | <3000ms（统一阈值） | ✅ Pass |
+| listDocuments(1000 文件) 中位数 - CI | 待 CI 验证 | <3000ms（统一阈值） | ⏳ 待 CI 验证 |
 
-**偏差说明**：详见 [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc「性能偏差说明」段。
+**Phase 1 Gate 阈值调整说明**（经 Human Owner 评审 2026-07-19 确认）：
 
-**根因**：`FileRepository._readAll` 顺序读 1000 份文件，Phase 0 UI 冻结禁止优化业务逻辑。
+原 PHASE1_TEST_PLAN.md §14.2 基线为 500ms，但实测确认当前实现（`FileRepository._readAll` 顺序读 1000 份文件 + FrontMatterParser 解析）无法达成。Phase 0 UI Prototype Freeze 禁止优化业务逻辑，且 1000 文件不是 FormulaFix 当前高频场景（移动端 Typora 类工具）。经 Human Owner 评审：「1000 文件不是高频场景」「不要为了 500ms 提前引入复杂系统」——SQLite 缓存 / FileIndex Cache 留到 Phase 2。
+
+调整后统一阈值（本地与 CI 一致）：
+- 3000ms（3s）— 实测波动范围 1700-2300ms，3000ms 给本地约 1000ms 缓冲
+
+**偏差说明**：详见 [test/performance/list_perf_test.dart](file:///d:/Projects/Active/math/flutter_app/test/performance/list_perf_test.dart) 顶部 dartdoc「Phase 1 Gate 阈值」段。
 
 **Phase 2 优化方向**：
 - `Directory.watch()` + 增量 mtime 缓存
@@ -136,7 +141,7 @@
 
 | 限制 | 影响 | 缓解 | 解除 Phase |
 |------|------|------|-----------|
-| listDocuments 1000 文件本地 1768ms | 大文档库加载略慢 | 本地阈值放宽至 3000ms，CI 严格 500ms | Phase 2 |
+| listDocuments 1000 文件本地 1768-2283ms | 大文档库加载略慢 | Phase 1 Gate 统一阈值 3000ms（原 500ms 基线经评审放宽，本地波动留 1000ms 缓冲） | Phase 2 |
 | FileManager Golden "有文件状态" 跳过 | UI 列表布局回归保护缺失 | 空状态 Golden + 结构断言覆盖 | Phase 3 |
 | Parser `*bold *` 误匹配为 Italic | 边界文本被错误斜体化 | 边界测试断言放松 + 注释说明 | Phase 3 |
 | Parser 空白行返回 EmptyLineElement 而非空列表 | 非预期 AST 节点 | 测试断言 `whereType<ParagraphElement>().isEmpty` | Phase 3 |
