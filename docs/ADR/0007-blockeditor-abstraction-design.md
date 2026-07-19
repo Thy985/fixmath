@@ -1,7 +1,7 @@
 # ADR-0007: BlockEditor 抽象设计
 
-- **状态**：Proposed（Phase 2.1 启动）
-- **生效日期**：待 Human Owner 审批后 Accept
+- **状态**：Accepted（Human Owner 于 2026-07-19 授权进入 Phase 2.2 实现）
+- **生效日期**：2026-07-19
 - **决策者**：首席架构工程师
 - **关联**：[ROADMAP Phase 2.1](file:///d:/Projects/Active/math/docs/ROADMAP.md) / [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) / [CRITICAL_REVIEW §1.1](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)
 
