@@ -5,6 +5,9 @@
 /// Round-trip 判定采用 **AST equivalence**（非字符串等价）：
 /// `parse(source) == parse(fromElement(toElement(source, type)))`
 /// Markdown 不是 canonical 形式（`*hello*` 与 `_hello_` 字符串不等但 AST 等价）。
+///
+/// InlineSerializer 的独立测试见 [inline_serializer_test.dart]。
+/// AST 等价性 helper 见 [test/helpers/ast_equality.dart]。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:formula_fix/core/editing/block_serializer.dart';
 import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/data/models/document.dart';
+
+import '../helpers/ast_equality.dart';
 
 void main() {
   group('TC-EDIT-3.1 toElement 正样本', () {
@@ -251,14 +256,14 @@ void main() {
 
   group('TC-EDIT-3.4 Round-trip AST equivalence', () {
     // Round-trip 判定：parse(source) == parse(fromElement(toElement(source, type)))
-    // 用 _astDeepEquals 递归比较 AST 字段。
+    // 用 astDeepEquals 递归比较 AST 字段。
 
     test('heading round-trip', () {
       const source = '# Title';
       final e1 = toElement(source, BlockType.heading);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.heading);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('paragraph round-trip with bold', () {
@@ -266,7 +271,7 @@ void main() {
       final e1 = toElement(source, BlockType.paragraph);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.paragraph);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('paragraph round-trip with formula', () {
@@ -274,7 +279,7 @@ void main() {
       final e1 = toElement(source, BlockType.paragraph);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.paragraph);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('listItem unordered round-trip', () {
@@ -282,7 +287,7 @@ void main() {
       final e1 = toElement(source, BlockType.listItem);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.listItem);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('listItem ordered round-trip', () {
@@ -290,7 +295,7 @@ void main() {
       final e1 = toElement(source, BlockType.listItem);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.listItem);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('taskListItem round-trip', () {
@@ -298,7 +303,7 @@ void main() {
       final e1 = toElement(source, BlockType.taskListItem);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.taskListItem);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('code round-trip', () {
@@ -306,7 +311,7 @@ void main() {
       final e1 = toElement(source, BlockType.code);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.code);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('mermaid round-trip', () {
@@ -314,7 +319,7 @@ void main() {
       final e1 = toElement(source, BlockType.mermaid);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.mermaid);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('table round-trip', () {
@@ -322,7 +327,7 @@ void main() {
       final e1 = toElement(source, BlockType.table);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.table);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('blockquote round-trip', () {
@@ -330,7 +335,7 @@ void main() {
       final e1 = toElement(source, BlockType.blockquote);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.blockquote);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
 
     test('horizontalRule round-trip', () {
@@ -338,172 +343,7 @@ void main() {
       final e1 = toElement(source, BlockType.horizontalRule);
       final serialized = fromElement(e1);
       final e2 = toElement(serialized, BlockType.horizontalRule);
-      expect(_astDeepEquals(e1, e2), isTrue);
+      expect(astDeepEquals(e1, e2), isTrue);
     });
   });
-
-  group('TC-EDIT-3.5 InlineSerializer 8 类', () {
-    test('TextElement', () {
-      const elements = [TextElement('hello')];
-      expect(InlineSerializer.serialize(elements), equals('hello'));
-    });
-
-    test('FormulaElement inline', () {
-      const elements = [FormulaElement(latex: r'\frac{a}{b}', displayMode: false)];
-      expect(InlineSerializer.serialize(elements), equals(r'$\frac{a}{b}$'));
-    });
-
-    test('FormulaElement display', () {
-      const elements = [FormulaElement(latex: r'\sum', displayMode: true)];
-      expect(InlineSerializer.serialize(elements), equals(r'$$\sum$$'));
-    });
-
-    test('BoldElement', () {
-      const elements = [BoldElement(children: [TextElement('hi')])];
-      expect(InlineSerializer.serialize(elements), equals('**hi**'));
-    });
-
-    test('ItalicElement', () {
-      const elements = [ItalicElement(children: [TextElement('hi')])];
-      expect(InlineSerializer.serialize(elements), equals('*hi*'));
-    });
-
-    test('StrikethroughElement', () {
-      const elements = [StrikethroughElement(children: [TextElement('hi')])];
-      expect(InlineSerializer.serialize(elements), equals('~~hi~~'));
-    });
-
-    test('InlineCodeElement', () {
-      const elements = [InlineCodeElement('code')];
-      expect(InlineSerializer.serialize(elements), equals('`code`'));
-    });
-
-    test('LinkElement', () {
-      const elements = [LinkElement(text: 't', url: 'u')];
-      expect(InlineSerializer.serialize(elements), equals('[t](u)'));
-    });
-
-    test('ImageElement', () {
-      const elements = [ImageElement(alt: 'a', url: 'u')];
-      expect(InlineSerializer.serialize(elements), equals('![a](u)'));
-    });
-
-    test('Empty list returns empty string', () {
-      expect(InlineSerializer.serialize([]), equals(''));
-    });
-  });
-
-  group('TC-EDIT-3.6 InlineSerializer 嵌套', () {
-    test('Bold inside Italic', () {
-      const elements = [
-        ItalicElement(children: [
-          TextElement('a '),
-          BoldElement(children: [TextElement('b')]),
-        ]),
-      ];
-      expect(InlineSerializer.serialize(elements), equals('*a **b***'));
-    });
-
-    test('Formula inside Bold', () {
-      const elements = [
-        BoldElement(children: [
-          FormulaElement(latex: r'\pi', displayMode: false),
-        ]),
-      ];
-      expect(InlineSerializer.serialize(elements), equals(r'**$\pi$**'));
-    });
-
-    test('Multiple inline elements joined', () {
-      const elements = [
-        TextElement('hello '),
-        BoldElement(children: [TextElement('world')]),
-        TextElement(' end'),
-      ];
-      expect(InlineSerializer.serialize(elements), equals('hello **world** end'));
-    });
-  });
-}
-
-/// 递归比较两个 [DocumentElement] AST 是否等价。
-///
-/// 用于 round-trip 测试判定（非字符串等价，AST equivalence）。
-bool _astDeepEquals(DocumentElement a, DocumentElement b) {
-  if (a.runtimeType != b.runtimeType) return false;
-  return switch (a) {
-    HeadingElement(:final level, :final text) =>
-      b is HeadingElement && b.level == level && b.text == text,
-    ParagraphElement(:final children) =>
-      b is ParagraphElement &&
-      children.length == b.children.length &&
-      _inlineListEquals(children, b.children),
-    ListElement(:final children, :final ordered, :final indent) =>
-      b is ListElement &&
-      b.ordered == ordered &&
-      b.indent == indent &&
-      children.length == b.children.length &&
-      _inlineListEquals(children, b.children),
-    TaskListItemElement(:final children, :final checked, :final indent) =>
-      b is TaskListItemElement &&
-      b.checked == checked &&
-      b.indent == indent &&
-      children.length == b.children.length &&
-      _inlineListEquals(children, b.children),
-    CodeElement(:final code, :final language) =>
-      b is CodeElement && b.code == code && b.language == language,
-    TableElement(:final headers, :final rows) =>
-      b is TableElement &&
-      _listEquals(headers, b.headers) &&
-      rows.length == b.rows.length &&
-      _listListEquals(rows, b.rows),
-    BlockquoteElement(:final text) =>
-      b is BlockquoteElement && b.text == text,
-    MermaidElement(:final code) =>
-      b is MermaidElement && b.code == code,
-    HorizontalRuleElement() => b is HorizontalRuleElement,
-    EmptyLineElement() => b is EmptyLineElement,
-  };
-}
-
-bool _inlineListEquals(List<InlineElement> a, List<InlineElement> b) {
-  for (var i = 0; i < a.length; i++) {
-    if (!_inlineDeepEquals(a[i], b[i])) return false;
-  }
-  return true;
-}
-
-bool _inlineDeepEquals(InlineElement a, InlineElement b) {
-  if (a.runtimeType != b.runtimeType) return false;
-  return switch (a) {
-    TextElement(:final text) => b is TextElement && b.text == text,
-    FormulaElement(:final latex, :final displayMode) =>
-      b is FormulaElement && b.latex == latex && b.displayMode == displayMode,
-    BoldElement(:final children) =>
-      b is BoldElement && _inlineListEquals(children, b.children),
-    ItalicElement(:final children) =>
-      b is ItalicElement && _inlineListEquals(children, b.children),
-    StrikethroughElement(:final children) =>
-      b is StrikethroughElement && _inlineListEquals(children, b.children),
-    InlineCodeElement(:final code) =>
-      b is InlineCodeElement && b.code == code,
-    LinkElement(:final text, :final url) =>
-      b is LinkElement && b.text == text && b.url == url,
-    ImageElement(:final alt, :final url) =>
-      b is ImageElement && b.alt == alt && b.url == url,
-  };
-}
-
-bool _listEquals(List<String> a, List<String> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
-  }
-  return true;
-}
-
-bool _listListEquals(List<List<String>> a, List<List<String>> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (!_listEquals(a[i], b[i])) return false;
-  }
-  return true;
 }
