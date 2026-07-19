@@ -7,7 +7,6 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path_provider/path_provider.dart';
 
 /// 临时 stub 测试：直接测 StorageMigration 的逻辑，
 /// 不依赖 path_provider（CI 环境下 getApplicationDocumentsDirectory 行为不稳定）。
