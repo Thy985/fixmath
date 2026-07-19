@@ -6,8 +6,9 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
@@ -23,6 +24,7 @@ jobs:
           ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic"
           ANTHROPIC_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: |
             REPO: ${{ github.repository }}
