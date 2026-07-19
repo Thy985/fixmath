@@ -124,10 +124,55 @@ Block renders via              Block renders via
 ```
 
 - **切换触发**：Phase 2.2 由 `FocusNode` 驱动；Phase 2.1 仅定义接口与状态机
-- **状态机**：`blurred → focusing → focused → blurring → blurred`（中间态用于过渡动画与 IME 提交处理）
+- **状态机**：`blurred → focusing → focused → blurring → blurred`（中间态用于过渡动画与 IME 提交处理）+ `error` 态（blur 时逆解析失败时进入，保留 focused 编辑态，避免数据丢失，详见 §1.5）
 - **切换时副作用**：
   - `onFocus()`：从 `DocumentElement` 重建 `source`（逆解析）
   - `onBlur()`：把 `source` 解析回 `DocumentElement`，写回 Document，触发增量解析
+
+#### 1.5 编辑态显示策略：**显示 Markdown source，不实现 syntax hiding**
+
+**决策**：Phase 2 编辑态（focused）默认显示 Markdown 源文本，不实现 syntax hiding（隐藏 `#` / `**` / `` ` `` 等语法标记）。
+
+**理由**：
+
+1. **round-trip 简单**：`source` ↔ `DocumentElement` 直接映射，无需维护 `visual offset` ↔ `source offset` 双向映射表
+2. **避免光标错位**：syntax hiding 会导致视觉字符数 ≠ source 字符数，emoji / 中文混排时光标位置易错
+3. **Phase 3 再考虑**：syntax hiding 是 UI 层体验优化，不属于 Phase 2 编辑内核抽象范围（[AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md) Phase 2 仍属 UI Prototype Freeze 期）
+4. **Typora 移动端参考**：Typora 桌面版默认隐藏语法标记，但移动版（手机版）因屏幕窄、IME 干扰多，更倾向显示 source
+
+**示例**：
+
+| 块类型 | source 内容 | focused 态 TextField 显示 | blurred 态渲染 |
+|-------|-----------|-------------------------|--------------|
+| Heading | `# hello` | `# hello`（不隐藏 `#`） | 大号字体 "hello" |
+| Paragraph | `**bold**` | `**bold**`（不隐藏 `**`） | **bold** |
+| Code | `` `code` `` | `` `code` `` | `code` |
+
+**未来扩展点**：Phase 3+ 若实现 syntax hiding，需新增 ADR（如 ADR-0010+）定义 visual/source offset 映射规则，本 ADR 不预留接口。
+
+#### 1.6 error 态处理（逆解析失败）
+
+**场景**：`onBlur()` 时 `source → DocumentElement` 解析失败（如不完整 Markdown 语法、parser bug）。
+
+**铁律**：**禁止丢弃用户输入**。
+
+**状态机扩展**：
+
+```
+focused
+   ↓ onBlur()
+   ↓ parse(source) fails
+error
+   ↓ 用户继续编辑（光标回到原 block）
+focused
+```
+
+**实现**：
+
+- `error` 态下 `source` 保留用户输入原样
+- 自动降级为 `ParagraphElement`（最宽容的 block 类型）
+- 触发 `onParseError(ParseError)` 回调，UI 层可显示警告（不阻塞编辑）
+- 用户修复语法后 `onBlur()` 重试解析，成功则转 `blurred`
 
 ### 2. 光标模型
 
@@ -149,6 +194,14 @@ class BlockSelection {
   final TextAffinity affinity; // 文本方向（中文混排）
 }
 ```
+
+**offset 语义（重要）**：
+
+- **采用 UTF-16 code unit offset**，与 Flutter `TextEditingValue.selection.extentOffset` / `composingRange` 完全对齐
+- **不使用** grapheme cluster offset（用户感知字符数）或 code point offset
+- **理由**：避免与 Flutter `TextField` / `TextEditingController` 反复转换；emoji（如 `😀` 在 UTF-16 占 2 个 code unit）在 Flutter `TextEditingValue` 中本身就是 2，BlockEditor 不重新发明
+- **副作用**：emoji / 罕用字符（surrogate pair）的"用户感觉长度"与 offset 不一致，需在 UI 层用 `String.characters` 处理显示，但内部数据模型统一 UTF-16
+- **测试约束**：含 emoji / 代理对的测试用例必须使用 UTF-16 offset 断言
 
 #### 2.2 块间 navigation
 
@@ -241,12 +294,78 @@ abstract class BlockOperations {
 }
 ```
 
-#### 4.2 与 Undo/Redo 栈的关系
+#### 4.2 与 Undo/Redo 栈的关系：**双层 Undo（BlockOperation + TextOperation 共存）**
 
-- **每个原语 = 一个 Undo 单元**：不是字符级，是块级
-- **复合操作**：`split` 后立刻 `insert`（如输入 `\n\n` 创建空段落）算 1 个 Undo 单元，需 `beginBatch() / endBatch()` 包裹
-- **复用 `HistoryManager`**：[core/utils/history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart) 已实现，扩展为支持 `BlockOperation` 类型
-- **状态快照 vs 操作日志**：采用操作日志（更省内存），undo 时反向应用
+**决策**：HistoryManager 同时持有两类操作，**不是替换关系，是共存关系**。
+
+```dart
+/// 编辑操作联合类型。
+sealed class EditOperation {}
+
+/// 块级操作：结构变化（insert/delete/merge/split/move block）。
+/// 每次 §4.1 五原语调用 = 1 个 BlockOperation。
+class BlockOperation extends EditOperation {
+  final BlockOpType opType;    // insert / delete / merge / split / move
+  final BlockId targetId;
+  final BlockPosition cursorBefore;
+  final BlockPosition cursorAfter;
+  // ... 反向应用所需的上下文
+}
+
+/// 文本操作：块内文本变化（insert char / delete char / replace selection）。
+/// 用户连续输入 "hello" = 5 个 TextOperation 或 1 个批量（依 batch 边界）。
+class TextOperation extends EditOperation {
+  final BlockId blockId;
+  final int offset;
+  final String deleted;        // 被删除的文本（undo 时恢复）
+  final String inserted;       // 插入的文本（undo 时删除）
+}
+```
+
+**Undo 行为对照**：
+
+| 用户动作 | EditOperation 类型 | Ctrl+Z 行为 |
+|---------|------------------|------------|
+| 输入 "hello"（5 字符） | 1 个 TextOperation（batch） | 删除整个 "hello" |
+| 删除 1 个字符 | 1 个 TextOperation | 恢复该字符 |
+| 按 Enter 拆分块 | 1 个 BlockOperation(split) | 合并回原块 |
+| 删除空块（Backspace） | 1 个 BlockOperation(merge) | 拆回原块 |
+| 拖拽块上下移动 | 1 个 BlockOperation(move) | 移回原位置 |
+
+**用户预期对齐**：
+
+用户连续输入 `hello` 时期望 Ctrl+Z **删除 `hello`**（而非整个 Paragraph），所以 TextOperation 必须支持批量合并（连续字符输入合并为 1 个 TextOperation，超时或切焦点时封口）。
+
+**复合操作**：
+
+`split` 后立刻 `insert`（如输入 `\n\n` 创建空段落）算 1 个 Undo 单元，需 `beginBatch() / endBatch()` 包裹：
+
+```dart
+historyManager.beginBatch();
+historyManager.push(BlockOperation.split(...));
+historyManager.push(BlockOperation.insert(...));
+historyManager.endBatch();  // 1 个 Undo 单元
+```
+
+**复用 `HistoryManager`**：[core/utils/history_manager.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/utils/history_manager.dart) 已实现字符级栈，Phase 2.6 扩展为支持 `EditOperation` 联合类型（BlockOperation + TextOperation）。
+
+**状态快照 vs 操作日志**：采用操作日志（更省内存），undo 时反向应用。
+
+**否决"纯块级 Undo"的理由**：
+
+用户评审反馈（2026-07-19）指出：
+
+> 用户输入 `hello` 期望 Ctrl+Z 删除 `hello`，不是删除整个 Paragraph。
+> 成熟编辑器一般两层 Undo：BlockOperation 管理结构变化，TextOperation 管理块内文本变化。
+
+纯块级 Undo 会让"输入 5 个字符"= 1 个块操作，Ctrl+Z 直接删除整段，违反用户直觉。双层 Undo 是工程折中。
+
+**TextOperation 批量合并规则**：
+
+- 连续字符输入（< 500ms 间隔）合并为 1 个 TextOperation
+- 切换焦点 / IME commit / 切块时封口
+- 选区替换独立成 1 个 TextOperation
+- 可通过 `beginBatch() / endBatch()` 显式控制边界
 
 #### 4.3 Markdown 快捷映射（Phase 2.7）
 
@@ -292,10 +411,12 @@ abstract class BlockOperations {
 **移动端无需求**：触屏无法触发 Ctrl+Click。
 **复杂度爆炸**：多光标的 Undo/Redo 需要分组，IME 组合态需多 region 协调，超出 Phase 2 范围。
 
-### 为什么操作粒度是块级而非字符级？
+### 为什么操作粒度是块级 + 字符级双层？
 
-**移动端习惯**：手机用户更倾向"块感"操作（长按拖拽整段、上下箭头移动段落）。
-**性能**：字符级 Undo 在 1000 块 Document 上会内存爆炸。块级 Undo 是工程折中。
+**移动端习惯**：手机用户更倾向"块感"操作（长按拖拽整段、上下箭头移动段落），块级操作覆盖结构性变更。
+**用户直觉**：连续输入文本时期望 Ctrl+Z 删除刚输入的字符，而非整段，字符级操作覆盖块内文本变更。
+**性能折中**：纯字符级 Undo 在 1000 块 Document 上内存爆炸；纯块级 Undo 违反用户直觉。双层 Undo 让 80% 高频操作（块内输入）走轻量 TextOperation，20% 结构操作走 BlockOperation。
+详见 §4.2 决策。
 
 ---
 
@@ -314,6 +435,7 @@ abstract class BlockOperations {
 2. **不兼容多光标**：未来若要支持需重构 `BlockPosition` 数据结构
 3. **逆解析复杂**：从 `DocumentElement` 重建 `source`（Markdown 文本）需实现 10 类块的逆解析，工作量集中
 4. **IME 测试矩阵大**：§3.4 的 6 类场景必须全覆盖
+5. **双层 Undo 复杂度**：TextOperation 批量合并规则需调优（默认 500ms 间隔），batch 边界需 UI 层配合封口
 
 ### 风险与缓解
 
@@ -322,7 +444,7 @@ abstract class BlockOperations {
 | 抽象漏抽象（BlockEditor 暴露 DocumentElement 细节） | 中 | 中 | 严格 mapping 函数边界，单元测试覆盖 |
 | 逆解析与解析不对称（Markdown round-trip 丢字） | 高 | 高 | 每 type 必须有 round-trip 测试（source → element → source 一致） |
 | IME 铁律在 UI 接入时被绕过 | 中 | 高 | architecture test 守门：BlockEditor 切换必须经 ComposingRegion 检查 |
-| 块级 Undo 与现有字符级 HistoryManager 不兼容 | 中 | 中 | Phase 2.6 引入 `BlockOperation` 类型，扩展而非重写 |
+| 块级 Undo 与现有字符级 HistoryManager 不兼容 | 中 | 中 | Phase 2.6 引入 `EditOperation` 联合类型（BlockOperation + TextOperation），扩展而非重写，详见 §4.2 |
 | 1000 块 Document 性能不达标 | 中 | 中 | Phase 2.3 增量解析只重解析当前块，性能瓶颈在 inline 解析而非块管理 |
 
 ---
@@ -362,11 +484,12 @@ abstract class BlockOperations {
 - 接入 `TextEditingController.composingRange`
 - §3.4 测试矩阵全覆盖
 
-### Phase 2.6（块级操作原语）
+### Phase 2.6（块级操作原语 + 双层 Undo）
 
-- 实现 `BlockOperations` 五原语
-- 扩展 `HistoryManager` 支持 `BlockOperation`
-- `beginBatch() / endBatch()` 复合操作
+- 实现 `BlockOperations` 五原语（insert / delete / merge / split / move）
+- 扩展 `HistoryManager` 支持 `EditOperation` 联合类型（BlockOperation + TextOperation）
+- 实现 `TextOperation` 批量合并（默认 500ms 间隔封口）
+- 实现 `beginBatch() / endBatch()` 复合操作
 
 ### Phase 2.7（Markdown 快捷映射）
 
