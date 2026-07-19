@@ -14,8 +14,8 @@
 - 不是"通用笔记 App"，而是 **以公式 / 图表 / 学术写作为特色** 的专业写作工具
 - 不是"像 Obsidian 那样只能在自家 Vault 内查看"，而是 **任意来源 .md 文件即开即看** 的便携查看器
 
-**当前阶段定位**：Phase 0：工程化 + UI Prototype Freeze。UI 冻结为重构基线，Phase 1-2 期间 UI 退化不视为 bug。  
-**当前阶段禁区**：不修改业务代码，不新增功能，不修改 UI 行为。
+**当前阶段定位**：Phase 1（底层重构）已于 2026-07-19 完成（PR #23 合并）。准备进入 Phase 2（编辑模型）。UI 仍冻结为重构基线，Phase 2-3 期间 UI 退化不视为 bug，UI 在 Phase 3 重新实现。  
+**当前阶段禁区**：Phase 2 允许修改 `lib/` 下编辑模型相关业务代码（BlockEditor / AST / IME），但 UI 行为仍冻结；不新增 Phase 3 才有的功能（主题、TOC、图片管理等）。
 
 ---
 
@@ -302,12 +302,12 @@ PR 描述必须包含：
 
 ### 6.5 当前阶段特别禁止
 
-在 Phase 0 工程化 + UI Prototype Freeze 阶段，额外禁止：
+在 Phase 2 编辑模型阶段，额外禁止：
 
-1. ❌ 修改 `lib/` 下任何业务逻辑代码
-2. ❌ 新增业务功能（主题、TOC、图片等）—— 等到 P0 修复完
-3. ❌ 重写 `MarkdownParser` —— 等到 Phase 1 P0 #5 任务启动
-4. ❌ 合并 `SharedPreferences` 与 JSON 存储 —— 等到 ADR-0003 执行
+1. ❌ 修改 UI 行为（Phase 1-2 仍属 UI Prototype Freeze 期，UI 在 Phase 3 重写）
+2. ❌ 新增 Phase 3 才有的功能（主题切换 / TOC / 图片管理 / 焦点模式等）—— 详见 [ROADMAP Phase 3](file:///d:/Projects/Active/math/docs/ROADMAP.md)
+3. ❌ 在 BlockEditor 抽象稳定前（Phase 2.1）实现 2.2~2.7 的细节
+4. ❌ 跨阶段引入 SQLite / FileIndex 等派生缓存（[ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5）—— 留到 Phase 2 性能优化
 
 ---
 
@@ -404,20 +404,27 @@ AI Agent 在开始编码前，必须填写 [Task Contract](file:///d:/Projects/A
 
 ## 10. 当前阻塞项与例外说明
 
-以下是已知问题，已记入 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)，**不视为违反本规范**，但应在对应 Phase 修复：
+以下是已知问题，已记入 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)。
 
-| 问题 | 修复 Phase |
-|------|----------|
-| Provider 重复定义 | Phase 1 1.1 |
-| 三套存储并存 | Phase 1 1.2 |
-| 解析器缺 7 类元素 | Phase 1 1.5 |
-| 编辑/预览分离模式 | Phase 3 UI Implementation |
-| DocumentListScreen 死代码 | Phase 1 1.3 |
-| 错误 detail 透传 UI | Phase 1 1.7 |
-| 静态状态污染测试 | Phase 2 |
+**Phase 1 已修复项**（2026-07-19，PR #23 合并后正式关闭）：
+
+| 问题 | 修复 commit / PR | 证据 |
+|------|----------------|------|
+| Provider 重复定义 | `ec76f06`（1.1） | [test/architecture/provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门 |
+| 三套存储并存 | `b43e5c1`（1.2） | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) Implemented |
+| 解析器缺 7 类元素 | `da4ab00`（1.5） | [test/parser/edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) |
+| DocumentListScreen 死代码 | `b36d930`（1.3） | 路由已合并到 `/files` |
+| 错误 detail 透传 UI | `f6a73af`（1.7） | [test/error/message_friendly_test.dart](file:///d:/Projects/Active/math/flutter_app/test/error/message_friendly_test.dart) |
+
+**仍存在项**（按 Phase 修复）：
+
+| 问题 | 修复 Phase | 跟踪 |
+|------|----------|------|
+| 编辑/预览分离模式 | Phase 3 UI Implementation | [ROADMAP 3.1](file:///d:/Projects/Active/math/docs/ROADMAP.md) |
+| 静态状态污染测试 | Phase 2 | [CRITICAL_REVIEW §8.5](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md) |
 
 新增代码不得延续以上问题，必须按目标架构编写。
 
 ---
 
-**本文档由首席架构工程师维护，版本 v0.1，生效日期 2026-07-18。**
+**本文档由首席架构工程师维护，版本 v0.2，生效日期 2026-07-19。**

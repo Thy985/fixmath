@@ -41,13 +41,15 @@
 
 ---
 
-## Phase 1：底层重构
+## Phase 1：底层重构（已完成 2026-07-19）
 
 **目标**：解决阻塞性架构问题，统一数据层、状态层、解析层的基础。
 
 **前置条件**：Phase 0 全部退出。
 
 **UI 退化的接受**：本阶段聚焦底层，UI 可能出现退化（如预览/编辑切换失效、渲染异常），不视为 bug。UI 在 Phase 3 重新实现。
+
+**关闭说明**：Phase 1 Close Candidate 经 PR #23 完成测试体系（314 tests / 0 regression）+ Verification Report + Human Owner 合并后正式关闭。详见 [docs/releases/phase1-verification-report.md](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)。
 
 ### 任务
 
@@ -60,7 +62,7 @@
 | 1.5 | 补齐解析器：行内代码 / 链接 / 图片 / 斜体 / 删除线 / 任务列表 / 引用链接 | P0 | ADR-0004 | ✅ da4ab00 |
 | 1.6 | 修复工具栏与解析器矛盾（移除不支持的按钮，或同步实现） | P0 | ADR-0004 | ✅ d57d2f2 |
 | 1.7 | 修复错误消息透传 `detail`（[editor_screen.dart:221-253](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L221-253)） | P1 | - | ✅ f6a73af |
-| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | 🔄 部分（1.3/1.4 ✓ 1.6 ✓ 1.7 ✓）；严格测试方案见 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md) |
+| 1.8 | 补齐 UI / 路由 / Provider 集成测试 | P1 | - | ✅ PR #23（314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)） |
 
 ### 退出条件
 
@@ -69,7 +71,7 @@
 - [x] 所有 Provider 定义唯一
 - [x] 路由无死代码
 - [x] 错误消息对用户友好
-- [ ] 核心模块测试覆盖（1.8 待按 [PHASE1_TEST_PLAN.md](file:///d:/Projects/Active/math/docs/PHASE1_TEST_PLAN.md) 严格测试通过）
+- [x] 核心模块测试覆盖（1.8 已通过：314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)）
 
 ---
 
@@ -176,6 +178,6 @@
 
 ---
 
-**当前阶段**：Phase 1（底层重构，进度 7/8，待 1.8 严格测试通过后退出）  
-**最近更新**：2026-07-18  
+**当前阶段**：Phase 1 已完成（2026-07-19），准备进入 Phase 2 编辑模型  
+**最近更新**：2026-07-19  
 **维护人**：首席架构工程师

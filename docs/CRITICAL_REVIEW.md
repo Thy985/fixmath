@@ -5,6 +5,31 @@
 > 审查范围：`lib/` 全量源码、`test/`、`web/`
 > 立场：直言不讳，所有判断必须有代码证据
 
+> **状态更新（2026-07-19，Phase 1 关闭后）**
+>
+> 本报告为 2026-07-18 的历史审查快照，原始内容保留以备溯源。下列项已在 Phase 0 / Phase 1 修复，详细证据见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md) 与 [AGENTS.md §10](file:///d:/Projects/Active/math/AGENTS.md)：
+>
+> | 项 | 章节 | 修复 commit | Phase |
+> |----|------|------------|-------|
+> | P0-2 三套存储互不相通 | §2.1 | `b43e5c1` | 1.2 |
+> | P0-3 DocumentListScreen 死代码 | §2.2 | `b36d930` | 1.3 |
+> | P0-4 路由初始位置错误 | §2.3 | `b36d930` | 1.4 |
+> | P0-5 Provider 重复定义 | §2.4 | `ec76f06` | 1.1 |
+> | P0-6 解析器缺 7 类元素 | §3.1 | `da4ab00` | 1.5 |
+> | P0-7 工具栏与解析器不一致 | §3.2 | `d57d2f2` | 1.6 |
+> | P2-27 错误消息透传 detail | §7.1 | `f6a73af` | 1.7 |
+> | P3-30 缺 pubspec.yaml | §8.1 | - | 0.1 |
+> | P3-31 残留文件 | §8.2 | - | 0.6 |
+> | P3-32 manifest 默认描述 | §8.3 | - | 0.6 |
+> | P3-33 main() 多余 async | §8.4 | `b43e5c1` 副作用 | 1.2（添加 `await StorageMigration`，async 现为必要） |
+> | P3-35 测试覆盖不足 | §8.6 | PR #23 | 1.8（314 tests / 0 regression） |
+>
+> **仍存在项**（按 Phase 跟踪）：
+>
+> - P0-1 编辑/预览分离模式（§1.1）→ Phase 3 UI Implementation
+> - P3-34 静态状态污染测试（§8.5）→ Phase 2
+> - 其余 P1 / P2 体验与设计问题 → Phase 3+
+
 ---
 
 ## 总评
