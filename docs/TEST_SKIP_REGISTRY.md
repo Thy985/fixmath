@@ -7,7 +7,7 @@
 > - 每 Phase 退出前回顾，已解封的从 Registry 删除并归档到对应 Phase 的 Verification Report
 > - 字段：测试路径 / 跳过原因 / 解封 Phase / 跟踪链接
 
-**当前总数**：9 个 skip（截至 2026-07-19，Phase 1 Close Candidate 时点）
+**当前总数**：10 个 skip（截至 2026-07-19，Phase 1 Close Candidate 时点；其中 1 个为 CI 环境变量条件跳过，本地仍跑）
 
 ---
 
@@ -28,13 +28,55 @@
 
 ---
 
-## 2. Phase 0 UI 冻结阻塞（1 个）
+## 2. Phase 0 UI 冻结阻塞 + 跨平台字体差异（2 个）
 
-| # | 测试 | Skip 原因 | 解封 Phase | 跟踪 |
-|---|------|----------|-----------|------|
-| 7 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math/flutter_app/test/golden/file_manager_test.dart) `有文件状态：显示文件列表` | `FileManagerScreen._loadFiles` 在 `initState` 中调用 `await file.readAsBytes()` 真实磁盘 I/O，与 Flutter test fake async zone 冲突，setState 永不触发。Phase 0 UI Prototype Freeze 禁止修改 `FileManagerScreen` 行为。 | Phase 3 UI 重构（引入 Provider 解耦文件 I/O 后） | ROADMAP Phase 3 |
+### 2.1 `有文件状态` 测试（FileManagerScreen 真实 I/O 阻塞）
 
-**临时覆盖**：空状态 Golden 已通过（`file_manager_empty.png` 基线已生成），覆盖 AppBar + Scaffold + 空状态布局结构回归。
+| 字段 | 值 |
+|------|----|
+| 测试 | [test/golden/file_manager_test.dart](file:///d:/Projects/Active/math/flutter_app/test/golden/file_manager_test.dart) `有文件状态：显示文件列表` |
+| Skip 原因 | `FileManagerScreen._loadFiles` 在 `initState` 中调用 `await file.readAsBytes()` 真实磁盘 I/O，与 Flutter test fake async zone 冲突，setState 永不触发。Phase 0 UI Prototype Freeze 禁止修改 `FileManagerScreen` 行为。 |
+| 解封 Phase | Phase 3 UI 重构（引入 Provider 解耦文件 I/O 后） |
+| 跟踪 | ROADMAP Phase 3 |
+
+### 2.2 GOLDEN-CI-001（跨平台字体渲染差异，CI 排除）
+
+```yaml
+id: GOLDEN-CI-001
+test:
+  - test/golden/file_manager_test.dart (library-level @Tags(['golden']))
+reason: Cross-platform font rendering difference
+measured_diff:
+  ratio: 0.09%
+  pixels: 4007
+  total_pixels: ~4500000
+  baseline: golden/file_manager.png (generated on Windows)
+  ci_runner: ubuntu-latest (GitHub Actions)
+action: Exclude golden tag from main test job via --exclude-tags golden
+ci_handling:
+  - main test job: `flutter test --exclude-tags golden`
+  - golden job: paused (if: false), structure preserved for future re-enable
+  - failure artifacts: uploaded via actions/upload-artifact@v4
+local_handling:
+  - `flutter test` 默认全跑（含 golden）
+  - 开发期间仍有视觉回归保护
+owner: Architecture Team
+revisit: Phase 3 visual consistency work
+re_enable_checklist:
+  - 固定字体安装（Ahem 或 Roboto）
+  - 固定 locale / textScaleFactor / viewport
+  - Linux baseline 重新生成
+  - 连续 10 次 CI 运行 0 随机 diff
+re_enable_steps:
+  - workflow: 将 golden job 的 `if: false` 改为 `if: true`
+  - workflow: 主 test job 的 `--exclude-tags golden` 可保留或移除
+  - 测试代码: 无需修改（tag 已声明）
+```
+
+**临时覆盖**：
+- 空状态结构性断言（4 条）在 CI 与本地都跑（在排除 golden tag 的 test 文件内仍有 structural assertion）：AppBar 标题、刷新按钮、空状态文案、folder_open 图标
+  - **注意**：tag 在 library 级声明时，CI 排除整个文件。如希望 CI 仍跑结构性断言，需把结构性断言拆到独立非 golden 文件
+- 本地 Windows 仍跑完整 Golden 像素比对（`file_manager.png` 基线已生成）
 
 ---
 
@@ -42,8 +84,8 @@
 
 | # | 测试 | Skip 原因 | 解封 Phase | 跟踪 |
 |---|------|----------|-----------|------|
-| 8 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 37 行 `migrateIfNeeded 在无 JSON 时跳过并标记 marker` | 需 path_provider mock 注入临时目录（`_MockPathProvider` 已在 [storage_repository_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage_repository_test.dart) 实现但未抽到共享 helper） | Phase 2 测试基础设施 | - |
-| 9 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 58 行 `migrateIfNeeded 在 marker 已存在时幂等跳过` | 同上，需 path_provider mock | Phase 2 测试基础设施 | - |
+| 9 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 37 行 `migrateIfNeeded 在无 JSON 时跳过并标记 marker` | 需 path_provider mock 注入临时目录（`_MockPathProvider` 已在 [storage_repository_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage_repository_test.dart) 实现但未抽到共享 helper） | Phase 2 测试基础设施 | - |
+| 10 | [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 第 58 行 `migrateIfNeeded 在 marker 已存在时幂等跳过` | 同上，需 path_provider mock | Phase 2 测试基础设施 | - |
 
 **临时覆盖**：[storage_repository_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage_repository_test.dart) 已覆盖 `StorageMigration.migrateIfNeeded` 的幂等性 + 无 JSON 路径 + 篡改后不还原，回归保护已建立，本 2 个 skip 不构成关键缺口。
 

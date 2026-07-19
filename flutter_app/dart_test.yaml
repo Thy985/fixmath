@@ -1,0 +1,13 @@
+# flutter_test 配置
+# 详见 https://github.com/dart-lang/test/blob/master/doc/configuration.md
+#
+# 声明 tag，避免 `flutter test` warning："A tag was used that wasn't
+# specified in dart_test.yaml".
+#
+# 当前 tag 列表：
+# - golden: Golden UI 像素比对测试（跨平台字体敏感，CI 主 test job 排除）
+#   详见 docs/TEST_SKIP_REGISTRY.md GOLDEN-CI-001
+tags:
+  golden:
+    # Golden 测试组：CI 跨平台字体渲染差异 0.09% 像素，主 test job 排除。
+    # 独立 golden job 暂停（if: false），本地默认全跑。

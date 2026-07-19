@@ -32,7 +32,7 @@
 
 ```
 314 tests passed
-  9 tests skipped
+ 10 tests skipped (1 个为 CI 环境变量条件跳过，本地仍跑)
   0 tests failed
   0 regression (相对原 236 测试基线)
 ```
@@ -57,10 +57,39 @@
 
 详见 [docs/TEST_SKIP_REGISTRY.md](file:///d:/Projects/Active/math/docs/TEST_SKIP_REGISTRY.md)
 
-**9 个 skip 分类**：
+**10 个 skip 分类**：
 - 架构守门历史遗留（6 个）：Provider 重复定义，待 Phase 1 1.1 重构
-- Phase 0 UI 冻结阻塞（1 个）：FileManagerScreen 真实 I/O 与 fake async 冲突，待 Phase 3
+- Phase 0 UI 冻结阻塞 + 跨平台字体差异（2 个）：FileManagerScreen 真实 I/O + GOLDEN-CI-001，待 Phase 3
 - 平台 mock 未补齐（2 个）：path_provider 共享 helper，待 Phase 2 测试基础设施
+
+### 2.4 Golden Test Status
+
+```yaml
+golden_test_status:
+  local:
+    status: PASS
+    description: Local golden verification (Windows + Windows baseline)
+  ci:
+    status: NON-BLOCKING
+    description: CI golden verification excluded from main test job
+  reason: Cross-platform rendering difference (Windows local vs Linux CI)
+  measured_difference:
+    ratio: 0.09%
+    pixels: 4007
+    total_pixels: ~4500000
+  decision: Accepted temporary deviation
+  tracking: docs/TEST_SKIP_REGISTRY.md GOLDEN-CI-001
+  re_enable: Phase 3 visual consistency work
+    - 固定字体安装（Ahem / Roboto）
+    - 固定 locale / textScaleFactor / viewport
+    - Linux baseline 重新生成
+    - 连续 10 次 CI 运行 0 随机 diff
+  implementation:
+    - test/golden/file_manager_test.dart 顶部声明 @Tags(['golden'])
+    - .github/workflows/ci.yml 主 test job 用 `flutter test --exclude-tags golden`
+    - .github/workflows/ci.yml 新增 golden job，if: false 暂停
+    - flutter_app/dart_test.yaml 声明 golden tag
+```
 
 ---
 
