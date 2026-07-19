@@ -17,7 +17,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/block_operations.dart';
 import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/core/editing/transaction.dart';
 import 'package:formula_fix/core/editing/transaction_builder.dart';
@@ -66,7 +65,7 @@ void main() {
 
     test('5 op Transaction 第 1 步失败 → 直接返回 false（无 op 已 apply）', () {
       final editor = MockDocumentEditor();
-      final aId = editor.addParagraph('a');
+      editor.addParagraph('a');
       final initialBlockCount = editor.blockCount;
 
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);

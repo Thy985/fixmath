@@ -20,7 +20,6 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/block_operations.dart';
-import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/edit_operation.dart';
 import 'package:formula_fix/core/editing/editor_history.dart';
 import 'package:formula_fix/core/editing/transaction.dart';
@@ -106,7 +105,7 @@ void main() {
 
       var lastTx = tx;
       for (var i = 0; i < 5; i++) {
-        final undone = history.undo(lastTx!);
+        final undone = history.undo(lastTx);
         revertOps(editor, undone!);
         expect(editor.allSources, equals(initialSources));
         final redone = history.redo(undone);
@@ -140,7 +139,7 @@ void main() {
 
       var lastTx = tx;
       for (var i = 0; i < 5; i++) {
-        final undone = history.undo(lastTx!);
+        final undone = history.undo(lastTx);
         revertOps(editor, undone!);
         expect(editor.allSources, equals(initialSources));
         final redone = history.redo(undone);
