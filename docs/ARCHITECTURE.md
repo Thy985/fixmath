@@ -54,14 +54,14 @@
 
 #### `lib/presentation/`
 
-- `screens/`：编辑器 / 文档列表（死代码）/ 文件管理
+- `screens/`：编辑器 / 文件管理（`/files` 路由，已合并原 `DocumentListScreen` 死代码）
 - `widgets/`：渲染器、对话框、菜单
 - `components/`：通用组件
 - `theme/`：浅色 / 深色主题
 
 #### `lib/providers/`
 
-全局 Provider。**与 `domain/providers/` 职责重叠**，待重构合并。
+全局 Provider。Phase 1 1.1 已合并 `sharedPreferencesProvider` / `darkModeProvider` 重复定义（commit `ec76f06`），[provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门。
 
 ### 1.3 数据流
 
@@ -71,14 +71,14 @@
 用户输入
   └→ TextEditingController
       └→ _onTextChanged → editorContentProvider.state = text
-          ├→ 500ms 防抖 → SharedPreferences
+          ├→ FileRepository.write(.md)（Phase 1.2 后为单一真相源，废弃 500ms 防抖 + SharedPreferences）
           └→ PreviewContent 重建
               └→ MarkdownParser.parse(content)
                   └→ List<DocumentElement>
                       └→ 各 *Renderer Widget 渲染
 ```
 
-**问题**：每次按键全量重解析，文档 > 500 行时卡顿。
+**问题**：每次按键全量重解析，文档 > 500 行时卡顿。Phase 2 增量解析后缓解。
 
 #### 导出流
 
@@ -102,7 +102,7 @@
 |------|-----|
 | 项目命名为 FormulaFix，目录结构 6 层 | [ADR-0001](file:///d:/Projects/Active/math/docs/ADR/0001-project-naming-and-structure.md) |
 | 状态管理选 Riverpod | [ADR-0002](file:///d:/Projects/Active/math/docs/ADR/0002-state-management-riverpod.md) |
-| 存储目标：.md 文件作为单一真相（未达成） | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) |
+| 存储目标：.md 文件作为单一真相（**Phase 1 已达成，ADR-0003 Implemented**） | [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) |
 | 解析器扩展策略：补齐缺失元素而非重写 | [ADR-0004](file:///d:/Projects/Active/math/docs/ADR/0004-markdown-parser-extension-strategy.md) |
 | 导出器 facade + 依赖注入 | [ADR-0005](file:///d:/Projects/Active/math/docs/ADR/0005-exporter-facade-dependency-injection.md) |
 | CI 选 GitHub Actions | [ADR-0006](file:///d:/Projects/Active/math/docs/ADR/0006-ci-github-actions.md) |
@@ -111,21 +111,21 @@
 
 ## 2. 当前架构问题
 
-完整列表见 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)。摘要：
+完整列表见 [CRITICAL_REVIEW.md](file:///d:/Projects/Active/math/docs/CRITICAL_REVIEW.md)。
+
+> **状态更新（2026-07-19，Phase 1 关闭后）**：本节列表为 Phase 0 末（2026-07-18）的历史快照。下列 P0 项已在 Phase 1 修复：§2.1-2（`b43e5c1`）、§2.1-3（`b36d930`）、§2.1-4（`ec76f06`）、§2.1-5（`da4ab00`）、§2.1-6（`d57d2f2`）。§2.4 中 P3-30/31/32/33/35 也在 Phase 0 / Phase 1 修复。详细证据见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md) 与 [AGENTS.md §10](file:///d:/Projects/Active/math/AGENTS.md)。
+>
+> **仍存在项**：§2.1-1 范式错位（Phase 3）、§2.2 P1 体验问题（Phase 3）、§2.3 P2 完善问题（Phase 3+）、§2.4 静态状态污染测试（Phase 2）。
 
 ### 2.1 P0 阻塞
 
-1. **范式错位**：编辑/预览分离，与 Typora WYSIWYG 灵魂对立  
+1. **范式错位**：编辑/预览分离，与 Typora WYSIWYG 灵魂对立 → **Phase 3 待修复**  
    证据：[editor_screen.dart:300-321](file:///d:/Projects/Active/math/flutter_app/lib/presentation/screens/editor_screen.dart#L300-321)
-2. **三套存储并存**：SharedPreferences / JSON 文档库 / .md 文件互不同步  
-   证据：[providers/editor_providers.dart:43-54](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart#L43-54) + [document_service.dart:68-72](file:///d:/Projects/Active/math/flutter_app/lib/core/services/document_service.dart#L68-72) + [file_service.dart:69-77](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_service.dart#L69-77)
-3. **DocumentListScreen 是死代码**：240 行实现无路由入口  
-   证据：[app_router.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/router/app_router.dart) 只注册 `/editor` 和 `/files`
-4. **Provider 重复定义**：`sharedPreferencesProvider` / `darkModeProvider` 在 [providers/providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/providers.dart) 与 [providers/editor_providers.dart](file:///d:/Projects/Active/math/flutter_app/lib/providers/editor_providers.dart) 各定义一次
-5. **解析器缺 7 类元素**：斜体 / 行内代码 / 链接 / 图片 / 删除线 / 任务列表 / 引用链接  
-   证据：[markdown_parser.dart:279-308](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart#L279-308)
-6. **工具栏与解析器矛盾**：工具栏能插入但解析器不识别  
-   证据：[markdown_input_field.dart:175-225](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/markdown_input_field.dart#L175-225) vs [markdown_parser.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/parser/markdown_parser.dart)
+2. ~~**三套存储并存**~~ → ✅ Phase 1 1.2 已修复（commit `b43e5c1`，[ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) Implemented）
+3. ~~**DocumentListScreen 是死代码**~~ → ✅ Phase 1 1.3 已修复（commit `b36d930`，路由合并到 `/files`）
+4. ~~**Provider 重复定义**~~ → ✅ Phase 1 1.1 已修复（commit `ec76f06`，[provider_uniqueness_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/provider_uniqueness_test.dart) 守门）
+5. ~~**解析器缺 7 类元素**~~ → ✅ Phase 1 1.5 已修复（commit `da4ab00`，[edge_case_test.dart](file:///d:/Projects/Active/math/flutter_app/test/parser/edge_case_test.dart) 覆盖）
+6. ~~**工具栏与解析器矛盾**~~ → ✅ Phase 1 1.6 已修复（commit `d57d2f2`）
 
 ### 2.2 P1 体验
 
@@ -151,12 +151,12 @@
 
 ### 2.4 P3 工程化
 
-- 缺 `pubspec.yaml`（CI 阻塞）
-- 残留文件 [export_service_tail.txt](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service_tail.txt)
-- [web/manifest.json](file:///d:/Projects/Active/math/flutter_app/web/manifest.json) 描述仍是默认 "A new Flutter project."
-- `main()` 多余 async
-- 静态状态污染测试（CJK 字体、缓存等）
-- 测试覆盖不足（缺 UI / 路由 / Provider 集成测试）
+- ~~缺 `pubspec.yaml`（CI 阻塞）~~ → ✅ Phase 0 0.1 已修复
+- ~~残留文件 [export_service_tail.txt](file:///d:/Projects/Active/math/flutter_app/lib/domain/services/export_service_tail.txt)~~ → ✅ Phase 0 0.6 已清理
+- ~~[web/manifest.json](file:///d:/Projects/Active/math/flutter_app/web/manifest.json) 描述仍是默认 "A new Flutter project."~~ → ✅ Phase 0 0.6 已更新
+- ~~`main()` 多余 async~~ → ✅ Phase 1 1.2 副作用（添加 `await StorageMigration.migrateIfNeeded()`，async 现为必要）
+- 静态状态污染测试（CJK 字体、缓存等）→ **Phase 2 待修复**
+- ~~测试覆盖不足（缺 UI / 路由 / Provider 集成测试）~~ → ✅ Phase 1 1.8 已修复（314 tests / 0 regression，详见 [Verification Report](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)）
 
 ---
 
@@ -191,14 +191,14 @@
 └────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 数据存储目标
+### 3.2 数据存储目标（Phase 1 已达成）
 
-- **单一真相**：`.md` 文件（应用沙盒内 + 用户可见目录）
-- 文档列表 = 扫描 `.md` 文件 + 元数据缓存
-- **废弃**：`formula_fix_documents.json`、`SharedPreferences['pref_last_content']`
-- 文档元数据（最近打开、收藏、置顶）走 `SharedPreferences` 或 SQLite
+- **单一真相**：`.md` 文件（应用沙盒内 + 用户可见目录）— ✅ [FileRepository](file:///d:/Projects/Active/math/flutter_app/lib/core/services/file_repository.dart) + [StorageMigration](file:///d:/Projects/Active/math/flutter_app/lib/core/services/storage_migration.dart)
+- 文档列表 = 扫描 `.md` 文件 + FrontMatterParser 解析元数据 — ✅
+- **已废弃**：`formula_fix_documents.json`（迁移期保留 .bak）、`SharedPreferences['pref_last_content']` — ✅
+- 文档元数据（最近打开、收藏、置顶）走 `SharedPreferences` 或 SQLite — Phase 2 派生缓存（受 [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) §边界约束 5 守护，**可重建**而非真相源）
 
-详见 [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)。
+详见 [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)（状态：Implemented）。
 
 ### 3.3 解析器目标
 
