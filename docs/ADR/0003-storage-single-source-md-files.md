@@ -1,12 +1,27 @@
 # ADR-0003: 存储统一为 .md 文件作为文档内容单一真相
 
-- **状态**：Accepted（Phase 1 进行中；Phase 1 完成后转 Implemented）
+- **状态**：Implemented（2026-07-19 Phase 1 Close Candidate 时点转入）
 - **生效日期**：2026-07-18（Phase 1 P0 #2 启动时 Accept）
+- **Implemented 日期**：2026-07-19
 - **决策者**：首席架构工程师
 - **状态流**：`Proposed → Accepted → Implemented → Deprecated`
   - 进入 Phase 1 前：`Accepted`
   - Phase 1 P0 #2 实施完成、CI 全绿、文档迁移验证通过：`Implemented`
   - 未来被新方案（如 SQLite + 全文索引）取代：`Deprecated`
+
+## Implemented 转入依据（2026-07-19）
+
+本 ADR 在 Phase 1 Close Candidate 时点由 `Accepted` 转为 `Implemented`，依据如下：
+
+1. **P0 #2 实施完成**：`FileRepository` / `FrontMatterParser` / `StorageMigration` 三大组件已落地
+2. **CI 全绿**：314 tests passed / 9 skipped / 0 regression（[全量测试日志](file:///d:/Projects/Active/math/docs/releases/phase1-verification-report.md)）
+3. **文档迁移验证通过**：
+   - [test/storage/migration_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/migration_test.dart) 覆盖 JSON→.md 迁移幂等性
+   - [test/storage/atomic_write_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/atomic_write_test.dart) 覆盖原子写不残留 .tmp
+   - [test/storage/recovery_test.dart](file:///d:/Projects/Active/math/flutter_app/test/storage/recovery_test.dart) 覆盖数据恢复路径
+4. **单一真相源边界守护已建立**：
+   - [test/architecture/dependency_rule_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/dependency_rule_test.dart) 禁止业务层直接调用 `File.writeAsString`
+   - [test/architecture/file_access_test.dart](file:///d:/Projects/Active/math/flutter_app/test/architecture/file_access_test.dart) 限制 `writeAsString`/`readAsString`/`writeAsBytes` 仅出现在 `lib/data/storage/` 与 `lib/core/services/file_service.dart`
 
 ## 背景
 
