@@ -5,6 +5,9 @@
 ///
 /// 已有 [layer_dependency_test.dart] 已覆盖整个 lib/core/，本测试为
 /// Phase 2.2 新建的 editing 子目录提供独立守门，便于定位违规。
+///
+/// Phase 2.3 扩展：sanity check 确保新增的 block_serializer.dart /
+/// block_type_detector.dart 被守门覆盖（防止文件被意外跳过）。
 library;
 
 import 'dart:io';
@@ -39,6 +42,25 @@ void main() {
         reason: 'AGENTS.md §1.1：core/editing/ 不允许反向 import 业务层。\n'
             '新增命中：\n${hits.join("\n")}',
       );
+    });
+
+    test('TC-ARCH-11.1 sanity: Phase 2.3 新增文件被守门覆盖', () {
+      // 确保新增的 block_serializer.dart / block_type_detector.dart 存在
+      // 且能被 Directory.listSync 检测到（防止文件名误写或路径错误）。
+      final requiredFiles = <String>[
+        'lib/core/editing/block_editor.dart',         // Phase 2.2
+        'lib/core/editing/block_editor_state.dart',   // Phase 2.2
+        'lib/core/editing/block_types.dart',          // Phase 2.2
+        'lib/core/editing/block_serializer.dart',     // Phase 2.3
+        'lib/core/editing/block_type_detector.dart',  // Phase 2.3
+      ];
+      for (final path in requiredFiles) {
+        expect(
+          File(path).existsSync(),
+          isTrue,
+          reason: '$path 不存在，但 editing_layer 守门测试要求其存在。',
+        );
+      }
     });
   });
 }
