@@ -1,14 +1,3 @@
-enum ElementType {
-  heading,
-  paragraph,
-  list,
-  code,
-  table,
-  blockquote,
-  mermaid,
-  emptyLine,
-}
-
 sealed class DocumentElement {
   const DocumentElement();
 }
