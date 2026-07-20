@@ -21,46 +21,46 @@ jobs:
 
       - name: 分析 PR 规模
         id: analyze
-        shell: bash
+        shell: bash --noprofile --norc {0}
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          set +e
-          DIFF_STATS=$(git diff --shortstat origin/${BASE_REF}...HEAD 2>/dev/null)
+          DIFF_STATS=$(git diff --shortstat origin/${BASE_REF}...HEAD 2>/dev/null || true)
+          echo "DEBUG: DIFF_STATS='$DIFF_STATS'"
 
-          ADDED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"insertion") print $i}')
-          DELETED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"deletion") print $i}')
-          FILES=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"file") print $i}')
-          set -e
+          ADDED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"insertion") print $i}' || true)
+          DELETED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"deletion") print $i}' || true)
+          FILES=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"file") print $i}' || true)
 
           ADDED=${ADDED:-0}
           DELETED=${DELETED:-0}
           FILES=${FILES:-0}
           TOTAL=$((ADDED + DELETED))
 
-          echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          echo "added=$ADDED" >> "$GITHUB_OUTPUT"
-          echo "deleted=$DELETED" >> "$GITHUB_OUTPUT"
-          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "DEBUG: ADDED=$ADDED DELETED=$DELETED FILES=$FILES TOTAL=$TOTAL"
 
-          CHANGED_FILES=$(git diff --name-only origin/${BASE_REF}...HEAD)
+          {
+            echo "files=$FILES"
+            echo "added=$ADDED"
+            echo "deleted=$DELETED"
+            echo "total=$TOTAL"
+          } >> "$GITHUB_OUTPUT"
+
+          CHANGED_FILES=$(git diff --name-only origin/${BASE_REF}...HEAD || true)
 
           HAS_INFRA="false"
-          if echo "$CHANGED_FILES" | grep -qE '(schema|migration|architecture|infra|docker|k8s|deploy|\.github/workflows)'; then
-            HAS_INFRA="true"
-          fi
+          echo "$CHANGED_FILES" | grep -qE '(schema|migration|architecture|infra|docker|k8s|deploy|\.github/workflows)' && HAS_INFRA="true" || true
           echo "has_infra=$HAS_INFRA" >> "$GITHUB_OUTPUT"
 
-          NEW_DIRS=$(git diff --diff-filter=A --name-only origin/${BASE_REF}...HEAD | xargs -I{} dirname {} | sort -u | grep -v '^\.$' | wc -l || echo 0)
+          NEW_DIRS=$(git diff --diff-filter=A --name-only origin/${BASE_REF}...HEAD 2>/dev/null | xargs -I{} dirname {} 2>/dev/null | sort -u | grep -v '^\.$' | wc -l || echo 0)
           echo "new_dirs=$NEW_DIRS" >> "$GITHUB_OUTPUT"
 
           HAS_TESTS="false"
-          if echo "$CHANGED_FILES" | grep -qE '(test|spec|__tests__)'; then
-            HAS_TESTS="true"
-          fi
+          echo "$CHANGED_FILES" | grep -qE '(test|spec|__tests__)' && HAS_TESTS="true" || true
           echo "has_tests=$HAS_TESTS" >> "$GITHUB_OUTPUT"
 
           if [ "$TOTAL" -le 30 ] && [ "$FILES" -le 3 ]; then
+            echo "level=0"
             echo "level=0" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 0 快速检查" >> "$GITHUB_OUTPUT"
             echo "max_turns=10" >> "$GITHUB_OUTPUT"
@@ -77,6 +77,8 @@ jobs:
             echo "level_name=Level 3 架构 Review" >> "$GITHUB_OUTPUT"
             echo "max_turns=40" >> "$GITHUB_OUTPUT"
           fi
+
+          echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(cat "$GITHUB_OUTPUT" | grep level_name | cut -d= -f2)"
 
       - uses: anthropics/claude-code-action@v1
         env:
