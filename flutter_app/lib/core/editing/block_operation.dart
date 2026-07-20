@@ -140,7 +140,13 @@ class BlockOperation extends EditOperation {
     if (afterIndex == -1) return false;
 
     final insertIndex = afterIndex + 1;
-    final newId = editor.insertBlock(insertIndex, element!);
+    // 幂等性（Phase 2.8 集成测试揭示的 P0 bug 修复）：
+    // re-apply（redo）时复用首次分配的 newId，与 split/delete/merge/move
+    // 保持一致（"BlockId 是稳定 identity"原则，ADR-0008 §9）。
+    // 否则依赖此 insert 后续 BlockId 的 op（如另一个 insertAfter(newId, ...)）
+    // 在 redo 时会因 newId 不一致而 apply 失败。
+    final preserveId = revertContext[kNewId] as BlockId?;
+    final newId = editor.insertBlock(insertIndex, element!, preserveId: preserveId);
     revertContext[kNewId] = newId;
     revertContext[_kInsertIndex] = insertIndex;
     return true;

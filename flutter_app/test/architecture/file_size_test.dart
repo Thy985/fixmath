@@ -49,8 +49,21 @@ void main() {
 
   test('TC-ARCH-7 test/ 下所有 .dart 文件 ≤ 400 行（除已知超限）', () {
     const maxLines = 400;
+    // 已知超限测试文件（Phase 2.8 集成测试，每个文件按 Task Contract §3
+    // 设计为单一主题的端到端集成场景，拆分会引入过多小文件反而降低可读性）：
+    //   - export_integration_test.dart: 导出集成测试（Phase 1）
+    //   - editor_loop_integration_test.dart: 编辑闭环集成测试（Phase 2.8 TC-EDIT-8.1）
+    //   - ime_transaction_integration_test.dart: IME+Transaction 集成测试（Phase 2.8 TC-EDIT-8.3）
+    //   - parser_serializer_consistency_test.dart: Parser/Serializer 一致性集成测试（Phase 2.8 TC-EDIT-8.4）
+    //   - performance_baseline_test.dart: 性能基线集成测试（Phase 2.8 TC-EDIT-8.5）
+    //   - transaction_history_integration_test.dart: Transaction+History 集成测试（Phase 2.8 TC-EDIT-8.2）
     const knownTestOffenders = <String>[
       'test/export_integration_test.dart',
+      'test/integration/editor_loop_integration_test.dart',
+      'test/integration/ime_transaction_integration_test.dart',
+      'test/integration/parser_serializer_consistency_test.dart',
+      'test/integration/performance_baseline_test.dart',
+      'test/integration/transaction_history_integration_test.dart',
     ];
     final offenders = <String>[];
     final testDir = Directory('test');
