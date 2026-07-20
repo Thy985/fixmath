@@ -1,22 +1,21 @@
-/// BlockOperation：5 类块级操作的 apply/revert 实现。
+/// BlockOperation：6 类块级操作的 apply/revert 实现。
 ///
-/// 落地 ADR-0007 §4.1（五原语）+ ADR-0008 §2（apply/revert 幂等纯函数）。
-///
-/// v1.2 关键约束：
-/// - 所有 op 用 [BlockId] 定位
-/// - apply 时填充 revertContext（含 index + 完整 element snapshot）
-/// - revertContext 是 immutable snapshot，因 [DocumentElement] 已 @immutable
-///
-/// 5 类 BlockOperation 语义详见 Phase 2.6 Task Contract §3.3 revertContext 表。
+/// 落地 ADR-0007 §4.1（五原语）+ §4.3（transform / Markdown 快捷映射）+
+/// ADR-0008 §2（apply/revert 幂等纯函数）。
+/// 语义详见 Phase 2.6/2.7 Task Contract。
 part of 'edit_operation.dart';
 
-/// 5 类块级操作的类型标识。
+/// 6 类块级操作的类型标识。
+///
+/// Phase 2.7 新增 [transform]：基于 source 的 BlockType 重映射
+/// （如 `# Hello` 在 paragraph 块中输入后自动变 heading）。
 enum BlockOpType {
   insert,
   delete,
   merge,
   split,
   move,
+  transform,
 }
 
 /// 块级操作：结构变化。
@@ -25,11 +24,8 @@ enum BlockOpType {
 /// apply 前必须先调用 [ComposingController.assertBlockMutationAllowed]
 /// （由 [TransactionBuilder.add] 自动执行，ADR-0008 §5 铁律 1）。
 ///
-/// **v1.1 评审反馈 3 修订**：所有 op 用 [BlockId] 定位（不用 index），
-/// revertContext 保存完整 snapshot（含 index / 元素）确保精确恢复。
-///
-/// **v1.2 评审反馈补强 1**：revertContext 是 immutable snapshot，
-/// 因 [DocumentElement] 已是 @immutable，天然满足。
+/// v1.2 关键约束：所有 op 用 [BlockId] 定位；revertContext 保存 immutable snapshot
+/// （含 index + 完整 element，因 [DocumentElement] 已 @immutable）。
 class BlockOperation extends EditOperation {
   /// 操作类型。
   final BlockOpType opType;
@@ -57,33 +53,24 @@ class BlockOperation extends EditOperation {
   /// move 的 before 标记（true=移到目标前，false=移到目标后）。
   final bool moveBefore;
 
+  /// transform 的目标 [BlockType]（Phase 2.7 新增）。
+  ///
+  /// 仅 [BlockOpType.transform] 使用。apply 时通过 [BlockSerializer.toElement]
+  /// 重建 element。**不变更 BlockId**（Task Contract §1.5）：通过
+  /// [DocumentEditor.updateBlockContent]，revert 通过同一接口恢复 originalElement。
+  final BlockType? transformedType;
+
   /// apply 时填充的 revert context（每类 op 不同）。
   ///
-  /// Map 本身可变（apply 时写入），但保存的 **值**（[DocumentElement] 等）
-  /// 都是 immutable snapshot：[DocumentElement] 已是 @immutable（[document.dart]），
-  /// 满足 v1.2 评审反馈补强 1 的"禁止保存 live mutable reference"约束。
-  ///
-  /// 保存的字段详见 Phase 2.6 Task Contract §3.3 表。
-  ///
-  /// **键名常量**（评审反馈 B）：所有 key 通过 [static const] 常量引用，
-  /// 避免拼写错误导致的运行时 TypeError。
+  /// Map 本身可变（apply 时写入），但保存的值都是 immutable snapshot
+  /// （[DocumentElement] 已 @immutable）。保存的字段详见 Phase 2.6 Task
+  /// Contract §3.3 表。键名常量（评审反馈 B）：所有 key 通过常量引用。
   final Map<String, Object?> revertContext;
 
-  // ============ revertContext 键名常量（评审反馈 B） ============
-  //
-  // 所有 revertContext 的读写必须通过这些常量，禁止裸字符串字面量。
-  // 命名约定：_k + 字段名（lowerCamelCase）
-  //
-  // 共用 key（跨多类 op）：
-  //   - _kNewId: insert / split / move（apply 后分配的新 BlockId）
-  //   - _kOldIndex: delete / move（apply 前的索引）
-  //
-  // 单 op 专用 key：
-  //   - _kInsertIndex（insert）/ _kDeletedElement（delete）
-  //   - _kLeftElement / _kRightElement / _kRightOldIndex / _kMergedType（merge）
-  //   - _kOriginalElement / _kSplitOffset / _kTargetIndex（split）
-  //   - _kElement / _kNewIndex（move）
-  static const String _kNewId = 'newId';
+  // revertContext 键名常量（评审反馈 B）：所有 key 通过常量引用，禁止裸字符串。
+  // 命名约定：_k + 字段名（lowerCamelCase）。共用：kNewId（insert/split/move）、
+  // _kOldIndex（delete/move）。
+  static const String kNewId = 'newId';
   static const String _kInsertIndex = 'insertIndex';
   static const String _kDeletedElement = 'deletedElement';
   static const String _kOldIndex = 'oldIndex';
@@ -104,6 +91,7 @@ class BlockOperation extends EditOperation {
     this.element,
     this.splitOffset,
     this.moveBefore = true,
+    this.transformedType,
     Map<String, Object?>? revertContext,
   }) : revertContext = revertContext ?? <String, Object?>{};
 
@@ -115,6 +103,7 @@ class BlockOperation extends EditOperation {
       BlockOpType.merge => _applyMerge(editor),
       BlockOpType.split => _applySplit(editor),
       BlockOpType.move => _applyMove(editor),
+      BlockOpType.transform => _applyTransform(editor),
     };
   }
 
@@ -136,6 +125,9 @@ class BlockOperation extends EditOperation {
       case BlockOpType.move:
         _revertMove(editor);
         break;
+      case BlockOpType.transform:
+        _revertTransform(editor);
+        break;
     }
   }
 
@@ -149,13 +141,13 @@ class BlockOperation extends EditOperation {
 
     final insertIndex = afterIndex + 1;
     final newId = editor.insertBlock(insertIndex, element!);
-    revertContext[_kNewId] = newId;
+    revertContext[kNewId] = newId;
     revertContext[_kInsertIndex] = insertIndex;
     return true;
   }
 
   void _revertInsert(DocumentEditor editor) {
-    final newId = revertContext[_kNewId] as BlockId?;
+    final newId = revertContext[kNewId] as BlockId?;
     if (newId == null) return;
     editor.removeBlock(newId);
   }
@@ -286,18 +278,24 @@ class BlockOperation extends EditOperation {
 
     // 替换原块为截断的左部分（保持 BlockId 不变）
     editor.updateBlockContent(targetId, leftElement);
-    // 在原块后插入右部分（新 BlockId）
-    final newId = editor.insertBlock(targetIndex + 1, rightElement);
+    // 幂等性（v1.3 Phase 2.7）：re-apply（redo）时复用首次分配的 newId，
+    // 确保 split + transform 链式 op 在 redo 时仍能定位到新块。
+    final preserveId = revertContext[kNewId] as BlockId?;
+    final newId = editor.insertBlock(
+      targetIndex + 1,
+      rightElement,
+      preserveId: preserveId,
+    );
 
     revertContext[_kOriginalElement] = originalElement;
     revertContext[_kSplitOffset] = offset;
-    revertContext[_kNewId] = newId;
+    revertContext[kNewId] = newId;
     revertContext[_kTargetIndex] = targetIndex;
     return true;
   }
 
   void _revertSplit(DocumentEditor editor) {
-    final newId = revertContext[_kNewId] as BlockId?;
+    final newId = revertContext[kNewId] as BlockId?;
     final originalElement =
         revertContext[_kOriginalElement] as DocumentElement?;
     if (newId == null || originalElement == null) return;
@@ -332,13 +330,13 @@ class BlockOperation extends EditOperation {
 
     revertContext[_kElement] = element2;
     revertContext[_kOldIndex] = oldIndex;
-    revertContext[_kNewId] = newId;
+    revertContext[kNewId] = newId;
     revertContext[_kNewIndex] = insertIndex;
     return true;
   }
 
   void _revertMove(DocumentEditor editor) {
-    final newId = revertContext[_kNewId] as BlockId?;
+    final newId = revertContext[kNewId] as BlockId?;
     final element2 = revertContext[_kElement] as DocumentElement?;
     final oldIndex = revertContext[_kOldIndex] as int?;
     if (newId == null || element2 == null || oldIndex == null) return;
@@ -346,6 +344,46 @@ class BlockOperation extends EditOperation {
     // 逆序：先删新位置，再插回原位置（保留原 BlockId = targetId）
     editor.removeBlock(newId);
     editor.insertBlock(oldIndex, element2, preserveId: targetId);
+  }
+
+  // ============ transform（Phase 2.7 新增） ============
+
+  /// apply：source 不变，重新解析为 [transformedType] 类型。
+  ///
+  /// 落地 ADR-0007 §4.3（Markdown 快捷映射规则表）。
+  /// 不变更 BlockId（Task Contract §1.5）：通过 [DocumentEditor.updateBlockContent]
+  /// 保留原 BlockId；revert 通过同一接口恢复 [originalElement] snapshot。
+  ///
+  /// 失败条件（返回 false）：[transformedType] null / [targetId] 不存在 / 新旧 type 相同。
+  bool _applyTransform(DocumentEditor editor) {
+    final newType = transformedType;
+    if (newType == null) return false;
+
+    final originalElement = editor.getBlock(targetId);
+    if (originalElement == null) return false;
+
+    final oldType = BlockType.fromElement(originalElement);
+    if (oldType == newType) return false;  // 无需 transform
+
+    // source 不变，仅用新 type 重新解析
+    final source = fromElement(originalElement);
+    final newElement = toElement(source, newType);
+
+    // 保留 BlockId，仅替换 element 内容
+    editor.updateBlockContent(targetId, newElement);
+
+    // 保存完整 originalElement snapshot，revert 时直接恢复（含所有字段）
+    revertContext[_kOriginalElement] = originalElement;
+    return true;
+  }
+
+  void _revertTransform(DocumentEditor editor) {
+    final originalElement =
+        revertContext[_kOriginalElement] as DocumentElement?;
+    if (originalElement == null) return;
+
+    // 恢复 originalElement（保留 BlockId）
+    editor.updateBlockContent(targetId, originalElement);
   }
 
   @override
