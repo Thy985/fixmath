@@ -202,11 +202,90 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-## Phase 3：UI Implementation
+## Phase 3.0：Editor Shell Architecture & Presentation Foundation（编辑器外壳架构与表现层基础）
 
-**目标**：基于 Phase 2 的编辑模型，实现所见即所得 UI。
+**目标**：建立 production UI 层的承载结构，把 Phase 2.9 Prototype 验证过的"用户行为 → EditorCommand → CommandHandler → Transaction → BlockViewState → Widget Tree"运行时通路落地到 production 路径，让 Phase 3.1+ 的所有功能有稳定挂载位置。
 
-**前置条件**：Phase 2.9 全部退出（核心接口冻结 + 4 个 Prototype 验证通过）。
+**定位**：不是"做 UI"，而是**建立 Editor Shell Architecture & Presentation Foundation**。Phase 2 完成的是"编辑内核（Editing Engine）"，Phase 3.0 完成的是"把用户行为接入内核"的运行时层 + 建立 EditorShell（TopBar / Workspace / LeftPanel / EditorViewport / BlockRenderer / StatusBar）的外壳架构。
+
+**类比 VS Code**：VS Code 不是先做插件，而是先建立 Window（Activity Bar / Side Bar / Editor Group / Status Bar / Command System），插件只是挂进去。FormulaFix 的 TOC / 文件树 / 主题 / 字号 / 焦点模式等全部只是插槽扩展。
+
+**前置条件**：Phase 2.9 全部退出（核心接口冻结 + 4 个 Prototype 验证通过 + PR 合并 main）。
+
+**核心理念**：直接进入 Phase 3.1 实现"移除 previewModeProvider / 沉浸式全屏编辑"会面临三大风险——Widget 绕过 Transaction 直接操作 AST（架构落地风险）、为快速实现功能塞进一个"大万能 Controller"（God Object 风险）、3.7 大纲 / 3.8 文件树 / 3.9 主题等任务后补架构（补架构风险）。Phase 3.0 用 EditorShell 先建立稳定边界，让 Phase 3.1+ 变成"挂载到既有插槽"的工程实现。
+
+**关键架构约束（Hard Rules）**：
+
+1. **AST 零污染**（沿用 Phase 2.9）：禁止在 `DocumentElement` 新增 UI 状态字段
+2. **Command Layer 强制**（沿用 Phase 2.9）：所有 UI 事件必须经 `EditorCommand` → `CommandHandler`
+3. **BlockRenderer 抽象**（沿用 Phase 2.9）：新增 Block 类型只增加 renderer
+4. **避免 God Object**（Phase 3.0 新增）：拆为 `EditorCoordinator`（协调）+ `CommandHandler` + `BlockViewModelProvider` + `FocusManager`，Coordinator 只协调不持有业务状态
+5. **旧 UI 并存**（Phase 3.0 新增）：旧 `lib/presentation/screens/editor_screen.dart` 保留为 fallback，新 UI 通过 feature flag 切换
+6. **复用 Phase 2.9 产出**（Phase 3.0 新增）：commands / states 原位保留，prototype/_shared 迁移到 editor/（重命名为 editor_coordinator.dart）
+7. **chrome/ 单独分离**（v1.1 修订）：AppBar / StatusBar / Toolbar 既不是 panel 也不是 editor，按 IDE 架构惯例单独分离到 `chrome/` 目录
+8. **依赖方向严格**（v1.1 修订）：`blocks/` 不 import `editor/` / `panels/` / `chrome/`；`editor/` 不 import `panels/`；`chrome/` 不 import `blocks/` / `panels/`
+9. **BlockRenderer exhaustive switch**（v1.1 修订）：不允许 `_ =>` fallback 到 GenericBlock，新增 Block 类型必须显式增加 case 分支
+
+详见 [Phase 3.0 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase3.0-task-contract.md)。
+
+### 任务
+
+| # | 任务 | 产出 | 类型 |
+|---|------|------|------|
+| 3.0.1 | Presentation Layer 目录结构 | `lib/presentation/{editor,blocks,chrome,panels,themes}/` | 代码骨架 |
+| 3.0.2 | Editor Shell（EditorPage + EditorShell + 占位插槽） | `lib/presentation/editor/editor_page.dart` 等 | 代码骨架 |
+| 3.0.3 | BlockRenderer（3 类型：paragraph / heading / code，exhaustive switch） | `lib/presentation/blocks/block_renderer.dart` 等 | 代码骨架 |
+| 3.0.4 | 数据源接入（InMemoryDocumentEditor + 种子数据 + EditorCoordinator） | `lib/presentation/editor/editor_coordinator.dart` | 代码骨架 |
+| 3.0.5 | UI Design Reference | `docs/design/ui-spec.md` | 设计规范 |
+
+### EditorShell 布局
+
+```
+┌──────────────────────────────────────┐
+│ AppBar（title + modified indicator） │
+├────────────┬─────────────────────────┤
+│            │                         │
+│ SidePanel  │     BlockEditorView     │
+│ （占位）   │     （3 种 Block 渲染） │
+│            │                         │
+├────────────┴─────────────────────────┤
+│ StatusBar（块数 / 字数 / Undo 状态）  │
+└──────────────────────────────────────┘
+```
+
+### 退出条件（Phase 3.0 Exit Gate）
+
+#### UI 验证
+- [ ] `flutter run` 看到 EditorShell 正常显示
+- [ ] 3 种 Block（paragraph / heading / code）渲染正确
+- [ ] Block 双态切换（render ↔ edit）Demo 可用
+- [ ] SidePanel / StatusBar 插槽存在（占位即可）
+
+#### 架构验证
+- [ ] Widget 不直接访问 AST（通过 EditorCoordinator）
+- [ ] Widget 不直接调用 DocumentEditor mutation（通过 CommandHandler）
+- [ ] Command 是唯一用户行为入口
+- [ ] EditorCoordinator 不持有业务状态（只协调，文件 ≤ 200 行）
+- [ ] AST 零污染（grep 守门通过）
+- [ ] **依赖方向守门**（v1.1 修订）：blocks 不 import editor/panels/chrome；editor 不 import panels；chrome 不 import blocks/panels
+- [ ] **BlockRenderer exhaustive switch**（v1.1 修订）：不允许 `_ =>` fallback 到 GenericBlock
+
+#### 工程验证
+- [ ] `flutter analyze` 0 warning
+- [ ] `flutter test` 0 regression（Phase 2.9 的 843 tests 仍 PASS）
+- [ ] 新增架构守门测试全 PASS（TC-ARCH-UI-1 ~ 8）
+
+#### 文档验证
+- [ ] `docs/design/ui-spec.md` 定稿（Human Owner 签字）
+- [ ] Phase 3.0 Verification Report 完成
+
+---
+
+## Phase 3.1+：UI Feature Implementation
+
+**目标**：基于 Phase 3.0 的 UI Runtime Foundation，实现所见即所得 UI 的具体功能。
+
+**前置条件**：Phase 3.0 全部退出（UI Skeleton 建立 + 架构守门通过）。
 
 ### 任务
 
@@ -276,6 +355,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 2.9 启动中（UI Architecture Prototype）  
-**最近更新**：2026-07-20（Phase 2.8 完成 + Phase 2 Exit Gate PASS + Phase 2.9 启动 + ADR-0009 草案）  
+**当前阶段**：Phase 2.9 PR 待合并 + Phase 3.0 Task Contract 起草中
+**最近更新**：2026-07-20（Phase 2.9 Prototype 完成 + 起草 Phase 3.0 Task Contract + ROADMAP 新增 Phase 3.0 节）
 **维护人**：首席架构工程师
