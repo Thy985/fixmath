@@ -44,7 +44,7 @@ void main() {
       );
     });
 
-    test('TC-ARCH-11.1 sanity: Phase 2.3 + Phase 2.5 新增文件被守门覆盖', () {
+    test('TC-ARCH-11.1 sanity: Phase 2.2 ~ Phase 2.6 新增文件被守门覆盖', () {
       // 确保新增的 editing/ 下文件存在
       // 且能被 Directory.listSync 检测到（防止文件名误写或路径错误）。
       final requiredFiles = <String>[
@@ -55,6 +55,13 @@ void main() {
         'lib/core/editing/block_type_detector.dart',    // Phase 2.3
         'lib/core/editing/composing_state.dart',        // Phase 2.5
         'lib/core/editing/composing_controller.dart',   // Phase 2.5
+        'lib/core/editing/document_editor.dart',        // Phase 2.6（Phase 2.2 已创建，2.6 加 preserveId）
+        'lib/core/editing/edit_operation.dart',         // Phase 2.6（含 block_operation.dart part file）
+        'lib/core/editing/block_operation.dart',        // Phase 2.6（part of edit_operation.dart）
+        'lib/core/editing/transaction.dart',            // Phase 2.6
+        'lib/core/editing/transaction_builder.dart',    // Phase 2.6
+        'lib/core/editing/editor_history.dart',         // Phase 2.6
+        'lib/core/editing/block_operations.dart',       // Phase 2.6
       ];
       for (final path in requiredFiles) {
         expect(

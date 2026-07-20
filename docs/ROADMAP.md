@@ -85,15 +85,29 @@
 
 ### 任务
 
-| # | 任务 | 备注 |
-|---|------|------|
-| 2.1 | 设计 `BlockEditor` 抽象：块类型、聚焦态/非聚焦态、光标模型 | 参考 Notion / Typora 块编辑 |
-| 2.2 | 实现"光标所在块渲染为可编辑组件，离开光标渲染为最终样式" | 核心机制 |
-| 2.3 | 增量解析：只重解析光标所在块 | 性能优化 |
-| 2.4 | AST 重构：Document 模型对齐 BlockEditor 的块类型 | 类型系统完善 |
-| 2.5 | 输入法（IME）兼容：中文输入组合态在块编辑中的正确处理 | 移动端关键 |
-| 2.6 | 块级操作：插入/删除/合并/拆分/移动块 | 编辑原语 |
-| 2.7 | Markdown 快捷输入映射（`# ` → 标题块，`- ` → 列表块 等） | 用户习惯保留 |
+| # | 任务 | 备注 | 状态 |
+|---|------|------|------|
+| 2.1 | 设计 `BlockEditor` 抽象：块类型、聚焦态/非聚焦态、光标模型 | 参考 Notion / Typora 块编辑 | ✅ PR #27 |
+| 2.2 | 实现"光标所在块渲染为可编辑组件，离开光标渲染为最终样式" | 核心机制 | ✅ PR #27 |
+| 2.3 | 增量解析：只重解析光标所在块 | 性能优化 | ✅ PR #29 |
+| 2.4 | AST 重构：Document 模型对齐 BlockEditor 的块类型 | 类型系统完善 | ✅ PR #30 |
+| 2.5 | 输入法（IME）兼容：中文输入组合态在块编辑中的正确处理 | 移动端关键 | ✅ PR #32 |
+| 2.6 | 块级操作：插入/删除/合并/拆分/移动块 | 编辑原语 | ✅ feat/phase2.6-block-operations（待合并 main） |
+| 2.7 | Markdown 快捷输入映射（`# ` → 标题块，`- ` → 列表块 等） | 用户习惯保留 | 🚧 进行中（feat/phase2.7-markdown-shortcuts） |
+
+### Phase 2.6 关闭说明
+
+Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Transaction 模型（EditOperation / TransactionBuilder / EditorHistory / Coalescing）已在 `feat/phase2.6-block-operations` 分支完成实现：
+
+- 5 类 BlockOperation apply/revert 幂等性单测覆盖（TC-EDIT-6.1）
+- TransactionBuilder commit/rollback + 嵌套合并（TC-EDIT-6.2）
+- EditorHistory coalescing 7 触发条件（TC-EDIT-6.3）
+- BlockOperations 高层 API + eager apply 语义（TC-EDIT-6.4 ~ 6.9）
+- IME 三铁律集成（铁律 1 由 `assertBlockMutationAllowed` 守门）
+- 全量测试：671 passed / 8 skipped / 0 regression（详见 [Phase 2.6 Verification Report](file:///d:/Projects/Active/math/docs/releases/phase2.6-verification-report.md)）
+- ADR-0008 v1.1 修订：新增 §9 BlockId 生命周期声明 + §10 TransactionExecutor 设计方向（Phase 2.8+ 候选）
+
+**待 Human Owner 操作**：将 `feat/phase2.6-block-operations` 合并到 main（当前 Phase 2.7 从该分支切出，待 2.6 合并后可 rebase）。
 
 ### 退出条件
 
@@ -178,6 +192,6 @@
 
 ---
 
-**当前阶段**：Phase 1 已完成（2026-07-19），准备进入 Phase 2 编辑模型  
-**最近更新**：2026-07-19  
+**当前阶段**：Phase 2.7 进行中（Markdown 快捷输入映射）  
+**最近更新**：2026-07-20（Phase 2.6 关闭 + Phase 2.7 启动 + ADR-0008 v1.1 修订）  
 **维护人**：首席架构工程师

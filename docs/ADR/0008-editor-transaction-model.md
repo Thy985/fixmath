@@ -1,8 +1,19 @@
 # ADR-0008：Editor Transaction Model
 
-**状态**：Proposed
-**日期**：2026-07-19
+**状态**：Proposed（v1.1 修订）
+**日期**：2026-07-19（v1.0）/ 2026-07-20（v1.1）
 **决策者**：AI Agent（GLM-5.2）起草，Human Owner 审批
+
+---
+
+## 版本修订记录
+
+- **v1.0**（2026-07-19）：初版，Phase 2.6 落地依据
+- **v1.1**（2026-07-20）：Phase 2.7 启动前评审反馈补强：
+  1. 新增 §9 **BlockId 生命周期声明**：明确 BlockId 是 in-memory identity，不跨序列化边界持久化
+  2. 新增 §10 **TransactionExecutor 设计方向**：明确当前 BlockOperations 是隐式执行器（acknowledged tech debt），未来引入显式 TransactionExecutor 抽象（Phase 2.8+ 候选）
+  3. §3 修订：澄清当前 eager apply 模式下，BlockOperations 持有 DocumentEditor 是已知设计取舍
+  4. §2 修订：明确 apply/revert 的"幂等纯函数"约束是相对 DocumentEditor 接口而言（不要求函数式纯，仅要求无外部可变状态依赖）
 
 ---
 
@@ -335,6 +346,146 @@ class TransactionId {
 
 ---
 
+## 9. BlockId 生命周期声明（v1.1 新增）
+
+### 决策
+
+**BlockId provides in-memory identity only and is not persisted across document serialization boundaries.**
+
+具体含义：
+
+1. **In-memory only**：BlockId 仅在当前 Document session（即编辑器实例生命周期）内有效
+2. **Not persisted**：保存到 `.md` 文件时不写入 BlockId；从 `.md` 文件加载时为每个块重新分配 BlockId
+3. **Not for collaboration**：BlockId 不能作为协同编辑（OT / CRDT）的 stable identity
+4. **Not for cross-session undo**：编辑器关闭重启后 Undo/Redo 历史清空（与 §7 一致），BlockId 不复用
+
+### 现状对齐
+
+代码已隐含遵守此约束：
+
+- [block_types.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_types.dart) L20 注释：「仅内存标识，非持久化存储（[ADR-0003] §边界约束 5：不引入派生缓存）」
+- [block_serializer.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_serializer.dart) `toElement` / `fromElement` 不读写 BlockId（BlockId 与序列化正交）
+- [document.dart](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart) `DocumentElement` 子类不含 BlockId 字段
+- [transaction.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/transaction.dart) `Transaction` 不可序列化（无 `toJson` / `fromJson`）
+
+### 设计意图
+
+**为何不持久化 BlockId**：
+
+- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md) `.md` 是单一真相源，BlockId 是派生数据
+- 持久化 BlockId 需在 `.md` frontmatter 或 sidecar 文件存储，引入第五套存储违反 ADR-0003 §边界约束 5
+- 协同编辑场景下的 stable identity 需求，应作为独立 ADR 评估（如未来 ADR-0012 候选：Operational Transform / CRDT 基础）
+
+**`preserveId` 参数的边界**：
+
+[document_editor.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/document_editor.dart) `insertBlock(index, element, {preserveId})` 的 `preserveId` 参数仅用于：
+- Undo/Redo 时保留同一 session 内的 BlockId（如 `BlockOperation._revertDelete` 用 `preserveId: targetId` 恢复被删块）
+- 不跨 session 保留 BlockId
+
+### 未来扩展边界
+
+若未来需要跨 session 持久化 BlockId（如协同编辑、崩溃恢复）：
+
+1. 必须先 supersede 本章节（标记为 Superseded by ADR-NNNN）
+2. 必须评估与 ADR-0003 单一真相源的兼容性
+3. 必须为协同编辑引入独立的 stable identity 方案（如 UUID + Vector Clock），不复用 BlockId
+
+---
+
+## 10. TransactionExecutor 设计方向（v1.1 新增，Phase 2.8+ 候选）
+
+### 当前状态（已知 tech debt）
+
+Phase 2.6 实际实现的执行架构：
+
+```
+BlockOperations
+   ├─ 持有 DocumentEditor（隐式执行器角色）
+   ├─ 持有 TransactionBuilder（op 收集）
+   └─ eager apply：每个原语调用立即 op.apply(_editor) + _builder.add(op)
+
+TransactionBuilder.commit()
+   └─ 触发 onChange 回调（调用方注入）
+        └─ EditorHistory.push(transaction)（栈管理 + coalescing）
+
+EditorHistory
+   └─ 仅栈管理 + coalescing，不 apply / revert
+```
+
+**已知问题**：
+
+1. **执行器角色分散**：BlockOperations 做 eager apply，onChange 回调做 history push，没有集中的"执行器"
+2. **TransactionBuilder 与 DocumentEditor 耦合**：通过 onChange 回调间接耦合，调用方需自行注入正确的回调链
+3. **不易测试**：测试 BlockOperations 时必须同时持有 DocumentEditor + TransactionBuilder，无法独立测试"执行器"行为
+
+### 设计方向（Phase 2.8+ 候选）
+
+未来引入显式 `TransactionExecutor` 抽象，集中承担 apply / notify 责任：
+
+```dart
+/// Transaction 执行器：apply ops 到 DocumentEditor + 通知 NotificationSink。
+///
+/// 类比 Git commit object 不会自己执行——Transaction 是数据结构，
+/// TransactionExecutor 是执行环境。
+class TransactionExecutor {
+  final DocumentEditor editor;
+  final NotificationSink sink;  // UI 通知 + history push
+
+  /// Eager apply（向后兼容当前 BlockOperations 行为）。
+  ///
+  /// apply 成功的 op 加入 [TransactionBuilder]，commit 时由 [sink] 通知。
+  bool applyOp(EditOperation op, TransactionBuilder builder) {
+    if (!op.apply(editor)) return false;
+    builder.add(op);
+    return true;
+  }
+
+  /// Deferred apply（未来可选模式，ops 在 commit 时批量 apply）。
+  ///
+  /// 当前 Phase 2.6-2.7 不采用 deferred 模式（eager apply 已通过测试）。
+  /// 引入此模式需评估：rollback 复杂度、性能、与 IME 集成。
+  bool commit(TransactionBuilder builder) {
+    final transaction = builder.commit();
+    sink.onCommit(transaction);
+    return true;
+  }
+}
+
+/// 通知接收方抽象（解耦 UI / history / 任何外部 listener）。
+abstract class NotificationSink {
+  void onCommit(Transaction transaction);
+}
+```
+
+### 迁移策略（不在 Phase 2.7 执行）
+
+**Phase 2.7 守则**：本 Phase 不引入 TransactionExecutor，仅在本 ADR 记录设计方向。
+
+**Phase 2.8+ 迁移步骤**（候选）：
+
+1. 引入 `TransactionExecutor` 类，初始实现仅 wrap BlockOperations 的 eager apply 逻辑
+2. BlockOperations 内部委托给 TransactionExecutor（`_executor.applyOp(op, _builder)`）
+3. 调用方注入 `NotificationSink` 实现（UI 层做 ChangeNotifier 通知，EditorHistory 做 push）
+4. 单测验证行为不变（BlockOperations 测试 0 regression）
+5. 拆分 BlockOperations 测试：BlockOperations 测高层 API，TransactionExecutor 测执行细节
+
+### 不在 Phase 2.7 引入的理由
+
+1. **scope 守则**：Phase 2.7 范围是 transform opType + Markdown 快捷映射，引入 TransactionExecutor 是独立架构改动
+2. **风险隔离**：TransactionExecutor 引入需迁移 BlockOperations 测试，与 transform 实现混在一起会让 PR 评审困难
+3. **向后兼容**：当前 eager apply 模式已通过 Phase 2.6 全部测试（347 editing tests），无紧迫性
+4. **依赖未明**：TransactionExecutor 的 NotificationSink 设计需配合 Phase 3 UI 层（ChangeNotifier / Riverpod）确定
+
+### 风险登记
+
+| 风险 | 概率 | 影响 | 缓解 |
+|------|------|------|------|
+| Phase 2.7 实现期间发现 BlockOperations 持有 DocumentEditor 是阻塞 | 低 | 中 | transform opType 复用现有 BlockOperations 模式，不引入新依赖 |
+| Phase 3 UI 层接入时发现 onChange 回调链复杂难调 | 中 | 中 | 引入 TransactionExecutor 时一并解决（Phase 2.8+） |
+| 协同编辑场景需要 stable identity | 低 | 高 | 由独立 ADR 评估，本 ADR 不预留接口（与 §9 一致） |
+
+---
+
 ## 动机
 
 ### 为什么需要 Transaction Model？
@@ -499,4 +650,4 @@ Phase 2.6 实施步骤（参考本 ADR）：
 ---
 
 **维护人**：AI Agent（GLM-5.2）
-**生效日期**：2026-07-19（Proposed，待 Human Owner 审批后 Accepted）
+**生效日期**：2026-07-19（v1.0 Proposed）/ 2026-07-20（v1.1 修订，待 Human Owner 审批后 Accepted）
