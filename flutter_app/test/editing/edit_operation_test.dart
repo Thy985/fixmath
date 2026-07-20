@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/edit_operation.dart';
+import 'package:formula_fix/data/models/document.dart';
 
 import 'helpers/mock_document_editor.dart';
 
@@ -269,6 +270,82 @@ void main() {
 
         expect(op.apply(editor), isFalse);
       });
+
+      // 评审反馈 A：TextOperation.revert 静默 return → 改为抛 StateError
+      test(
+        'revert 时 BlockId 失效（block 被外部删除）→ 抛 StateError',
+        () {
+          // 场景：apply 成功后 editor 状态被外部修改，导致 blockId 失效。
+          // 这是"理论上不应发生"的条件（apply 成功后 BlockId 必然存在），
+          // 但若发生应抛 StateError 而非静默跳过（避免部分回滚）。
+          final editor = MockDocumentEditor();
+          final id = editor.addParagraph('hello');
+
+          final op = TextOperation(
+            blockId: id,
+            offset: 0,
+            deleted: '',
+            inserted: 'X',
+          );
+
+          expect(op.apply(editor), isTrue);
+          expect(editor.sourceOf(id), equals('Xhello'));
+
+          // 外部删除该 block，模拟 BlockId 失效
+          editor.removeBlock(id);
+
+          // revert 应抛 StateError（而非静默 return）
+          expect(
+            () => op.revert(editor),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('target block not found'),
+              ),
+            ),
+          );
+        },
+      );
+
+      test(
+        'revert 时边界检查失败（source 被外部缩短）→ 抛 StateError',
+        () {
+          // 场景：apply 后插入 "XYZ"，revert 前外部把 source 缩短为 1 字符。
+          // offset + inserted.length (=3) > currentSource.length (=1) 触发边界检查失败。
+          // 评审反馈 A：静默 return 比抛 StateError 更危险（部分回滚不可检测）。
+          final editor = MockDocumentEditor();
+          final id = editor.addParagraph('hello');
+
+          final op = TextOperation(
+            blockId: id,
+            offset: 0,
+            deleted: '',
+            inserted: 'XYZ',
+          );
+
+          expect(op.apply(editor), isTrue);
+          expect(editor.sourceOf(id), equals('XYZhello'));
+
+          // 外部修改：替换为更短内容，使 inserted.length 超出 source 长度
+          editor.updateBlockContent(
+            id,
+            // 仅 1 字符（apply 时 inserted.length=3 触发边界失败）
+            ParagraphElement(children: [TextElement('a')]),
+          );
+
+          expect(
+            () => op.revert(editor),
+            throwsA(
+              isA<StateError>().having(
+                (e) => e.message,
+                'message',
+                contains('boundary check failed'),
+              ),
+            ),
+          );
+        },
+      );
     });
 
     group('cachedIndex 优化', () {

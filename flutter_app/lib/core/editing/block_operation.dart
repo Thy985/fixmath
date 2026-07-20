@@ -64,7 +64,38 @@ class BlockOperation extends EditOperation {
   /// 满足 v1.2 评审反馈补强 1 的"禁止保存 live mutable reference"约束。
   ///
   /// 保存的字段详见 Phase 2.6 Task Contract §3.3 表。
+  ///
+  /// **键名常量**（评审反馈 B）：所有 key 通过 [static const] 常量引用，
+  /// 避免拼写错误导致的运行时 TypeError。
   final Map<String, Object?> revertContext;
+
+  // ============ revertContext 键名常量（评审反馈 B） ============
+  //
+  // 所有 revertContext 的读写必须通过这些常量，禁止裸字符串字面量。
+  // 命名约定：_k + 字段名（lowerCamelCase）
+  //
+  // 共用 key（跨多类 op）：
+  //   - _kNewId: insert / split / move（apply 后分配的新 BlockId）
+  //   - _kOldIndex: delete / move（apply 前的索引）
+  //
+  // 单 op 专用 key：
+  //   - _kInsertIndex（insert）/ _kDeletedElement（delete）
+  //   - _kLeftElement / _kRightElement / _kRightOldIndex / _kMergedType（merge）
+  //   - _kOriginalElement / _kSplitOffset / _kTargetIndex（split）
+  //   - _kElement / _kNewIndex（move）
+  static const String _kNewId = 'newId';
+  static const String _kInsertIndex = 'insertIndex';
+  static const String _kDeletedElement = 'deletedElement';
+  static const String _kOldIndex = 'oldIndex';
+  static const String _kLeftElement = 'leftElement';
+  static const String _kRightElement = 'rightElement';
+  static const String _kRightOldIndex = 'rightOldIndex';
+  static const String _kMergedType = 'mergedType';
+  static const String _kOriginalElement = 'originalElement';
+  static const String _kSplitOffset = 'splitOffset';
+  static const String _kTargetIndex = 'targetIndex';
+  static const String _kElement = 'element';
+  static const String _kNewIndex = 'newIndex';
 
   BlockOperation({
     required this.opType,
@@ -118,13 +149,13 @@ class BlockOperation extends EditOperation {
 
     final insertIndex = afterIndex + 1;
     final newId = editor.insertBlock(insertIndex, element!);
-    revertContext['newId'] = newId;
-    revertContext['insertIndex'] = insertIndex;
+    revertContext[_kNewId] = newId;
+    revertContext[_kInsertIndex] = insertIndex;
     return true;
   }
 
   void _revertInsert(DocumentEditor editor) {
-    final newId = revertContext['newId'] as BlockId?;
+    final newId = revertContext[_kNewId] as BlockId?;
     if (newId == null) return;
     editor.removeBlock(newId);
   }
@@ -136,15 +167,15 @@ class BlockOperation extends EditOperation {
     if (index == -1) return false;
 
     final deletedElement = editor.removeBlock(targetId);
-    revertContext['deletedElement'] = deletedElement;
-    revertContext['oldIndex'] = index;
+    revertContext[_kDeletedElement] = deletedElement;
+    revertContext[_kOldIndex] = index;
     return true;
   }
 
   void _revertDelete(DocumentEditor editor) {
     final deletedElement =
-        revertContext['deletedElement'] as DocumentElement?;
-    final oldIndex = revertContext['oldIndex'] as int?;
+        revertContext[_kDeletedElement] as DocumentElement?;
+    final oldIndex = revertContext[_kOldIndex] as int?;
     if (deletedElement == null || oldIndex == null) return;
     // 保留原 BlockId（符合"BlockId 是稳定 identity"原则）
     editor.insertBlock(oldIndex, deletedElement, preserveId: targetId);
@@ -179,20 +210,20 @@ class BlockOperation extends EditOperation {
     // 替换左块内容（保持左块 BlockId 不变）
     editor.updateBlockContent(leftId, mergedElement);
 
-    revertContext['leftElement'] = leftElement;
-    revertContext['rightElement'] = deletedRight;
-    revertContext['rightOldIndex'] = rightIndex;
-    revertContext['mergedType'] = mergedType;
+    revertContext[_kLeftElement] = leftElement;
+    revertContext[_kRightElement] = deletedRight;
+    revertContext[_kRightOldIndex] = rightIndex;
+    revertContext[_kMergedType] = mergedType;
     return true;
   }
 
   void _revertMerge(DocumentEditor editor) {
     final leftId = auxiliaryId;
     final leftElement =
-        revertContext['leftElement'] as DocumentElement?;
+        revertContext[_kLeftElement] as DocumentElement?;
     final rightElement =
-        revertContext['rightElement'] as DocumentElement?;
-    final rightOldIndex = revertContext['rightOldIndex'] as int?;
+        revertContext[_kRightElement] as DocumentElement?;
+    final rightOldIndex = revertContext[_kRightOldIndex] as int?;
 
     if (leftId == null ||
         leftElement == null ||
@@ -258,17 +289,17 @@ class BlockOperation extends EditOperation {
     // 在原块后插入右部分（新 BlockId）
     final newId = editor.insertBlock(targetIndex + 1, rightElement);
 
-    revertContext['originalElement'] = originalElement;
-    revertContext['splitOffset'] = offset;
-    revertContext['newId'] = newId;
-    revertContext['targetIndex'] = targetIndex;
+    revertContext[_kOriginalElement] = originalElement;
+    revertContext[_kSplitOffset] = offset;
+    revertContext[_kNewId] = newId;
+    revertContext[_kTargetIndex] = targetIndex;
     return true;
   }
 
   void _revertSplit(DocumentEditor editor) {
-    final newId = revertContext['newId'] as BlockId?;
+    final newId = revertContext[_kNewId] as BlockId?;
     final originalElement =
-        revertContext['originalElement'] as DocumentElement?;
+        revertContext[_kOriginalElement] as DocumentElement?;
     if (newId == null || originalElement == null) return;
 
     // 逆序：先删新块，再恢复原块内容
@@ -299,17 +330,17 @@ class BlockOperation extends EditOperation {
     // 保留原 BlockId（move 不应改变 identity）
     final newId = editor.insertBlock(insertIndex, element2, preserveId: targetId2);
 
-    revertContext['element'] = element2;
-    revertContext['oldIndex'] = oldIndex;
-    revertContext['newId'] = newId;
-    revertContext['newIndex'] = insertIndex;
+    revertContext[_kElement] = element2;
+    revertContext[_kOldIndex] = oldIndex;
+    revertContext[_kNewId] = newId;
+    revertContext[_kNewIndex] = insertIndex;
     return true;
   }
 
   void _revertMove(DocumentEditor editor) {
-    final newId = revertContext['newId'] as BlockId?;
-    final element2 = revertContext['element'] as DocumentElement?;
-    final oldIndex = revertContext['oldIndex'] as int?;
+    final newId = revertContext[_kNewId] as BlockId?;
+    final element2 = revertContext[_kElement] as DocumentElement?;
+    final oldIndex = revertContext[_kOldIndex] as int?;
     if (newId == null || element2 == null || oldIndex == null) return;
 
     // 逆序：先删新位置，再插回原位置（保留原 BlockId = targetId）

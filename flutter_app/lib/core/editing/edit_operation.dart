@@ -114,7 +114,13 @@ class TextOperation extends EditOperation {
     // 逆操作：通过 blockId 定位（不依赖 cachedIndex）
     // 当前 element 已是 apply 后的状态，先序列化拿到当前 source
     final currentElement = editor.getBlock(blockId);
-    if (currentElement == null) return;
+    if (currentElement == null) {
+      throw StateError(
+        'TextOperation.revert: target block not found (blockId=$blockId). '
+        'BlockId 失效属"不应发生"条件（apply 成功后 BlockId 必然存在），'
+        '若触发说明 editor 状态被外部修改或 BlockId 生命周期越界（ADR-0008 v1.1 §9）。',
+      );
+    }
 
     final currentSource = fromElement(currentElement);
     final type = BlockType.fromElement(currentElement);
@@ -122,9 +128,19 @@ class TextOperation extends EditOperation {
     // 逆操作：先删 inserted，再插 deleted
     // apply 前 source = source[0..offset) + source[offset+deleted.length..)
     // revert: source[0..offset) + deleted + source[offset+inserted.length..)
+    //
+    // 边界检查失败属"不应发生"条件（apply 成功必然保证 offset + inserted.length ≤ source.length）。
+    // 静默 return 会导致部分回滚（editor 处于不一致状态且无任何提示），
+    // 比 throw StateError 更危险（评审反馈 A：交易回滚场景静默跳过不可接受）。
     if (offset < 0 ||
         offset + inserted.length > currentSource.length) {
-      return;  // 边界检查失败，无法 revert（理论上不应发生）
+      throw StateError(
+        'TextOperation.revert: boundary check failed '
+        '(offset=$offset, inserted.length=${inserted.length}, '
+        'currentSource.length=${currentSource.length}). '
+        '该条件理论上不应发生（apply 成功必然保证边界合法），'
+        '若触发说明 editor 状态被外部修改。',
+      );
     }
 
     final revertedSource = currentSource.substring(0, offset) +

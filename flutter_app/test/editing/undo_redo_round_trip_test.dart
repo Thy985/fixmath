@@ -101,6 +101,13 @@ void main() {
       ));
       final tx = builder.commit();
 
+      // 修复（评审反馈 A 揭示）：TextOperation 仅通过 builder.add 收集，
+      // 不会自动 apply 到 editor（与 BlockOperations eager apply 不同）。
+      // 必须显式 apply 才能让 editor 状态与 Transaction 一致，
+      // 否则第一次 undo 时 revert 在 'hello'(length=5) 上删 ' world'(length=6)
+      // 会触发边界检查失败（原静默 return 版本掩盖了此 bug）。
+      applyOps(editor, tx);
+
       final appliedSources = ['hello world'];
 
       var lastTx = tx;
@@ -132,8 +139,16 @@ void main() {
         inserted: '!',
       ));
       final ops = BlockOperations(editor, builder);
+      // insertAfter 已 eager apply 到 editor（BlockOperations 语义）
       ops.insertAfter(targetId, ParagraphElement(children: [TextElement('new')]));
       final tx = builder.commit();
+
+      // 修复（评审反馈 A 揭示）：TextOp 仅 builder.add，未自动 apply。
+      // insertAfter 的 BlockOp 已 eager apply，不能再 applyOps(tx)（会重复 apply insertAfter）。
+      // 需单独 apply TextOp。
+      for (final op in tx.ops) {
+        if (op is TextOperation) op.apply(editor);
+      }
 
       final appliedSources = ['hello!', 'new'];
 
