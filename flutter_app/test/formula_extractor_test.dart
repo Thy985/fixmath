@@ -31,7 +31,7 @@ void main() {
       });
 
       test('去重叠公式：后面的优先', () {
-        final text = r'$a$ $b$';
+        const text = r'$a$ $b$';
         final formulas = FormulaExtractor.extractFormulas(text);
         expect(formulas.length, 2);
         expect(formulas[0].latex, 'a');
@@ -144,7 +144,7 @@ void main() {
       });
 
       test('不修改已有正确格式', () {
-        final input = r'\frac{a}{b}';
+        const input = r'\frac{a}{b}';
         final result = FormulaExtractor.normalizeLatex(input);
         expect(result, contains(r'\frac{a}{b}'));
       });
@@ -165,7 +165,7 @@ void main() {
         );
         final fracMatch = formulas.firstWhere(
           (m) => m.latex.contains(r'\frac'),
-          orElse: () => FormulaMatch(latex: '', start: -1, end: -1, displayMode: false),
+          orElse: () => const FormulaMatch(latex: '', start: -1, end: -1, displayMode: false),
         );
         expect(fracMatch.latex, contains(r'\vec'));
         expect(fracMatch.latex, contains(r'\cdot'));

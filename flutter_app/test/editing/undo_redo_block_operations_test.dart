@@ -45,7 +45,7 @@ void main() {
         onChange: (tx) => history.push(tx),
       );
       final ops = BlockOperations(editor, builder);
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('b')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('b')]));
       final tx = builder.commit();
 
       var lastTx = tx;

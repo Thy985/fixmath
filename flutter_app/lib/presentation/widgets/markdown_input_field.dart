@@ -135,7 +135,7 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
             margin: const EdgeInsets.symmetric(horizontal: 2),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              color: highlight ? AppColors.primary.withOpacity(0.15) : null,
+              color: highlight ? AppColors.primary.withValues(alpha: 0.15) : null,
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(icon, size: 18, color: iconColor),
@@ -149,7 +149,7 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
       decoration: BoxDecoration(
         color: widget.isDarkMode
             ? Colors.black26
-            : Colors.grey.withOpacity(0.06),
+            : Colors.grey.withValues(alpha: 0.06),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -170,7 +170,7 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
               width: 1,
               height: 20,
               margin: const EdgeInsets.symmetric(horizontal: 6),
-              color: iconColor.withOpacity(0.2),
+              color: iconColor.withValues(alpha: 0.2),
             ),
             toolBtn(
               icon: Icons.format_bold,
@@ -196,7 +196,7 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
               width: 1,
               height: 20,
               margin: const EdgeInsets.symmetric(horizontal: 6),
-              color: iconColor.withOpacity(0.2),
+              color: iconColor.withValues(alpha: 0.2),
             ),
             toolBtn(
               icon: Icons.title,
@@ -227,7 +227,7 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
               width: 1,
               height: 20,
               margin: const EdgeInsets.symmetric(horizontal: 6),
-              color: iconColor.withOpacity(0.2),
+              color: iconColor.withValues(alpha: 0.2),
             ),
             toolBtn(
               icon: Icons.image,
@@ -273,12 +273,12 @@ class _MarkdownInputFieldState extends ConsumerState<MarkdownInputField> {
   \$\$x^2+y^2=z^2\$\$ (块级)
 
 代码块:
-  \`\`\`python
+  ```python
   print("hi")
-  \`\`\`
+  ```
 
 Mermaid:
-  \`\`\`mermaid
+  ```mermaid
   graph TD; A-->B
-  \`\`\`''';
+  ```''';
 }

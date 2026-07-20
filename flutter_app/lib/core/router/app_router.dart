@@ -44,7 +44,7 @@ class _ErrorScreen extends StatelessWidget {
             children: [
               const Icon(Icons.error_outline, size: 64, color: AppColors.error),
               const SizedBox(height: AppSpacing.lg),
-              Text(
+              const Text(
                 '页面加载失败',
                 style: TextStyle(
                   fontSize: 20,
@@ -57,7 +57,7 @@ class _ErrorScreen extends StatelessWidget {
                 Text(
                   error!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.darkTextSecondary,
                     fontFamily: 'monospace',

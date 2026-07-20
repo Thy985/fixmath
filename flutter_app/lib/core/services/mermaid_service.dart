@@ -203,7 +203,7 @@ class MermaidService {
         _completePendingError(id, message);
       }
     } else if (message.startsWith('MERMAID_THEME|')) {
-      final prefix = 'MERMAID_THEME|';
+      const prefix = 'MERMAID_THEME|';
       final firstPipe = message.indexOf('|', prefix.length);
       if (firstPipe > 0) {
         final themeName = message.substring(prefix.length, firstPipe);
@@ -337,14 +337,12 @@ class MermaidService {
 
   static String _js(String s) {
     // Escape backslash first, then quotes, then control chars
-    return "'" +
-        s
+    return "'${s
             .replaceAll('\\', '\\\\')
             .replaceAll("'", "\\'")
             .replaceAll('\r', '\\r')
             .replaceAll('\n', '\\n')
-            .replaceAll('\t', '\\t') +
-        "'";
+            .replaceAll('\t', '\\t')}'";
   }
 
   static void _completePending(String requestId, String svg) {

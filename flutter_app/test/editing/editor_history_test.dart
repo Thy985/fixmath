@@ -22,7 +22,7 @@ void main() {
       final history = EditorHistory();
       final tx = _makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'x')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'x')],
       );
 
       history.push(tx);
@@ -35,7 +35,7 @@ void main() {
       final history = EditorHistory();
       final tx = _makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'x')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'x')],
       );
       history.push(tx);
 
@@ -50,7 +50,7 @@ void main() {
       final history = EditorHistory();
       final tx = _makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'x')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'x')],
       );
       history.push(tx);
       final undone = history.undo(tx);
@@ -65,11 +65,11 @@ void main() {
       final history = EditorHistory();
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'x')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'x')],
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'y')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'y')],
       ));
 
       history.clear();
@@ -86,12 +86,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -107,12 +107,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(2), offset: 0, inserted: 'b')],  // 不同 BlockId
+        ops: [TextOperation(blockId: const BlockId(2), offset: 0, inserted: 'b')],  // 不同 BlockId
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -128,13 +128,13 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       // tx1 后预期 offset=1，但 tx2 offset=5（不连续）
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 5, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 5, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -150,12 +150,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.programmatic,  // 非 keyboard
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -171,12 +171,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.paste,  // 非 keyboard
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -192,12 +192,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.ime,  // IME commit 独立
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: '你')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: '你')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -213,12 +213,12 @@ void main() {
 
       final tx1 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 600)),  // 超过 500ms
       );
 
@@ -231,7 +231,7 @@ void main() {
     test('prev.ops.last 不是 TextOperation → 不合并', () {
       final history = EditorHistory();
       final now = DateTime.now();
-      final blockId = BlockId(1);
+      const blockId = BlockId(1);
 
       // prev.ops.last 是 BlockOperation（非 TextOperation）
       final tx1 = _makeTransaction(
@@ -241,7 +241,7 @@ void main() {
       );
       final tx2 = _makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now.add(const Duration(milliseconds: 100)),
       );
 
@@ -253,7 +253,7 @@ void main() {
 
     test('连续多 op coalescing：5 个 TextOperation 合并为 1', () {
       final history = EditorHistory();
-      final blockId = BlockId(1);
+      const blockId = BlockId(1);
       var time = DateTime.now();
 
       // 输入 "hello" = 5 个 TextOperation
@@ -282,15 +282,15 @@ void main() {
 
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(2), offset: 0, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(2), offset: 0, inserted: 'b')],
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,
-        ops: [TextOperation(blockId: BlockId(3), offset: 0, inserted: 'c')],
+        ops: [TextOperation(blockId: const BlockId(3), offset: 0, inserted: 'c')],
       ));
 
       expect(history.undoCount, equals(1));  // 全部合并
@@ -305,12 +305,12 @@ void main() {
       final now = DateTime.now();
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now,
       ));
 
@@ -325,12 +325,12 @@ void main() {
       final now = DateTime.now();
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(99), offset: 0, inserted: 'b')],  // 不同 BlockId
+        ops: [TextOperation(blockId: const BlockId(99), offset: 0, inserted: 'b')],  // 不同 BlockId
         timestamp: now.add(const Duration(seconds: 10)),  // 超时
       ));
       // 同 origin → 合并
@@ -338,7 +338,7 @@ void main() {
 
       history.push(_makeTransaction(
         origin: TransactionOrigin.programmatic,  // 不同 origin
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'c')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'c')],
       ));
       // 不同 origin → 不合并
       expect(history.undoCount, equals(2));
@@ -354,12 +354,12 @@ void main() {
 
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 0, inserted: 'a')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 0, inserted: 'a')],
         timestamp: now,
       ));
       history.push(_makeTransaction(
         origin: TransactionOrigin.keyboard,
-        ops: [TextOperation(blockId: BlockId(1), offset: 1, inserted: 'b')],
+        ops: [TextOperation(blockId: const BlockId(1), offset: 1, inserted: 'b')],
         timestamp: now.add(const Duration(milliseconds: 600)),  // 600ms
       ));
 

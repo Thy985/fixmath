@@ -247,7 +247,8 @@ class MarkdownParser {
         continue;
       }
 
-      pendingParagraph ??= ParagraphElement(children: []);
+      // ignore: prefer_const_constructors — children 需可变，下方 addAll 追加 inline
+      pendingParagraph ??= ParagraphElement(children: <InlineElement>[]);
       final inline = _parseInline(trimmedLine);
       pendingParagraph!.children.addAll(inline);
     }

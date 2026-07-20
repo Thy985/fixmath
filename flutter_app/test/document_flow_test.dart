@@ -283,7 +283,7 @@ print("第二个代码块")
     });
 
     test('TableElement 结构', () {
-      final table = TableElement(
+      const table = TableElement(
         headers: ['列1', '列2', '列3'],
         rows: [
           ['a', 'b', 'c'],

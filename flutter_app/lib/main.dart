@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/services/storage_migration.dart';
@@ -18,7 +17,7 @@ void main() async {
     debugPrint('Storage migration skipped: $e');
   }
   runApp(
-    ProviderScope(
+    const ProviderScope(
       child: FormulaFixApp(),
     ),
   );

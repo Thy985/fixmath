@@ -56,7 +56,7 @@ void main() {
         onChange: (tx) => history.push(tx),
       );
       final ops = BlockOperations(editor, builder);
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('world')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('world')]));
       final tx = builder.commit();
 
       final appliedSources = editor.allSources.toList();
@@ -140,7 +140,7 @@ void main() {
       ));
       final ops = BlockOperations(editor, builder);
       // insertAfter 已 eager apply 到 editor（BlockOperations 语义）
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('new')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('new')]));
       final tx = builder.commit();
 
       // 修复（评审反馈 A 揭示）：TextOp 仅 builder.add，未自动 apply。
@@ -286,7 +286,7 @@ void main() {
         onChange: (tx) => history.push(tx),
       );
       final ops = BlockOperations(editor, builder);
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('b')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('b')]));
       final tx = builder.commit();
 
       // 第一次 undo：返回 Transaction
@@ -312,7 +312,7 @@ void main() {
         onChange: (tx) => history.push(tx),
       );
       final ops = BlockOperations(editor, builder);
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('b')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('b')]));
       final tx = builder.commit();
 
       // undo 后 redo

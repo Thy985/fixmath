@@ -34,7 +34,7 @@ void main() {
       );
       final ops = BlockOperations(editor, builder);
 
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('a')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('a')]));
 
       builder.commit();
       expect(callCount, equals(1));
@@ -54,9 +54,9 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // 5 个 op
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('x1')]));
-      ops.insertAfter(bId, ParagraphElement(children: [TextElement('x2')]));
-      ops.insertAfter(cId, ParagraphElement(children: [TextElement('x3')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('x1')]));
+      ops.insertAfter(bId, const ParagraphElement(children: [TextElement('x2')]));
+      ops.insertAfter(cId, const ParagraphElement(children: [TextElement('x3')]));
       ops.delete(bId);
       ops.split(aId, 0);
 
@@ -102,7 +102,7 @@ void main() {
       );
       final ops = BlockOperations(editor, builder);
 
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('x')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('x')]));
 
       // 检测到失败时手动 revert + rollback
       for (final op in builder.ops.reversed) {
@@ -128,7 +128,7 @@ void main() {
 
       parentOps.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('parent-op')]),
+        const ParagraphElement(children: [TextElement('parent-op')]),
       );
 
       final child = TransactionBuilder(
@@ -139,7 +139,7 @@ void main() {
       final childOps = BlockOperations(editor, child);
       childOps.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('child-op')]),
+        const ParagraphElement(children: [TextElement('child-op')]),
       );
 
       child.commit();
@@ -169,7 +169,7 @@ void main() {
         },
       );
       final ops = BlockOperations(editor, builder);
-      ops.insertAfter(targetId, ParagraphElement(children: [TextElement('x')]));
+      ops.insertAfter(targetId, const ParagraphElement(children: [TextElement('x')]));
       final tx = builder.commit();
 
       expect(callCount, equals(1));

@@ -46,11 +46,11 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // op 1: insert (成功)
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('x')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('x')]));
       // op 2: split (成功)
       ops.split(aId, 0);
       // op 3: delete 非法 BlockId (失败)
-      final op3Success = ops.delete(BlockId(999));
+      final op3Success = ops.delete(const BlockId(999));
 
       expect(op3Success, isFalse);
       expect(builder.opCount, equals(2));  // 失败 op 不入 builder
@@ -72,7 +72,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // op 1: delete 非法 BlockId (失败)
-      final op1Success = ops.delete(BlockId(999));
+      final op1Success = ops.delete(const BlockId(999));
 
       expect(op1Success, isFalse);
       expect(builder.opCount, equals(0));
@@ -90,14 +90,14 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // op 1-4: 成功
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('NEW')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('NEW')]));
       ops.split(aId, 1);
       ops.delete(bId);
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('NEW2')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('NEW2')]));
       expect(builder.opCount, equals(4));
 
       // op 5: 失败（split 非法 BlockId）
-      final op5Success = ops.split(BlockId(999), 1);
+      final op5Success = ops.split(const BlockId(999), 1);
       expect(op5Success, isFalse);
       expect(builder.opCount, equals(4));  // 失败不入 builder
 
@@ -117,9 +117,9 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // 3 个 insert 操作（每个都会分配新 BlockId）
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('b')]));
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('c')]));
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('d')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('b')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('c')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('d')]));
       expect(editor.blockCount, equals(4));  // a + b + c + d
 
       rollbackTransaction(editor, builder);
@@ -138,7 +138,7 @@ void main() {
 
       final builder1 = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops1 = BlockOperations(editor, builder1);
-      ops1.insertAfter(aId, ParagraphElement(children: [TextElement('b')]));
+      ops1.insertAfter(aId, const ParagraphElement(children: [TextElement('b')]));
       rollbackTransaction(editor, builder1);
 
       expect(builder1.isCompleted, isTrue);
@@ -146,7 +146,7 @@ void main() {
       // 立即开新 Transaction
       final builder2 = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops2 = BlockOperations(editor, builder2);
-      ops2.insertAfter(aId, ParagraphElement(children: [TextElement('c')]));
+      ops2.insertAfter(aId, const ParagraphElement(children: [TextElement('c')]));
 
       expect(editor.allSources, equals(['a', 'c']));
       expect(builder2.opCount, equals(1));
@@ -166,7 +166,7 @@ void main() {
         onChange: (tx) => history.push(tx),
       );
       final ops1 = BlockOperations(editor, builder1);
-      ops1.insertAfter(aId, ParagraphElement(children: [TextElement('committed')]));
+      ops1.insertAfter(aId, const ParagraphElement(children: [TextElement('committed')]));
       builder1.commit();
 
       expect(history.canUndo, isTrue);
@@ -175,7 +175,7 @@ void main() {
       // 开新 Transaction，然后 rollback
       final builder2 = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops2 = BlockOperations(editor, builder2);
-      ops2.insertAfter(aId, ParagraphElement(children: [TextElement('rolled-back')]));
+      ops2.insertAfter(aId, const ParagraphElement(children: [TextElement('rolled-back')]));
       rollbackTransaction(editor, builder2);
 
       // history 状态不变
@@ -190,7 +190,7 @@ void main() {
 
       final parent = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final parentOps = BlockOperations(editor, parent);
-      parentOps.insertAfter(aId, ParagraphElement(children: [TextElement('parent-op')]));
+      parentOps.insertAfter(aId, const ParagraphElement(children: [TextElement('parent-op')]));
       expect(parent.opCount, equals(1));
 
       final child = TransactionBuilder(
@@ -198,7 +198,7 @@ void main() {
         parent: parent,
       );
       final childOps = BlockOperations(editor, child);
-      childOps.insertAfter(aId, ParagraphElement(children: [TextElement('child-op')]));
+      childOps.insertAfter(aId, const ParagraphElement(children: [TextElement('child-op')]));
       expect(child.opCount, equals(1));
 
       // 子 rollback：丢弃 child 的 ops，不影响 parent
@@ -218,14 +218,14 @@ void main() {
 
       final parent = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final parentOps = BlockOperations(editor, parent);
-      parentOps.insertAfter(aId, ParagraphElement(children: [TextElement('parent-op')]));
+      parentOps.insertAfter(aId, const ParagraphElement(children: [TextElement('parent-op')]));
 
       final child = TransactionBuilder(
         origin: TransactionOrigin.programmatic,
         parent: parent,
       );
       final childOps = BlockOperations(editor, child);
-      childOps.insertAfter(aId, ParagraphElement(children: [TextElement('child-op')]));
+      childOps.insertAfter(aId, const ParagraphElement(children: [TextElement('child-op')]));
       // 子 commit：把 ops 合并到 parent
       child.commit();
       expect(parent.opCount, equals(2));  // parent 1 + child 1

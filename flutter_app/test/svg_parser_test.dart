@@ -266,7 +266,7 @@ void main() {
   group('parseSvgString - 真实 MathJax SVG 形状', () {
     test('嵌套 g/rect/text 类似 MathJax 输出', () {
       // MathJax 输出的 SVG 通常是这样的形状
-      final svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      const svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="12.361ex" height="2.176ex" viewBox="0 -863.1 5321.5 936.9" role="img" focusable="false" aria-hidden="true">
 <g stroke="currentColor" fill="currentColor" stroke-width="0" transform="matrix(1 0 0 -1 0 0)">
   <g>

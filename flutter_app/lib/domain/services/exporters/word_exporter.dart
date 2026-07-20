@@ -121,8 +121,8 @@ class WordExporter {
 
     // [Content_Types].xml 现在包含 styles/settings/numbering 的 Override，
     // 见 WordOoxmlTemplates.contentTypesXml。
-    final contentTypesXml = WordOoxmlTemplates.contentTypesXml;
-    final rootRelsXml = WordOoxmlTemplates.rootRelsXml;
+    const contentTypesXml = WordOoxmlTemplates.contentTypesXml;
+    const rootRelsXml = WordOoxmlTemplates.rootRelsXml;
 
     final archive = Archive();
 
@@ -148,9 +148,9 @@ class WordExporter {
 
     // 补全 OOXML 必需 Part：styles / settings / numbering。
     // 这些文件让导出的 docx 在 Word/WPS/LibreOffice 中能识别 pStyle 和 numId。
-    final stylesXml = WordOoxmlTemplates.stylesXml;
-    final settingsXml = WordOoxmlTemplates.settingsXml;
-    final numberingXml = WordOoxmlTemplates.numberingXml;
+    const stylesXml = WordOoxmlTemplates.stylesXml;
+    const settingsXml = WordOoxmlTemplates.settingsXml;
+    const numberingXml = WordOoxmlTemplates.numberingXml;
     final stylesBytes = utf8.encode(stylesXml);
     final settingsBytes = utf8.encode(settingsXml);
     final numberingBytes = utf8.encode(numberingXml);

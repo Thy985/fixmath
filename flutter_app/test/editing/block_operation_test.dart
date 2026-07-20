@@ -25,7 +25,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.insert,
         targetId: targetId,
-        element: ParagraphElement(children: [TextElement('world')]),
+        element: const ParagraphElement(children: [TextElement('world')]),
       );
 
       expect(op.apply(editor), isTrue);
@@ -44,7 +44,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.insert,
         targetId: targetId,
-        element: ParagraphElement(children: [TextElement('b')]),
+        element: const ParagraphElement(children: [TextElement('b')]),
       );
 
       for (var i = 0; i < 3; i++) {
@@ -73,8 +73,8 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.insert,
-        targetId: BlockId(999),
-        element: ParagraphElement(children: [TextElement('x')]),
+        targetId: const BlockId(999),
+        element: const ParagraphElement(children: [TextElement('x')]),
       );
 
       expect(op.apply(editor), isFalse);
@@ -124,7 +124,7 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.delete,
-        targetId: BlockId(999),
+        targetId: const BlockId(999),
       );
 
       expect(op.apply(editor), isFalse);
@@ -191,7 +191,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.merge,
         targetId: rightId,
-        auxiliaryId: BlockId(999),
+        auxiliaryId: const BlockId(999),
       );
 
       expect(op.apply(editor), isFalse);
@@ -224,7 +224,7 @@ void main() {
         opType: BlockOpType.split,
         targetId: targetId,
         splitOffset: 5,
-        element: ParagraphElement(children: [TextElement('placeholder')]),
+        element: const ParagraphElement(children: [TextElement('placeholder')]),
       );
 
       expect(op.apply(editor), isTrue);
@@ -244,7 +244,7 @@ void main() {
         opType: BlockOpType.split,
         targetId: targetId,
         splitOffset: 3,
-        element: ParagraphElement(children: [TextElement('p')]),
+        element: const ParagraphElement(children: [TextElement('p')]),
       );
 
       for (var i = 0; i < 3; i++) {
@@ -262,7 +262,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.split,
         targetId: targetId,
-        element: ParagraphElement(children: [TextElement('p')]),
+        element: const ParagraphElement(children: [TextElement('p')]),
       );
 
       expect(op.apply(editor), isFalse);
@@ -276,7 +276,7 @@ void main() {
         opType: BlockOpType.split,
         targetId: targetId,
         splitOffset: 100,
-        element: ParagraphElement(children: [TextElement('p')]),
+        element: const ParagraphElement(children: [TextElement('p')]),
       );
 
       expect(op.apply(editor), isFalse);
@@ -287,9 +287,9 @@ void main() {
 
       final op = BlockOperation(
         opType: BlockOpType.split,
-        targetId: BlockId(999),
+        targetId: const BlockId(999),
         splitOffset: 1,
-        element: ParagraphElement(children: [TextElement('p')]),
+        element: const ParagraphElement(children: [TextElement('p')]),
       );
 
       expect(op.apply(editor), isFalse);
@@ -390,7 +390,7 @@ void main() {
       final op = BlockOperation(
         opType: BlockOpType.move,
         targetId: targetId,
-        auxiliaryId: BlockId(999),
+        auxiliaryId: const BlockId(999),
       );
 
       expect(op.apply(editor), isFalse);

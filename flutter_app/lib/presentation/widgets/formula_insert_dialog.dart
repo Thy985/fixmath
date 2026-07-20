@@ -125,7 +125,7 @@ class _FormulaInsertDialogState extends State<FormulaInsertDialog> {
                 filled: true,
                 fillColor: widget.isDark
                     ? Colors.white10
-                    : Colors.grey.withOpacity(0.06),
+                    : Colors.grey.withValues(alpha: 0.06),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
@@ -254,7 +254,7 @@ class _FormulaInsertDialogState extends State<FormulaInsertDialog> {
                     decoration: BoxDecoration(
                       color: widget.isDark
                           ? Colors.white10
-                          : Colors.black.withOpacity(0.05),
+                          : Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(

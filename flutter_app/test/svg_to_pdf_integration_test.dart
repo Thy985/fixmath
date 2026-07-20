@@ -58,7 +58,7 @@ void main() {
     });
 
     test('复杂嵌套 SVG（g/rect/circle/path/text/tspan）可嵌入 PDF', () async {
-      final svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      const svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100">
   <g transform="translate(10, 10)">
     <rect x="0" y="0" width="50" height="30" fill="#ff0000" stroke="#000000" stroke-width="1"/>
@@ -82,7 +82,7 @@ void main() {
 
     test('MathJax 风格的 mjx-container 包装 SVG 也能解析', () async {
       // MathJax 在 mjx-container 内部嵌入 <svg>
-      final svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      const svg = '''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <mjx-container xmlns:mjx="http://www.w3.org/1998/Math/MathML" class="mjx-container">
 <svg xmlns="http://www.w3.org/2000/svg" width="100" height="20" viewBox="0 0 100 20">
   <g stroke="currentColor" fill="currentColor" stroke-width="0" transform="matrix(1 0 0 -1 0 0)">
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('含未知元素的 SVG 嵌入 PDF（[unsupported] 占位）', () async {
-      final svg = '<svg xmlns="http://www.w3.org/2000/svg" '
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" '
           'viewBox="0 0 100 30">'
           '<rect x="0" y="0" width="20" height="20" fill="#abc"/>'
           '<pattern id="p1"/>' // 不支持
@@ -155,7 +155,7 @@ void main() {
     test('大 viewBox SVG (5321x936) 在容器约束下 box 不超过 maxWidth',
         () async {
       // 真实 MathJax 输出的 viewBox 尺寸：宽度可达 5000+ pt
-      final svg = '''<?xml version="1.0" encoding="UTF-8"?>
+      const svg = '''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5321 936" width="5321" height="936">
   <text x="10" y="20" font-size="100">x</text>
 </svg>''';
@@ -180,7 +180,7 @@ void main() {
     });
 
     test('保持宽高比缩放：viewBox 5321x936 → box 200x35.18', () async {
-      final svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5321 936">
+      const svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5321 936">
 <text x="0" y="0" font-size="100">x</text></svg>''';
       final root = parseSvgString(svg);
       final widget = SvgPdfWidget(root: root);
@@ -205,7 +205,7 @@ void main() {
     });
 
     test('极小 viewBox SVG (1x1) 在大约束下 box 保持原始尺寸', () async {
-      final svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">'
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">'
           '<rect width="1" height="1" fill="#000"/></svg>';
       final root = parseSvgString(svg);
       final widget = SvgPdfWidget(root: root);
