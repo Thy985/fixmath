@@ -33,8 +33,15 @@ typedef CoalescePredicate = bool Function(Transaction prev, Transaction next);
 ///
 /// 包装 [HistoryManager]<Transaction>，新增 coalescing 支持。
 /// 旧 [HistoryManager] API（push/undo/redo/clear/canUndo/canRedo）保留向后兼容。
+///
+/// v1.3（Phase 2.8）：新增 [maxHistorySize] 参数，允许调用方按需配置栈深度
+/// （默认 50，与 [HistoryManager] 默认值一致）。
+///
+/// **Phase 3 UI 接入建议**：生产环境推荐 `maxHistorySize: 100` 至 `200`，
+/// 覆盖用户单次编辑会话的典型 undo 深度。默认 50 主要为测试友好，
+/// 大型文档编辑场景下 50 步可能不够（见 TC-EDIT-8.5.3 性能测试）。
 class EditorHistory {
-  final HistoryManager<Transaction> _history = HistoryManager<Transaction>();
+  final HistoryManager<Transaction> _history;
 
   /// Coalescing 时间窗口（默认 500ms）。
   ///
@@ -48,8 +55,12 @@ class EditorHistory {
 
   EditorHistory({
     this.coalescingWindow = const Duration(milliseconds: 500),
+    int maxHistorySize = 50,
     CoalescePredicate? canCoalesce,
-  }) : _userCanCoalesce = canCoalesce;
+  })  : _history = HistoryManager<Transaction>(
+          maxHistorySize: maxHistorySize,
+        ),
+        _userCanCoalesce = canCoalesce;
 
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
