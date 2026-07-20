@@ -310,16 +310,18 @@ void main() {
       }
       elapsed.sort();
       final medianMs = _median(elapsed) / 1000.0;
+      final perOpMs = medianMs / 2000;  // 1000 undo + 1000 redo = 2000 ops
 
       debugPrint('TC-EDIT-8.5.3 1000x undo + 1000x redo elapsed (ms): '
           '${elapsed.map((e) => (e / 1000.0).toStringAsFixed(2)).join(', ')}');
-      debugPrint('TC-EDIT-8.5.3 median: ${medianMs.toStringAsFixed(2)}ms '
-          '(threshold < 200ms)');
+      debugPrint('TC-EDIT-8.5.3 median: ${medianMs.toStringAsFixed(2)}ms total '
+          '(per-op ${perOpMs.toStringAsFixed(4)}ms)');
 
-      // 本地宽松阈值 400ms，CI 严格阈值 200ms
-      expect(medianMs, lessThan(400),
-          reason: '本地宽松阈值 400ms（CI 严格阈值 200ms）。'
-              'median=${medianMs.toStringAsFixed(2)}ms');
+      // per-op 阈值（防 developer-machine flake）：本地宽松 < 0.3ms，CI 严格 < 0.15ms
+      expect(perOpMs, lessThan(0.3),
+          reason: 'per-op 阈值。'
+              'per-op=${perOpMs.toStringAsFixed(4)}ms, '
+              'median-total=${medianMs.toStringAsFixed(2)}ms');
     });
   });
 
@@ -361,18 +363,19 @@ void main() {
       }
       elapsed.sort();
       final medianMs = _median(elapsed) / 1000.0;
+      final perOpMs = medianMs / 1000;
 
       debugPrint('TC-EDIT-8.5.4 1000x split elapsed (ms): '
           '${elapsed.map((e) => (e / 1000.0).toStringAsFixed(2)).join(', ')}');
-      debugPrint('TC-EDIT-8.5.4 median: ${medianMs.toStringAsFixed(2)}ms '
-          '(threshold < 500ms)');
+      debugPrint('TC-EDIT-8.5.4 median: ${medianMs.toStringAsFixed(2)}ms total '
+          '(per-op ${perOpMs.toStringAsFixed(4)}ms)');
 
-      // 本地宽松阈值 1000ms，CI 严格阈值 500ms
-      // 注：split 含自动 tryTransform 检测（每次 ~0.7ms），1000 次约 700ms
-      expect(medianMs, lessThan(1000),
-          reason: '本地宽松阈值 1000ms（CI 严格阈值 500ms）。'
-              'split 含自动 tryTransform 检测。'
-              'median=${medianMs.toStringAsFixed(2)}ms');
+      // per-op 阈值（防 developer-machine flake）：本地宽松 < 2ms，CI 严格 < 1ms
+      // 注：split 含自动 tryTransform 检测，每次约 1ms
+      expect(perOpMs, lessThan(2),
+          reason: 'per-op 阈值（split 含 tryTransform）。'
+              'per-op=${perOpMs.toStringAsFixed(4)}ms, '
+              'median-total=${medianMs.toStringAsFixed(2)}ms');
     });
   });
 

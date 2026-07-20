@@ -36,6 +36,10 @@ typedef CoalescePredicate = bool Function(Transaction prev, Transaction next);
 ///
 /// v1.3（Phase 2.8）：新增 [maxHistorySize] 参数，允许调用方按需配置栈深度
 /// （默认 50，与 [HistoryManager] 默认值一致）。
+///
+/// **Phase 3 UI 接入建议**：生产环境推荐 `maxHistorySize: 100` 至 `200`，
+/// 覆盖用户单次编辑会话的典型 undo 深度。默认 50 主要为测试友好，
+/// 大型文档编辑场景下 50 步可能不够（见 TC-EDIT-8.5.3 性能测试）。
 class EditorHistory {
   final HistoryManager<Transaction> _history;
 

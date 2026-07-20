@@ -92,6 +92,35 @@ editor_history.dart ──→ utils/history_manager.dart
 4. **IME 三铁律**：composing 中 BlockOperation 被拒绝，commit 入栈 origin=ime，cancel 不入栈
 5. **Transaction 嵌套合并**：子 builder commit 时 ops 合并到 parent，UI 可批量操作
 
+### 2.4 TransactionBuilder 实际行为澄清（v1.4 评审反馈）
+
+**澄清项**：Phase 2.6 Task Contract §3.5 中描述的 `commit(DocumentEditor editor, EditorHistory history)` 伪代码与实际实现不一致。
+
+| 项 | Task Contract §3.5 描述（已过时） | 实际实现（v1.2+） |
+|----|--------------------------------|------------------|
+| commit 签名 | `bool commit(DocumentEditor editor, EditorHistory history)` | `Transaction commit({String? label})` |
+| apply 责任 | commit 时批量 apply ops 到 editor | **不在 commit 时 apply**（BlockOperations 已 eager apply） |
+| history push | commit 内部 push 到 history | **不在 commit 时 push**（由 `onChange` 回调触发，调用方控制） |
+| rollback 责任 | commit 失败时逆序 revert 已 apply 的 op | **不在 commit 时 revert**（rollback 仅清空 ops，不 revert） |
+| 原子性保证 | TransactionBuilder 提供原子性 | **原子性责任在调用方**（BlockOperations eager apply，失败需调用方逆序 revert） |
+
+**这是有意的设计决策**（已 dartdoc 文档化在 [transaction_builder.dart:12-13](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/transaction_builder.dart)）：
+
+> **apply 责任**：本类只负责 **收集** op + 构造 [Transaction]。
+> 实际 apply 到 [DocumentEditor] 的责任在 [EditorHistory] 或调用方。
+
+**理由**：
+- `BlockOperations` 采用 eager apply 语义：每个原语调用立即 apply 到 editor，让调用方可直接读 editor 状态
+- TransactionBuilder 保持职责单一（只构造 Transaction），避免与 DocumentEditor 直接耦合
+- 失败回滚由调用方负责（[transaction_rollback_atomicity_test.dart](file:///d:/Projects/Active/math/flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 已有 rollback helper 范本）
+
+**对 Phase 3 UI 接入的影响**：
+- ✅ UI 在 `TransactionBuilder.onChange` 回调中 push 到 `EditorHistory` + 触发 UI rebuild
+- ⚠️ 若 UI 需要原子性（多个 BlockOperation 必须全部成功或全部失败），UI 需自行实现 rollback helper
+- 建议在 ADR-0009 TransactionExecutor 启动时统一提供原子性保证（已登记为 Phase 2.8+ 候选）
+
+**Action Item**：Phase 2.6 Task Contract §3.5 的伪代码已过时，但 Phase 2.6 已 closed 不修改。本节作为权威澄清，以实际代码 [transaction_builder.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/transaction_builder.dart) 为准。
+
 ---
 
 ## 3. ADR 合规性评审
