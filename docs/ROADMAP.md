@@ -118,11 +118,95 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
+## Phase 2.8：Integration Hardening（集成加固）
+
+**目标**：用 5 类集成测试验证"零件正确 → 系统正确"，输出 Phase 2 Exit Gate Report + Architecture Review Report。
+
+**前置条件**：Phase 2.7 完成。
+
+**核心理念**：Phase 2.1~2.7 验证"零件正确"（单测覆盖每个原语），Phase 2.8 验证"系统正确"（5 类集成测试覆盖完整编辑闭环）。
+
+### 任务
+
+| # | 任务 | 产出 | 状态 |
+|---|------|------|------|
+| 2.8.1 | 编辑闭环集成测试（TC-EDIT-8.1） | 11 tests | ✅ feat/phase2.8-integration-hardening |
+| 2.8.2 | Transaction+History 集成测试（TC-EDIT-8.2） | 12 tests | ✅ feat/phase2.8-integration-hardening |
+| 2.8.3 | IME+Transaction 集成测试（TC-EDIT-8.3） | 16 tests | ✅ feat/phase2.8-integration-hardening |
+| 2.8.4 | Parser/Serializer 一致性集成测试（TC-EDIT-8.4） | 17 tests | ✅ feat/phase2.8-integration-hardening |
+| 2.8.5 | Performance Baseline 集成测试（TC-EDIT-8.5） | 9 tests | ✅ feat/phase2.8-integration-hardening |
+| 2.8.6 | Phase 2 Exit Gate Report | [phase2-exit-gate-report.md](file:///d:/Projects/Active/math/docs/releases/phase2-exit-gate-report.md) | ✅ |
+| 2.8.7 | Architecture Review Report | [phase2-architecture-review.md](file:///d:/Projects/Active/math/docs/releases/phase2-architecture-review.md) | ✅ |
+
+### Phase 2.8 期间发现并修复的 P0/P1
+
+- **P0**：`BlockOperation._applyInsert` redo 时不复用首次分配的 newId，导致后续依赖该 BlockId 的 op redo 时 apply 失败。修复方式：用 `revertContext[kNewId]` 作为 `preserveId` 传给 `editor.insertBlock`
+- **P1**：`EditorHistory` 未暴露 `maxHistorySize` 参数，1000 次 undo 受默认 50 限制。修复：新增 `maxHistorySize` 可选构造参数（向后兼容）
+
+### 退出条件（Phase 2 Exit Gate）
+
+- [x] 块编辑内核可脱离 UI 独立运行（纯 Dart 逻辑，0 反向依赖）
+- [x] 所有块类型有单元测试覆盖（9 种 BlockType 全覆盖）
+- [x] 1000 行文档增量解析 < 16ms（per-block 0.0752ms）
+- [x] 中文输入法组合态正确处理（TC-EDIT-8.3 16 测试验证三铁律）
+
+详见 [Phase 2 Exit Gate Report](file:///d:/Projects/Active/math/docs/releases/phase2-exit-gate-report.md) + [Architecture Review Report](file:///d:/Projects/Active/math/docs/releases/phase2-architecture-review.md)。
+
+---
+
+## Phase 2.9：UI Architecture Prototype（UI 架构原型）
+
+**目标**：用 **设计 + 4 个 Prototype Demo** 验证"用户体验 → UI Interaction Model → BlockEditor API → Transaction → AST"五层映射的正确性，**不写正式 UI 代码**。
+
+**前置条件**：Phase 2.8 完成（Phase 2 Exit Gate PASS）。
+
+**核心理念**：Phase 2.1~2.8 解决"数据和逻辑正确性"，Phase 2.9 验证"前面设计是否真的适合用户交互"。直接进入 Phase 3 写 Widget 可能出现 UI 推翻核心模型的问题——Phase 2.9 用设计 + Prototype 提前暴露风险。
+
+**关键架构约束（Hard Rules）**：
+
+1. **AST 零污染**：禁止在 `DocumentElement` / `document.dart` 新增 UI 状态字段（isFocused / isSelected / selection 等）。UI 状态单独建模（`BlockViewState`），通过 `BlockId` 关联到 AST
+2. **Command Layer 强制**：所有 UI 事件必须经 `EditorCommand` → `TransactionBuilder` → `BlockOperation`，禁止 UI 直接调 `BlockOperations`
+3. **BlockRenderer 抽象**：新增 Block 类型只增加 renderer，不改 BlockEditor 核心
+4. **Phase 3 冻结边界**：Phase 2.9 只产出设计文档 + Prototype Demo，不修改 `lib/presentation/` 正式代码、不接入生产路由
+
+详见 [Phase 2.9 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase2.9-task-contract.md) + [ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)。
+
+### 任务
+
+| # | 任务 | 产出 | 类型 |
+|---|------|------|------|
+| 2.9.1 | UI 心智模型定义 | [UI-ARCHITECTURE.md](file:///d:/Projects/Active/math/docs/UI-ARCHITECTURE.md) §1-2 | 架构决策类（草案） |
+| 2.9.2 | UI 状态模型设计 | UI-ARCHITECTURE.md §3 + [ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md) | 架构决策类（草案） |
+| 2.9.3 | 交互事件模型设计 | [Interaction-Model.md](file:///d:/Projects/Active/math/docs/Interaction-Model.md) + ADR-0009 | 架构决策类（草案） |
+| 2.9.4 | UI Prototype 验证（4 个 Demo） | `flutter_app/lib/presentation/prototype/` | 新建代码目录 |
+| 2.9.5 | 核心接口冻结 | [Component-Tree.md](file:///d:/Projects/Active/math/docs/Component-Tree.md) + ADR-0009 | 架构决策类（草案） |
+
+### 4 个 Prototype Demo
+
+| Demo | 验证内容 | 文件 |
+|------|---------|------|
+| Demo 1 | 单 Block 双态切换（render ↔ edit + 修改 source round-trip） | `demo1_dual_state_block.dart` |
+| Demo 2 | 两个 Block 导航（ArrowDown/Up 在块间移动 focus） | `demo2_block_navigation.dart` |
+| Demo 3 | Undo/Redo（UI → Transaction → History 闭环 3 次） | `demo3_undo_redo.dart` |
+| Demo 4 | 复杂 Block 共存（Paragraph + 公式 + 代码块 + focus 切换） | `demo4_complex_blocks.dart` |
+
+### 退出条件（Phase 2.9 Exit Gate）
+
+- [ ] 5 个设计文档定稿（Human Owner 签字）
+- [ ] ADR-0009 Accepted（Human Owner 签字）
+- [ ] ROADMAP 新增 Phase 2.9 节（Human Owner commit）
+- [ ] 4 个 Demo 可运行 + 通过手动验证场景
+- [ ] flutter analyze 0 warning
+- [ ] flutter test 0 regression（Phase 2.8 的 841 tests 仍 PASS）
+- [ ] **核心接口冻结**：BlockEditor API / Transaction / BlockRenderer 接口在 Phase 3 不再变更
+
+---
+
 ## Phase 3：UI Implementation
 
 **目标**：基于 Phase 2 的编辑模型，实现所见即所得 UI。
 
-**前置条件**：Phase 2 全部退出。
+**前置条件**：Phase 2.9 全部退出（核心接口冻结 + 4 个 Prototype 验证通过）。
 
 ### 任务
 
@@ -192,6 +276,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 2.7 进行中（Markdown 快捷输入映射）  
-**最近更新**：2026-07-20（Phase 2.6 关闭 + Phase 2.7 启动 + ADR-0008 v1.1 修订）  
+**当前阶段**：Phase 2.9 启动中（UI Architecture Prototype）  
+**最近更新**：2026-07-20（Phase 2.8 完成 + Phase 2 Exit Gate PASS + Phase 2.9 启动 + ADR-0009 草案）  
 **维护人**：首席架构工程师
