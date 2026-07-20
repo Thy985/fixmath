@@ -1,0 +1,123 @@
+# PR 自动代码审查 — 四级审查体系
+name: Claude 自动审查
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  auto-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 分析 PR 规模
+        id: analyze
+        shell: bash --noprofile --norc {0}
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          DIFF_STATS=$(git diff --shortstat origin/${BASE_REF}...HEAD 2>/dev/null || true)
+          echo "DEBUG: DIFF_STATS='$DIFF_STATS'"
+
+          ADDED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"insertion") print $i}' || true)
+          DELETED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"deletion") print $i}' || true)
+          FILES=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"file") print $i}' || true)
+
+          ADDED=${ADDED:-0}
+          DELETED=${DELETED:-0}
+          FILES=${FILES:-0}
+          TOTAL=$((ADDED + DELETED))
+
+          echo "DEBUG: ADDED=$ADDED DELETED=$DELETED FILES=$FILES TOTAL=$TOTAL"
+
+          {
+            echo "files=$FILES"
+            echo "added=$ADDED"
+            echo "deleted=$DELETED"
+            echo "total=$TOTAL"
+          } >> "$GITHUB_OUTPUT"
+
+          CHANGED_FILES=$(git diff --name-only origin/${BASE_REF}...HEAD || true)
+
+          HAS_INFRA="false"
+          echo "$CHANGED_FILES" | grep -qE '(schema|migration|architecture|infra|docker|k8s|deploy|\.github/workflows)' && HAS_INFRA="true" || true
+          echo "has_infra=$HAS_INFRA" >> "$GITHUB_OUTPUT"
+
+          NEW_DIRS=$(git diff --diff-filter=A --name-only origin/${BASE_REF}...HEAD 2>/dev/null | xargs -I{} dirname {} 2>/dev/null | sort -u | grep -v '^\.$' | wc -l || echo 0)
+          echo "new_dirs=$NEW_DIRS" >> "$GITHUB_OUTPUT"
+
+          HAS_TESTS="false"
+          echo "$CHANGED_FILES" | grep -qE '(test|spec|__tests__)' && HAS_TESTS="true" || true
+          echo "has_tests=$HAS_TESTS" >> "$GITHUB_OUTPUT"
+
+          if [ "$TOTAL" -le 30 ] && [ "$FILES" -le 3 ]; then
+            echo "level=0" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 0 快速检查" >> "$GITHUB_OUTPUT"
+            echo "max_turns=10" >> "$GITHUB_OUTPUT"
+          elif [ "$TOTAL" -le 300 ] && [ "$FILES" -le 15 ]; then
+            echo "level=1" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 1 普通代码 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=20" >> "$GITHUB_OUTPUT"
+          elif [ "$TOTAL" -le 1000 ] && [ "$FILES" -le 30 ]; then
+            echo "level=2" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 2 设计 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=30" >> "$GITHUB_OUTPUT"
+          else
+            echo "level=3" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 3 架构 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=40" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "Analysis complete: $ADDED+/$DELETED- in $FILES files, Level: $(cat "$GITHUB_OUTPUT" | grep level_name | cut -d= -f2)"
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic"
+          ANTHROPIC_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR TITLE: ${{ github.event.pull_request.title }}
+
+            变更: ${{ steps.analyze.outputs.added }}+/${{ steps.analyze.outputs.deleted }}- in ${{ steps.analyze.outputs.files }} files
+            审查级别: ${{ steps.analyze.outputs.level_name }}
+
+            ---
+
+            根据审查级别执行对应检查：
+
+            [Level 0] 简短确认：解决目的？引入Bug？测试通过？代码规范？10行内回复。
+
+            [Level 1] 代码Review：
+            代码层：清晰？重复？可维护？
+            测试层：核心路径覆盖？异常处理？
+            接口层：破坏已有接口？数据结构合理？
+            对具体代码问题用 inline comment。
+
+            [Level 2] 设计Review（在 Level 1 基础上增加）：
+            设计层：模块边界？数据所有权？扩展性？是否需要ADR？
+            变更影响：影响范围？数据迁移？分阶段发布？
+            先输出设计评审，再输出代码检查。
+
+            [Level 3] 架构Review（在 Level 1+2 基础上增加）：
+            架构：合理性？可扩展性？容灾？性能？安全？运维成本？
+            输出完整架构评审报告+风险矩阵。
+
+            最终结论：✅可以合并 / ⚠️建议修改后合并 / ❌需重大修改
+
+          claude_args: |
+            --model deepseek-v4-flash
+            --max-turns ${{ steps.analyze.outputs.max_turns }}
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
