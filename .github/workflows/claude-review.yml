@@ -25,23 +25,23 @@ jobs:
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          DIFF_STATS=$(git diff --shortstat origin/${BASE_REF}...HEAD)
+          set +e
+          DIFF_STATS=$(git diff --shortstat origin/${BASE_REF}...HEAD 2>/dev/null)
 
-          # 用 awk 提取数字，避免 grep 在 pipefail 下失败
           ADDED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"insertion") print $i}')
           DELETED=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"deletion") print $i}')
           FILES=$(echo "$DIFF_STATS" | awk '{for(i=1;i<=NF;i++) if($(i+1)~"file") print $i}')
+          set -e
 
-          # 如果为空则默认 0
           ADDED=${ADDED:-0}
           DELETED=${DELETED:-0}
           FILES=${FILES:-0}
           TOTAL=$((ADDED + DELETED))
 
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-          echo "added=$ADDED" >> $GITHUB_OUTPUT
-          echo "deleted=$DELETED" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          echo "added=$ADDED" >> "$GITHUB_OUTPUT"
+          echo "deleted=$DELETED" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
 
           CHANGED_FILES=$(git diff --name-only origin/${BASE_REF}...HEAD)
 
@@ -49,33 +49,33 @@ jobs:
           if echo "$CHANGED_FILES" | grep -qE '(schema|migration|architecture|infra|docker|k8s|deploy|\.github/workflows)'; then
             HAS_INFRA="true"
           fi
-          echo "has_infra=$HAS_INFRA" >> $GITHUB_OUTPUT
+          echo "has_infra=$HAS_INFRA" >> "$GITHUB_OUTPUT"
 
           NEW_DIRS=$(git diff --diff-filter=A --name-only origin/${BASE_REF}...HEAD | xargs -I{} dirname {} | sort -u | grep -v '^\.$' | wc -l || echo 0)
-          echo "new_dirs=$NEW_DIRS" >> $GITHUB_OUTPUT
+          echo "new_dirs=$NEW_DIRS" >> "$GITHUB_OUTPUT"
 
           HAS_TESTS="false"
           if echo "$CHANGED_FILES" | grep -qE '(test|spec|__tests__)'; then
             HAS_TESTS="true"
           fi
-          echo "has_tests=$HAS_TESTS" >> $GITHUB_OUTPUT
+          echo "has_tests=$HAS_TESTS" >> "$GITHUB_OUTPUT"
 
           if [ "$TOTAL" -le 30 ] && [ "$FILES" -le 3 ]; then
-            echo "level=0" >> $GITHUB_OUTPUT
-            echo "level_name=Level 0 快速检查" >> $GITHUB_OUTPUT
-            echo "max_turns=10" >> $GITHUB_OUTPUT
+            echo "level=0" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 0 快速检查" >> "$GITHUB_OUTPUT"
+            echo "max_turns=10" >> "$GITHUB_OUTPUT"
           elif [ "$TOTAL" -le 300 ] && [ "$FILES" -le 15 ]; then
-            echo "level=1" >> $GITHUB_OUTPUT
-            echo "level_name=Level 1 普通代码 Review" >> $GITHUB_OUTPUT
-            echo "max_turns=20" >> $GITHUB_OUTPUT
+            echo "level=1" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 1 普通代码 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=20" >> "$GITHUB_OUTPUT"
           elif [ "$TOTAL" -le 1000 ] && [ "$FILES" -le 30 ]; then
-            echo "level=2" >> $GITHUB_OUTPUT
-            echo "level_name=Level 2 设计 Review" >> $GITHUB_OUTPUT
-            echo "max_turns=30" >> $GITHUB_OUTPUT
+            echo "level=2" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 2 设计 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=30" >> "$GITHUB_OUTPUT"
           else
-            echo "level=3" >> $GITHUB_OUTPUT
-            echo "level_name=Level 3 架构 Review" >> $GITHUB_OUTPUT
-            echo "max_turns=40" >> $GITHUB_OUTPUT
+            echo "level=3" >> "$GITHUB_OUTPUT"
+            echo "level_name=Level 3 架构 Review" >> "$GITHUB_OUTPUT"
+            echo "max_turns=40" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: anthropics/claude-code-action@v1
