@@ -60,7 +60,6 @@ jobs:
           echo "has_tests=$HAS_TESTS" >> "$GITHUB_OUTPUT"
 
           if [ "$TOTAL" -le 30 ] && [ "$FILES" -le 3 ]; then
-            echo "level=0"
             echo "level=0" >> "$GITHUB_OUTPUT"
             echo "level_name=Level 0 快速检查" >> "$GITHUB_OUTPUT"
             echo "max_turns=10" >> "$GITHUB_OUTPUT"
