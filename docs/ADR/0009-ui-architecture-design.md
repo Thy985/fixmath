@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 4 项决议 + 新增 CommandHandler 中间层）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联文档**：[ADR-0007](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) / [ADR-0008](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md) / [Phase 2.9 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase2.9-task-contract.md)
+> **关联文档**：[ADR-0007](docs/ADR/0007-blockeditor-abstraction-design.md) / [ADR-0008](docs/ADR/0008-editor-transaction-model.md) / [Phase 2.9 Task Contract](docs/contracts/phase2.9-task-contract.md)
 
 ## 版本修订记录
 
@@ -41,11 +41,11 @@ Phase 3 即将进入 UI 实现，但若直接写 Widget，可能出现：
 
 ### 现有约束
 
-- [ADR-0003](file:///d:/Projects/Active/math/docs/ADR/0003-storage-single-source-md-files.md)：单一真相源（.md 文件），UI 状态不持久化
-- [ADR-0007](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) §1.3：Block 是 AST 的编辑态视图（Wrapping 而非 Flattening）
-- [ADR-0008](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md) §9：BlockId 是 in-memory identity，不跨序列化持久化
-- [ADR-0008](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md) §10：TransactionExecutor 是 Phase 2.8+ 候选（tech debt）
-- [AGENTS.md §6.5](file:///d:/Projects/Active/math/AGENTS.md)：Phase 2 期间 UI 行为冻结，Phase 2.9 仍属 Phase 2 范畴
+- [ADR-0003](docs/ADR/0003-storage-single-source-md-files.md)：单一真相源（.md 文件），UI 状态不持久化
+- [ADR-0007](docs/ADR/0007-blockeditor-abstraction-design.md) §1.3：Block 是 AST 的编辑态视图（Wrapping 而非 Flattening）
+- [ADR-0008](docs/ADR/0008-editor-transaction-model.md) §9：BlockId 是 in-memory identity，不跨序列化持久化
+- [ADR-0008](docs/ADR/0008-editor-transaction-model.md) §10：TransactionExecutor 是 Phase 2.8+ 候选（tech debt）
+- [AGENTS.md §6.5](AGENTS.md)：Phase 2 期间 UI 行为冻结，Phase 2.9 仍属 Phase 2 范畴
 
 ### 触发本 ADR 的事件
 
@@ -94,7 +94,7 @@ class BlockViewState {
 2. 通过 `Map<BlockId, BlockViewState>` 索引
 3. Block 删除时同步清理对应 view state
 4. Block 移动时 view state 跟随（不变 BlockId 即不变 state）
-5. 不跨序列化持久化（与 BlockId 一致，[ADR-0008 §9](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)）
+5. 不跨序列化持久化（与 BlockId 一致，[ADR-0008 §9](docs/ADR/0008-editor-transaction-model.md)）
 
 **禁止**（Hard Rule）：
 - ❌ 在 `DocumentElement` 新增 `isFocused` / `isSelected` / `selection` / `scrollPosition` 等 UI 字段
@@ -103,14 +103,17 @@ class BlockViewState {
 
 ### 3. 交互事件模型：Command Layer + CommandHandler
 
-**决策**（v1.1 修订）：所有 UI 事件必须经 `EditorCommand → CommandHandler → TransactionBuilder → Transaction → TransactionExecutor` 路径，**EditorCommand 不直接操作 TransactionBuilder**。
+**决策**（v1.1 修订）：所有 UI 事件必须经 `EditorCommand → CommandHandler → TransactionBuilder → Transaction` 路径，**EditorCommand 不直接操作 TransactionBuilder**。
+
+> **注**：`TransactionExecutor` 是未来 ADR-0010 候选（接管 Transaction 生命周期 / notification / concurrency），当前 v1.1 由 `CommandHandler` 隐式承担执行职责。详见 §3.6。
 
 **核心原则**：
 - **Command 是用户意图**：来自键盘 / AI / 语音 / 菜单 / 手势，描述"用户想做什么"
-- **Executor 是执行机制**：负责 TransactionBuilder 生命周期 / notification / batch apply / concurrency
-- **二者职责分离**：Command 不感知执行细节，Executor 不感知意图来源
+- **Handler 是意图分发器**：解释 Command 为 BlockOperation 序列，并管理 TransactionBuilder 生命周期
+- **Executor 是未来扩展位**：当前 CommandHandler 隐式承担，未来 ADR-0010 接管
+- **二者职责分离**：Command 不感知执行细节，Handler 不感知意图来源
 
-#### 3.1 五层执行流
+#### 3.1 五层执行流（v1.1 当前）
 
 ```
 Keyboard / AI / Voice / Menu / Gesture
@@ -119,7 +122,7 @@ Keyboard / AI / Voice / Menu / Gesture
    EditorCommand（用户意图，纯数据）
         │
         ↓
-   CommandHandler（意图分发 + 守卫 + 上下文构造）
+   CommandHandler（意图分发 + 守卫 + TransactionBuilder 生命周期 + history push）
         │
         ↓
    TransactionBuilder（内核：构造 Transaction）
@@ -128,11 +131,10 @@ Keyboard / AI / Voice / Menu / Gesture
    Transaction（一组 BlockOperation 容器）
         │
         ↓
-   TransactionExecutor（执行 + notification + history push）
-        │
-        ↓
    DocumentEditor → AST mutation
 ```
+
+> **未来 ADR-0010 启用后**：在 `CommandHandler` 与 `TransactionBuilder` 之间插入 `TransactionExecutor` 层（接管 notification / concurrency / batch apply）。当前 v1.1 不引入此层，避免 Phase 2.9 过度设计。详见 §3.6。
 
 #### 3.2 EditorCommand 接口（v1.1 修订）
 
@@ -144,7 +146,7 @@ Keyboard / AI / Voice / Menu / Gesture
 /// - 改为描述意图（payload），由 CommandHandler 解释为 BlockOperation
 /// - 这样 Command 可序列化、可记录、可重放（用于 AI / 录制回放 / 协同编辑）
 ///
-/// 详见 [ADR-0009 §3](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3](docs/ADR/0009-ui-architecture-design.md)
 @immutable
 abstract class EditorCommand {
   /// 人类可读的 Command 名称（用于 Undo/Redo 菜单显示）
@@ -180,7 +182,7 @@ enum CommandOrigin {
 ///
 /// **不持有 UI 状态**：CommandHandler 是纯逻辑层，由 BlockEditorWidgetState 持有
 ///
-/// 详见 [Interaction-Model.md §2](file:///d:/Projects/Active/math/docs/Interaction-Model.md)
+/// 详见 [Interaction-Model.md §2](docs/Interaction-Model.md)
 class CommandHandler {
   final BlockEditor _editor;
 
@@ -341,11 +343,11 @@ class BlockRendererRegistry {
 
 | 接口 | 当前位置 | 冻结内容 |
 |------|---------|---------|
-| `BlockEditor` API | [ADR-0007 §1.1](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) | 接口签名 |
-| `Transaction` / `TransactionBuilder` | [ADR-0008 §1-3](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md) | commit / rollback / 嵌套 |
-| `BlockOperations` 五原语 + transform | [block_operations.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/block_operations.dart) | 6 个方法签名 |
-| `EditorHistory` coalescing | [editor_history.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/editor_history.dart) | 7 触发条件 |
-| `ComposingController` 三铁律 | [composing_controller.dart](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/composing_controller.dart) | 3 条铁律 |
+| `BlockEditor` API | [ADR-0007 §1.1](docs/ADR/0007-blockeditor-abstraction-design.md) | 接口签名 |
+| `Transaction` / `TransactionBuilder` | [ADR-0008 §1-3](docs/ADR/0008-editor-transaction-model.md) | commit / rollback / 嵌套 |
+| `BlockOperations` 五原语 + transform | [block_operations.dart](flutter_app/lib/core/editing/block_operations.dart) | 6 个方法签名 |
+| `EditorHistory` coalescing | [editor_history.dart](flutter_app/lib/core/editing/editor_history.dart) | 7 触发条件 |
+| `ComposingController` 三铁律 | [composing_controller.dart](flutter_app/lib/core/editing/composing_controller.dart) | 3 条铁律 |
 
 **新增接口**（Phase 2.9 设计，Phase 3 实现）：
 - `EditorCommand`（abstract class）
@@ -376,7 +378,7 @@ class HeadingElement extends DocumentElement {
 1. **序列化复杂度**：`toElement` / `fromElement` 必须排除 UI 字段（易出 bug）
 2. **多视图冲突**：同一 AST 被多个 UI 实例（如预览 + 编辑）共享时，UI 状态冲突
 3. **测试复杂度**：AST 单元测试必须 mock UI 状态
-4. **架构倒退**：违反六层架构（[AGENTS.md §1.1](file:///d:/Projects/Active/math/AGENTS.md)），`data/` 层反向持有 `presentation/` 概念
+4. **架构倒退**：违反六层架构（[AGENTS.md §1.1](AGENTS.md)），`data/` 层反向持有 `presentation/` 概念
 
 **正例**（BlockViewState 与 AST 解耦）：
 ```dart
@@ -484,7 +486,7 @@ class SplitBlockCommand implements EditorCommand {
 **否决理由**：
 1. Command 是 UI 层概念（与 Focus / Selection / Keyboard 强耦合）
 2. 放入内核会让内核反向依赖 UI 概念（如 TextSelection）
-3. 违反 [AGENTS.md §1.1](file:///d:/Projects/Active/math/AGENTS.md) 六层架构（core 不允许 import presentation）
+3. 违反 [AGENTS.md §1.1](AGENTS.md) 六层架构（core 不允许 import presentation）
 
 ### 替代方案 C：BlockViewState 与 Widget State 合并
 
@@ -563,7 +565,7 @@ class SplitBlockCommand implements EditorCommand {
 
 ### 2. 功能验证（4 个 Demo）
 
-详见 [Phase 2.9 Task Contract §3.4](file:///d:/Projects/Active/math/docs/contracts/phase2.9-task-contract.md)
+详见 [Phase 2.9 Task Contract §3.4](docs/contracts/phase2.9-task-contract.md)
 
 ### 3. 架构验证
 
@@ -574,11 +576,11 @@ class SplitBlockCommand implements EditorCommand {
 
 ## 参考文档
 
-- [Phase 2.9 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase2.9-task-contract.md)
-- [ADR-0007 BlockEditor 抽象设计](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md)
-- [ADR-0008 Transaction Model](file:///d:/Projects/Active/math/docs/ADR/0008-editor-transaction-model.md)
-- [AGENTS.md §1.1 六层架构](file:///d:/Projects/Active/math/AGENTS.md)
-- [ROADMAP Phase 2.9](file:///d:/Projects/Active/math/docs/ROADMAP.md)（待新增）
+- [Phase 2.9 Task Contract](docs/contracts/phase2.9-task-contract.md)
+- [ADR-0007 BlockEditor 抽象设计](docs/ADR/0007-blockeditor-abstraction-design.md)
+- [ADR-0008 Transaction Model](docs/ADR/0008-editor-transaction-model.md)
+- [AGENTS.md §1.1 六层架构](AGENTS.md)
+- [ROADMAP Phase 2.9](docs/ROADMAP.md)（待新增）
 
 ---
 

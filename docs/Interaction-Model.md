@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 CommandHandler 中间层修订）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联 ADR**：[ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+> **关联 ADR**：[ADR-0009](docs/ADR/0009-ui-architecture-design.md)
 > **范围**：定义用户操作如何映射到 EditorCommand → CommandHandler → Transaction → AST
 
 ## 版本修订记录
@@ -86,7 +86,7 @@
 /// - 改为描述意图（payload），由 [CommandHandler] 解释为 BlockOperation
 /// - 这样 Command 可序列化、可记录、可重放（用于 AI / 录制回放 / 协同编辑）
 ///
-/// 详见 [ADR-0009 §3](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3](docs/ADR/0009-ui-architecture-design.md)
 @immutable
 abstract class EditorCommand {
   /// 人类可读的 Command 名称（用于 Undo/Redo 菜单显示）
@@ -126,7 +126,7 @@ enum CommandOrigin {
 ///
 /// **不持有 UI 状态**：CommandHandler 是纯逻辑层，由 BlockEditorWidgetState 持有
 ///
-/// 详见 [ADR-0009 §3.3](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3.3](docs/ADR/0009-ui-architecture-design.md)
 class CommandHandler {
   final BlockEditor _editor;
 
@@ -438,7 +438,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **解决方案**：
 1. **UI 层 debounce**：300ms 内多次文本变化合并为一次 `UpdateBlockSourceCommand`
-2. **Coalescing 自动合并**：[EditorHistory](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation（< 500ms）
+2. **Coalescing 自动合并**：[EditorHistory](flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation（< 500ms）
 
 **Coalescing 与 Command 的边界**：
 - Coalescing 在 Transaction 层（内核）
@@ -473,7 +473,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 ### 4.3 IME 组合态守门
 
-**核心约束**（[ADR-0007 §5](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律）：
+**核心约束**（[ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律）：
 
 1. **铁律 1**：composing 态下，所有 BlockOperation 被拒绝
 2. **铁律 2**：composing commit 时，入栈 Transaction（origin = ime）
@@ -482,7 +482,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 **对 Command 的影响**：
 - composing 态下，所有 Command 执行失败（`BlockOperation` 守门）
 - UI 层应在 composing 态下禁用键盘快捷键（如 Alt+Up / Shift+Enter）
-- composing commit 自动触发 `UpdateBlockSourceCommand`（通过 [ComposingController.onComposingCommit](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/composing_controller.dart)）
+- composing commit 自动触发 `UpdateBlockSourceCommand`（通过 [ComposingController.onComposingCommit](flutter_app/lib/core/editing/composing_controller.dart)）
 
 ---
 
@@ -518,7 +518,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **实现**：
 - 每个 Command 产生一个 Transaction
-- Undo 时撤销一个 Transaction（[EditorHistory.undo](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/editor_history.dart)）
+- Undo 时撤销一个 Transaction（[EditorHistory.undo](flutter_app/lib/core/editing/editor_history.dart)）
 - Coalescing 合并的多个 Transaction 在 Undo 时一次撤销
 
 ### 6.2 Redo 行为
@@ -526,7 +526,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 **核心原则**：一次 Redo = 重做一个 Command
 
 **实现**：
-- [EditorHistory.redo](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/editor_history.dart)
+- [EditorHistory.redo](flutter_app/lib/core/editing/editor_history.dart)
 - Redo 后 UI 需重建对应 BlockWidget
 
 ### 6.3 Undo/Redo 时的 UI 同步
@@ -555,7 +555,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 **解决方案**：
 - **UI 层 debounce**：300ms 内多次文本变化合并为一次 `UpdateBlockSourceCommand`
-- **Coalescing 自动合并**：[EditorHistory](file:///d:/Projects/Active/math/flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation
+- **Coalescing 自动合并**：[EditorHistory](flutter_app/lib/core/editing/editor_history.dart) 的 coalescing 7 触发条件会自动合并连续 keyboard TextOperation
 
 **实现**：
 ```dart
@@ -605,12 +605,12 @@ class _BlockWidgetState extends State<BlockWidget> {
 
 **策略**：
 - `BlockOperation.apply` 失败时，op 不加入 TransactionBuilder
-- 已 apply 的 op 需调用方逆序 revert（[transaction_rollback_atomicity_test.dart](file:///d:/Projects/Active/math/flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 的 rollback helper）
+- 已 apply 的 op 需调用方逆序 revert（[transaction_rollback_atomicity_test.dart](flutter_app/test/editing/transaction_rollback_atomicity_test.dart) 的 rollback helper）
 - UI 层在 Command 内捕获异常并返回 false
 
 ### 8.3 不显示 detail 给用户
 
-**核心约束**（[AGENTS.md §6.1.3](file:///d:/Projects/Active/math/AGENTS.md)）：
+**核心约束**（[AGENTS.md §6.1.3](AGENTS.md)）：
 - 禁止把异常 `detail` / `stack` 直接显示给用户
 - Command 返回 false 时，UI 显示友好提示（如 "操作无法完成"）
 

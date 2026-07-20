@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 4 项决议 + 新增 CommandHandler 中间层）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联 ADR**：[ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+> **关联 ADR**：[ADR-0009](docs/ADR/0009-ui-architecture-design.md)
 > **范围**：定义 FormulaFix UI 架构心智模型 + 状态模型 + 组件结构
 
 ## 版本修订记录
@@ -114,7 +114,7 @@ HeadingElement(           ┌─────────────────
 
 ### 3.1 BlockViewState 设计
 
-**核心原则**：UI 状态单独建模，不污染 AST（[ADR-0009 §2](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)）
+**核心原则**：UI 状态单独建模，不污染 AST（[ADR-0009 §2](docs/ADR/0009-ui-architecture-design.md)）
 
 ```dart
 /// UI 层 Block 视图状态（不污染 AST）。
@@ -143,7 +143,23 @@ class BlockViewState {
 
   /// IME composing region（仅 composing 态有效）
   ///
-  /// 中文输入法组合态期间，记录 composing 起止位置
+  /// 中文输入法组合态期间，记录 composing 起止位置。
+  ///
+  /// **与 ComposingController 的同步策略**（v1.1 补充）：
+  /// - `ComposingController`（`lib/core/editing/composing_controller.dart`）是
+  ///   composing 态的唯一真相源（Single Source of Truth），负责 IME 三铁律守门
+  ///   （[ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md)）
+  /// - `BlockViewState.composingRegion` 是其**只读镜像**，仅用于 UI 渲染（如显示
+  ///   composing 下划线）
+  /// - **写入方向**：`ComposingController.onComposingStart / onComposingCommit /
+  ///   onComposingCancel` 回调 → `BlockEditorWidgetState` 同步刷新对应块的
+  ///   `composingRegion`
+  /// - **禁止反向写入**：UI 不直接修改 `BlockViewState.composingRegion`，必须经
+  ///   `ComposingController` 守门后回调同步
+  /// - **生命周期**：composing cancel 时 `ComposingController` 清空自身状态并
+  ///   触发回调，UI 同步将 `composingRegion` 置 null
+  /// - **跨块约束**：composing 期间不可切换 focus（IME 三铁律铁律 1 守门），
+  ///   故同一时刻最多一个块的 `composingRegion != null`
   final ComposingRegion? composingRegion;
 
   const BlockViewState({
@@ -170,6 +186,66 @@ class BlockViewState {
   }
 }
 ```
+
+### 3.1.1 composingRegion 同步时序（v1.1 补充）
+
+```
+用户输入拼音 → TextField 触发 composing
+        │
+        ↓
+ComposingController.onComposingStart(blockId, region)
+        │  ← ComposingController 守门：进入 composing 态
+        ↓
+BlockEditorWidgetState._onComposingStart
+        │
+        ↓
+setState: _viewStates[blockId] = state.copyWith(composingRegion: region)
+        │
+        ↓
+BlockWidget rebuild → EditModeWidget 显示 composing 下划线
+
+─────────────── commit 路径 ───────────────
+
+用户选择候选词 → IME commit
+        │
+        ↓
+ComposingController.onComposingCommit(blockId, newSource)
+        │  ← ComposingController 内部：
+        │     1. CommandHandler.handle(UpdateBlockSourceCommand(origin: ime))
+        │     2. 触发 TransactionBuilder.onChange → history.pushTransaction
+        │     3. 清空自身 composing 态
+        ↓
+BlockEditorWidgetState._onComposingCommit
+        │
+        ↓
+setState: _viewStates[blockId] = state.copyWith(composingRegion: null)
+        │
+        ↓
+BlockWidget rebuild → EditModeWidget 显示 commit 后文本
+
+─────────────── cancel 路径 ───────────────
+
+用户按 Esc / 切换焦点 → IME cancel
+        │
+        ↓
+ComposingController.onComposingCancel(blockId)
+        │  ← ComposingController 内部：
+        │     1. 不入栈 Transaction（铁律 3）
+        │     2. 清空自身 composing 态
+        ↓
+BlockEditorWidgetState._onComposingCancel
+        │
+        ↓
+setState: _viewStates[blockId] = state.copyWith(composingRegion: null)
+        │
+        ↓
+BlockWidget rebuild → EditModeWidget 恢复 commit 前文本
+```
+
+**关键约束**：
+- UI 不得直接修改 `BlockViewState.composingRegion`，必须经 `ComposingController` 守门
+- composing 期间所有 `EditorCommand` 被 `CommandHandler` 守卫拒绝（铁律 1）
+- composing commit / cancel 后必须立即同步 `composingRegion = null`，避免 UI 残留下划线
 
 ### 3.2 BlockViewState 管理策略
 
@@ -305,7 +381,7 @@ BlockEditorWidget
 | `EditorCommand`（abstract） + `CommandOrigin` enum + 各 Command 实现 | `lib/presentation/commands/` | 纯数据 Command |
 | `CommandHandler` | `lib/presentation/commands/command_handler.dart` | 业务逻辑类（v1.1 新增） |
 
-详见 [Component-Tree.md §1.2](file:///d:/Projects/Active/math/docs/Component-Tree.md)。
+详见 [Component-Tree.md §1.2](docs/Component-Tree.md)。
 
 ### 4.2 BlockWidget 内部结构
 
@@ -523,7 +599,7 @@ class BlockRendererRegistry {
 **AST 不克隆**：
 - BlockWidget 直接读 `editor.getBlock(id)`，不持有副本
 - 修改通过 `CommandHandler.handle(EditorCommand)`，不直接修改 AST
-- 详见 [Interaction-Model.md §2](file:///d:/Projects/Active/math/docs/Interaction-Model.md)（v1.1 流：EditorCommand → CommandHandler → TransactionBuilder → BlockOperation）
+- 详见 [Interaction-Model.md §2](docs/Interaction-Model.md)（v1.1 流：EditorCommand → CommandHandler → TransactionBuilder → BlockOperation）
 
 ### 6.3 IME 性能
 
@@ -531,7 +607,7 @@ class BlockRendererRegistry {
 - composing 态时，BlockWidget 不触发 setState（避免光标跳动）
 - composing commit 后，通过 Command 提交，再重建
 
-**详见 [ADR-0007 §5](file:///d:/Projects/Active/math/docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律**
+**详见 [ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律**
 
 ---
 

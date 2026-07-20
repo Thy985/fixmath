@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 4 项决议 + 新增 CommandHandler）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联 ADR**：[ADR-0009](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+> **关联 ADR**：[ADR-0009](docs/ADR/0009-ui-architecture-design.md)
 > **范围**：冻结 UI 层组件树结构 + 核心接口
 
 ## 版本修订记录
@@ -336,7 +336,7 @@ class EditModeWidget extends StatelessWidget {
 ```dart
 /// UI 层 Block 视图状态（不污染 AST）
 ///
-/// 详见 [ADR-0009 §2](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §2](docs/ADR/0009-ui-architecture-design.md)
 @immutable
 class BlockViewState {
   final BlockId id;
@@ -393,7 +393,7 @@ class BlockViewState {
 ///
 /// 新增 Block 类型只需新增 [BlockRenderer] 实现，不改 BlockEditor 核心
 ///
-/// 详见 [ADR-0009 §4](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §4](docs/ADR/0009-ui-architecture-design.md)
 abstract class BlockRenderer {
   /// 构建块的 render 态 Widget（最终样式）
   ///
@@ -476,7 +476,7 @@ class BlockRendererRegistry {
 ## 5. EditorCommand + CommandHandler 接口冻结（v1.1 修订）
 
 > **v1.1 关键变更**：EditorCommand 改为纯数据（不含 execute 方法），执行逻辑由 [CommandHandler] 承担。
-> 详见 [Interaction-Model.md §2](file:///d:/Projects/Active/math/docs/Interaction-Model.md) + [ADR-0009 §3](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+> 详见 [Interaction-Model.md §2](docs/Interaction-Model.md) + [ADR-0009 §3](docs/ADR/0009-ui-architecture-design.md)
 
 ### 5.1 EditorCommand 抽象（纯数据）
 
@@ -490,7 +490,7 @@ class BlockRendererRegistry {
 ///
 /// Command 是 Undo/Redo 的语义边界
 ///
-/// 详见 [Interaction-Model.md §2.1](file:///d:/Projects/Active/math/docs/Interaction-Model.md)
+/// 详见 [Interaction-Model.md §2.1](docs/Interaction-Model.md)
 @immutable
 abstract class EditorCommand {
   /// 人类可读的 Command 名称（用于 Undo/Redo 菜单显示）
@@ -530,7 +530,7 @@ enum CommandOrigin {
 ///
 /// **不持有 UI 状态**：CommandHandler 是纯逻辑层，由 BlockEditor 持有
 ///
-/// 详见 [ADR-0009 §3.3](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3.3](docs/ADR/0009-ui-architecture-design.md)
 class CommandHandler {
   final BlockEditor _editor;
 
@@ -642,7 +642,7 @@ void _onEnterPressed(BlockId blockId, int offset) {
 ```dart
 /// 块间 focus 管理
 ///
-/// 详见 [UI-ARCHITECTURE.md §3.3](file:///d:/Projects/Active/math/docs/UI-ARCHITECTURE.md)
+/// 详见 [UI-ARCHITECTURE.md §3.3](docs/UI-ARCHITECTURE.md)
 class BlockFocusManager {
   final BlockEditor _editor;
   final Map<BlockId, BlockViewState> _viewStates;
@@ -703,13 +703,13 @@ class BlockFocusManager {
 - 修改 `EditorCommand` / `CommandHandler` / `BlockRenderer` / `BlockViewState` 抽象接口签名
 - 修改 `BlockEditorWidget` / `BlockWidget` 公开 API
 - 让 `EditorCommand` 重新带上 execute 方法（违反 v1.1 纯数据原则）
-- 在 `DocumentElement` 新增 UI 状态字段（[ADR-0009 §2](file:///d:/Projects/Active/math/docs/ADR/0009-ui-architecture-design.md) Hard Rule）
+- 在 `DocumentElement` 新增 UI 状态字段（[ADR-0009 §2](docs/ADR/0009-ui-architecture-design.md) Hard Rule）
 
 ---
 
 ## 8. 文件大小约束
 
-按 [AGENTS.md §1.2](file:///d:/Projects/Active/math/AGENTS.md) 单一职责 + 400 行限制：
+按 [AGENTS.md §1.2](AGENTS.md) 单一职责 + 400 行限制：
 
 | 文件 | 预估行数 | 是否需拆分 |
 |------|---------|----------|
