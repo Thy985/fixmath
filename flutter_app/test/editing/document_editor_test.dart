@@ -116,15 +116,15 @@ void main() {
     group('insertBlock', () {
       test('空 editor 插入第 1 块，blockCount == 1', () {
         final editor = _MockDocumentEditor();
-        final id = editor.insertBlock(0, ParagraphElement(children: [TextElement('hello')]));
+        final id = editor.insertBlock(0, const ParagraphElement(children: [TextElement('hello')]));
         expect(editor.blockCount, equals(1));
         expect(id.value, greaterThanOrEqualTo(100));
       });
 
       test('返回新 BlockId（>=100，唯一）', () {
         final editor = _MockDocumentEditor();
-        final id1 = editor.insertBlock(0, ParagraphElement(children: [TextElement('a')]));
-        final id2 = editor.insertBlock(1, ParagraphElement(children: [TextElement('b')]));
+        final id1 = editor.insertBlock(0, const ParagraphElement(children: [TextElement('a')]));
+        final id2 = editor.insertBlock(1, const ParagraphElement(children: [TextElement('b')]));
         expect(id1, isNot(equals(id2)));
         expect(id1.value, greaterThanOrEqualTo(100));
         expect(id2.value, greaterThan(id1.value));
@@ -133,7 +133,7 @@ void main() {
       test('index 越界抛 RangeError', () {
         final editor = _MockDocumentEditor();
         expect(
-          () => editor.insertBlock(5, ParagraphElement(children: [TextElement('x')])),
+          () => editor.insertBlock(5, const ParagraphElement(children: [TextElement('x')])),
           throwsRangeError,
         );
       });
@@ -150,7 +150,7 @@ void main() {
       test('找不到 id 抛 StateError', () {
         final editor = _MockDocumentEditor();
         expect(
-          () => editor.removeBlock(BlockId(999)),
+          () => editor.removeBlock(const BlockId(999)),
           throwsStateError,
         );
       });
@@ -160,14 +160,14 @@ void main() {
       test('返回旧元素', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
-        final old = editor.replaceBlock(id, ParagraphElement(children: [TextElement('new')]));
+        final old = editor.replaceBlock(id, const ParagraphElement(children: [TextElement('new')]));
         expect(old, isA<ParagraphElement>());
       });
 
       test('replace 后旧 BlockId 失效（新 BlockId 重新分配）', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
-        editor.replaceBlock(id, ParagraphElement(children: [TextElement('new')]));
+        editor.replaceBlock(id, const ParagraphElement(children: [TextElement('new')]));
         expect(editor.getBlock(id), isNull);
       });
     });
@@ -176,7 +176,7 @@ void main() {
       test('保持 BlockId 不变（v1.1 评审反馈 1 联动）', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
-        editor.updateBlockContent(id, ParagraphElement(children: [TextElement('new')]));
+        editor.updateBlockContent(id, const ParagraphElement(children: [TextElement('new')]));
         // BlockId 仍能找到（不变）
         expect(editor.getBlock(id), isNotNull);
       });
@@ -184,7 +184,7 @@ void main() {
       test('内容已更新', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
-        editor.updateBlockContent(id, ParagraphElement(children: [TextElement('new')]));
+        editor.updateBlockContent(id, const ParagraphElement(children: [TextElement('new')]));
         final element = editor.getBlock(id);
         expect(element, isA<ParagraphElement>());
       });
@@ -192,7 +192,7 @@ void main() {
       test('找不到 id 抛 StateError', () {
         final editor = _MockDocumentEditor();
         expect(
-          () => editor.updateBlockContent(BlockId(999), ParagraphElement(children: [TextElement('x')])),
+          () => editor.updateBlockContent(const BlockId(999), const ParagraphElement(children: [TextElement('x')])),
           throwsStateError,
         );
       });
@@ -217,12 +217,12 @@ void main() {
 
       test('indexOf 找不到返回 -1', () {
         final editor = _MockDocumentEditor();
-        expect(editor.indexOf(BlockId(999)), equals(-1));
+        expect(editor.indexOf(const BlockId(999)), equals(-1));
       });
 
       test('getBlock 找不到返回 null', () {
         final editor = _MockDocumentEditor();
-        expect(editor.getBlock(BlockId(999)), isNull);
+        expect(editor.getBlock(const BlockId(999)), isNull);
       });
     });
 

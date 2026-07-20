@@ -32,7 +32,7 @@ void main() {
 
       final newId = ops.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('world')]),
+        const ParagraphElement(children: [TextElement('world')]),
       );
 
       expect(newId, isNotNull);
@@ -52,7 +52,7 @@ void main() {
       expect(builder.opCount, equals(0));
       ops.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('b')]),
+        const ParagraphElement(children: [TextElement('b')]),
       );
       expect(builder.opCount, equals(1));
     });
@@ -65,7 +65,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
       ops.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('b')]),
+        const ParagraphElement(children: [TextElement('b')]),
       );
 
       final tx = builder.commit();
@@ -81,7 +81,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
       ops.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('world')]),
+        const ParagraphElement(children: [TextElement('world')]),
       );
 
       expect(editor.blockCount, equals(2));
@@ -100,8 +100,8 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       final newId = ops.insertAfter(
-        BlockId(999),
-        ParagraphElement(children: [TextElement('x')]),
+        const BlockId(999),
+        const ParagraphElement(children: [TextElement('x')]),
       );
 
       expect(newId, isNull);
@@ -164,7 +164,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.delete(BlockId(999)), isFalse);
+      expect(ops.delete(const BlockId(999)), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -220,7 +220,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.merge(BlockId(999), rightId), isFalse);
+      expect(ops.merge(const BlockId(999), rightId), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -283,7 +283,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.split(BlockId(999), 1), isFalse);
+      expect(ops.split(const BlockId(999), 1), isFalse);
       expect(builder.opCount, equals(0));
     });
   });
@@ -352,7 +352,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.move(aId, BlockId(999), before: true), isFalse);
+      expect(ops.move(aId, const BlockId(999), before: true), isFalse);
       expect(builder.opCount, equals(0));
     });
   });

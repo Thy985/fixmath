@@ -12,8 +12,8 @@ class AppColors {
 
   static const lightText = Color(0xFF000000);
   static const darkText = Color(0xFFFFFFFF);
-  static const lightTextSecondary = Color(0xFF000000DE);
-  static const darkTextSecondary = Color(0xFFFFFFFFB3);
+  static const lightTextSecondary = Color(0xff000000de);
+  static const darkTextSecondary = Color(0xffffffffb3);
 
   static const codeBlockBg = Color(0xFFF5F5F5);
   static const darkCodeBlockBg = Color(0xFF2D2D2D);
@@ -69,7 +69,7 @@ class AppShadows {
 
   static List<BoxShadow> card({bool isDark = false}) => [
     BoxShadow(
-      color: (isDark ? Colors.black : Colors.black).withOpacity(0.05),
+      color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.05),
       blurRadius: 10,
       offset: const Offset(0, 2),
     ),

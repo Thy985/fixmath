@@ -170,14 +170,12 @@ class FormulaSvgService {
 
   static String _js(String s) {
     // Escape backslash first, then quotes, then control chars
-    return "'" +
-        s
+    return "'${s
             .replaceAll('\\', '\\\\')
             .replaceAll("'", "\\'")
             .replaceAll('\r', '\\r')
             .replaceAll('\n', '\\n')
-            .replaceAll('\t', '\\t') +
-        "'";
+            .replaceAll('\t', '\\t')}'";
   }
 
   /// 由 [MermaidRendererHost] 的 onConsoleMessage 调用。

@@ -55,7 +55,7 @@ void main() {
       expect(
         () => ctx.ops.insertAfter(
           ctx.targetId,
-          ParagraphElement(children: [TextElement('x')]),
+          const ParagraphElement(children: [TextElement('x')]),
         ),
         throwsStateError,
       );

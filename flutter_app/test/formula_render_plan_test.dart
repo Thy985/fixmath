@@ -108,7 +108,7 @@ void main() {
     /// "Unexpected extension byte (at offset 1)"。
     test('非 BMP 字符 + 未配对 surrogate 混合：清洗后必须能 utf8.encode', () {
       // 真实场景模拟：MathJax 输出的 SVG 包含数学符号 + 偶尔的孤立 surrogate
-      final input = '<svg viewBox="0 0 200 50">'
+      const input = '<svg viewBox="0 0 200 50">'
           '<text>𝑀</text>' // 𝑀 = U+1D44C (非 BMP，UTF-16: D835 D44C)
           '<text>\uD800</text>' // 孤立 high surrogate
           '<text>end</text>'

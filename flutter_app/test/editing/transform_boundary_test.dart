@@ -42,7 +42,7 @@ void main() {
 
         final op = BlockOperation(
           opType: BlockOpType.transform,
-          targetId: BlockId(999),
+          targetId: const BlockId(999),
           transformedType: BlockType.heading,
         );
 

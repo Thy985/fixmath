@@ -27,12 +27,12 @@ void main() {
       );
 
       builder.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'a',
       ));
       builder.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 1,
         inserted: 'b',
       ));
@@ -100,7 +100,7 @@ void main() {
       );
 
       builder.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'x',
       ));
@@ -116,7 +116,7 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.keyboard);
 
       builder.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'x',
       ));
@@ -164,7 +164,7 @@ void main() {
       );
 
       builder.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'x',
       ));
@@ -189,7 +189,7 @@ void main() {
 
       expect(
         () => builder.add(TextOperation(
-          blockId: BlockId(1),
+          blockId: const BlockId(1),
           offset: 0,
         )),
         throwsStateError,
@@ -216,7 +216,7 @@ void main() {
 
       expect(
         () => builder.add(TextOperation(
-          blockId: BlockId(1),
+          blockId: const BlockId(1),
           offset: 0,
         )),
         throwsStateError,
@@ -248,13 +248,13 @@ void main() {
       );
 
       parent.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'a',
       ));
 
       child.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 1,
         inserted: 'b',
       ));
@@ -291,7 +291,7 @@ void main() {
       );
 
       parent.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'a',
       ));
@@ -301,7 +301,7 @@ void main() {
         parent: parent,
       );
       child.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 1,
         inserted: 'b',
       ));
@@ -312,7 +312,7 @@ void main() {
         parent: parent,
       );
       child2.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 2,
         inserted: 'c',
       ));
@@ -330,7 +330,7 @@ void main() {
     test('子 rollback 不影响 parent 已收集的 ops', () {
       final parent = TransactionBuilder(origin: TransactionOrigin.keyboard);
       parent.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 0,
         inserted: 'parent-op',
       ));
@@ -340,7 +340,7 @@ void main() {
         parent: parent,
       );
       child.add(TextOperation(
-        blockId: BlockId(1),
+        blockId: const BlockId(1),
         offset: 1,
         inserted: 'child-op',
       ));

@@ -235,7 +235,7 @@ void main() {
         final editor = MockDocumentEditor();
 
         final op = TextOperation(
-          blockId: BlockId(999),
+          blockId: const BlockId(999),
           offset: 0,
           inserted: 'x',
         );
@@ -331,7 +331,7 @@ void main() {
           editor.updateBlockContent(
             id,
             // 仅 1 字符（apply 时 inserted.length=3 触发边界失败）
-            ParagraphElement(children: [TextElement('a')]),
+            const ParagraphElement(children: [TextElement('a')]),
           );
 
           expect(

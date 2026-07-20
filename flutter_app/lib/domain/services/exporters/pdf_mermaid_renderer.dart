@@ -96,7 +96,7 @@ pw.Widget _buildSvgInPdf(String svg, {pw.Font? cjkFont}) {
       ),
       child: pw.Text(
         '[Mermaid SVG - ${svg.length} 字符]',
-        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
       ),
     );
   }
@@ -138,7 +138,7 @@ pw.Widget _buildMermaidFallback(String code) {
         pw.SizedBox(height: 6),
         pw.Text(
           code,
-          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
         ),
       ],
     ),

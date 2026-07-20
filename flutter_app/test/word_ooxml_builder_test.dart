@@ -185,7 +185,7 @@ void main() {
     /// 文档里留下断链的 rIdImageN —— 应当走 _formulaFallback 文本回退。
     test('formulaRels 中值为 null 时，文档中显示 LaTeX 文本而不是空', () {
       final elements = <DocumentElement>[
-        ParagraphElement(children: const <InlineElement>[
+        const ParagraphElement(children: <InlineElement>[
           TextElement('二次方程 '),
           FormulaElement(latex: 'x^2 + bx + c = 0'),
           TextElement(' 的解。'),
@@ -244,7 +244,7 @@ void main() {
   group('buildDocumentXml Unicode / Surrogate 处理', () {
     test('标题含 emoji 不产生未配对 surrogate（utf8.encode 成功）', () {
       final elements = <DocumentElement>[
-        ParagraphElement(children: const <InlineElement>[
+        const ParagraphElement(children: <InlineElement>[
           TextElement('标题里的 emoji 😄 应正确编码'),
         ]),
       ];
@@ -270,7 +270,7 @@ void main() {
     test('正文含数学字母数字符号 U+1D400 不被截断', () {
       const input = '变量 𝑀 表示质量'; // 𝑀 = U+1D44C
       final elements = <DocumentElement>[
-        ParagraphElement(children: const <InlineElement>[
+        const ParagraphElement(children: <InlineElement>[
           TextElement(input),
         ]),
       ];

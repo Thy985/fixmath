@@ -418,7 +418,7 @@ class ExportService {
       ExportFormat.txt => 'TXT',
     };
     final sw = Stopwatch()..start();
-    debugPrint('[Export:${formatLabel}] start, markdown length=${markdown.length}');
+    debugPrint('[Export:$formatLabel] start, markdown length=${markdown.length}');
 
     if (markdown.trim().isEmpty) {
       throw ExportFailureException(
@@ -435,10 +435,10 @@ class ExportService {
     final Uint8List bytes;
     try {
       bytes = await exporter(markdown).timeout(_exportTimeout);
-      debugPrint('[Export:${formatLabel}] render done, bytes=${bytes.length}');
+      debugPrint('[Export:$formatLabel] render done, bytes=${bytes.length}');
     } on TimeoutException {
       debugPrint(
-        '[Export:${formatLabel}] TIMEOUT after ${sw.elapsedMilliseconds}ms in render stage. '
+        '[Export:$formatLabel] TIMEOUT after ${sw.elapsedMilliseconds}ms in render stage. '
         '常见原因：(1) 公式/Mermaid 预渲染挂死 (FormulaRenderHost 未挂载或 WebView 卡死); '
         '(2) 文档过大, 拼装 PDF/Word 耗时超过 120s。',
       );
@@ -446,7 +446,7 @@ class ExportService {
         '导出在渲染阶段超时（${_exportTimeout.inSeconds}s）',
       )));
     } catch (e) {
-      debugPrint('[Export:${formatLabel}] render failed: $e');
+      debugPrint('[Export:$formatLabel] render failed: $e');
       throw ExportFailureException(classifyError(e));
     }
 
@@ -463,7 +463,7 @@ class ExportService {
 
     try {
       await file.writeAsBytes(bytes);
-      debugPrint('[Export:${formatLabel}] file written: ${file.path}');
+      debugPrint('[Export:$formatLabel] file written: ${file.path}');
 
       // 等待分享完成或超时
       try {
@@ -471,15 +471,15 @@ class ExportService {
           [XFile(file.path)],
           text: 'FormulaFix $extension',
         ).timeout(_shareTimeout);
-        debugPrint('[Export:${formatLabel}] share completed in ${sw.elapsedMilliseconds}ms');
+        debugPrint('[Export:$formatLabel] share completed in ${sw.elapsedMilliseconds}ms');
       } on TimeoutException {
         debugPrint(
-          '[Export:${formatLabel}] share UI timeout after ${_shareTimeout.inSeconds}s, '
+          '[Export:$formatLabel] share UI timeout after ${_shareTimeout.inSeconds}s, '
           'file still saved at: ${file.path}',
         );
       }
     } catch (e) {
-      debugPrint('[Export:${formatLabel}] write/share failed: $e');
+      debugPrint('[Export:$formatLabel] write/share failed: $e');
       throw ExportFailureException(classifyError(e));
     } finally {
       // 分享完成后（或超时后）再删除临时文件

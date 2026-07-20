@@ -34,7 +34,7 @@ void main() {
       );
       final ops = BlockOperations(editor, builder);
 
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('x')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('x')]));
       ops.delete(bId);
       ops.split(aId, 0);
 
@@ -54,7 +54,7 @@ void main() {
       final ops = BlockOperations(editor, builder);
 
       // 1. 在 a 后插入新块
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('NEW')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('NEW')]));
       // 2. 拆分 a
       ops.split(aId, 1);
       // 3. 删除 b
@@ -79,13 +79,13 @@ void main() {
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
 
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('b')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('b')]));
       expect(builder.opCount, equals(1));
 
-      ops.delete(BlockId(999));
+      ops.delete(const BlockId(999));
       expect(builder.opCount, equals(1));
 
-      ops.insertAfter(aId, ParagraphElement(children: [TextElement('c')]));
+      ops.insertAfter(aId, const ParagraphElement(children: [TextElement('c')]));
       expect(builder.opCount, equals(2));
     });
   });
@@ -102,7 +102,7 @@ void main() {
       // 不抛异常（无 composing controller 时不守门）
       final newId = ops.insertAfter(
         targetId,
-        ParagraphElement(children: [TextElement('world')]),
+        const ParagraphElement(children: [TextElement('world')]),
       );
 
       expect(newId, isNotNull);

@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:formula_fix/core/editing/block_operations.dart';
 import 'package:formula_fix/core/editing/block_types.dart';
-import 'package:formula_fix/core/editing/edit_operation.dart';
 import 'package:formula_fix/core/editing/transaction.dart';
 import 'package:formula_fix/core/editing/transaction_builder.dart';
 import 'package:formula_fix/data/models/document.dart';
@@ -117,7 +116,7 @@ void main() {
       final builder = _newBuilder();
       final ops = BlockOperations(editor, builder);
 
-      expect(ops.split(BlockId(999), 1), isFalse);
+      expect(ops.split(const BlockId(999), 1), isFalse);
 
       expect(builder.opCount, equals(0));
       expect(editor.blockCount, equals(0));
