@@ -168,9 +168,7 @@ class BlockOperation extends EditOperation {
     final rightSource = fromElement(rightElement);
 
     // 类型兼容性判断（ADR-0007 §4.1）
-    final leftType = BlockType.fromElement(leftElement);
-    final rightType = BlockType.fromElement(rightElement);
-    final mergedType = _mergeType(leftType, rightType);
+    final mergedType = _mergeType(leftElement, rightElement);
 
     final mergedSource = leftSource + rightSource;
     final mergedElement = toElement(mergedSource, mergedType);
@@ -209,16 +207,26 @@ class BlockOperation extends EditOperation {
     editor.insertBlock(rightOldIndex, rightElement, preserveId: targetId);
   }
 
-  BlockType _mergeType(BlockType left, BlockType right) {
+  BlockType _mergeType(DocumentElement left, DocumentElement right) {
     // ADR-0007 §4.1 类型兼容性：
     // - Paragraph + Paragraph → Paragraph
     // - List + List（同 ordered）→ List
+    // - List + List（异 ordered）→ 回退为 Paragraph
     // - 不兼容 → 回退为 Paragraph
-    if (left == BlockType.paragraph && right == BlockType.paragraph) {
+    final leftType = BlockType.fromElement(left);
+    final rightType = BlockType.fromElement(right);
+
+    if (leftType == BlockType.paragraph && rightType == BlockType.paragraph) {
       return BlockType.paragraph;
     }
-    if (left == BlockType.listItem && right == BlockType.listItem) {
-      return BlockType.listItem;  // ordered 由 toElement 内部处理
+    if (leftType == BlockType.listItem && rightType == BlockType.listItem) {
+      // 检查 ordered 字段是否一致（v1.3 评审反馈 P3 修订）
+      final leftList = left as ListElement;
+      final rightList = right as ListElement;
+      if (leftList.ordered != rightList.ordered) {
+        return BlockType.paragraph;  // 异 ordered 回退
+      }
+      return BlockType.listItem;
     }
     return BlockType.paragraph;  // 不兼容回退
   }
@@ -227,7 +235,7 @@ class BlockOperation extends EditOperation {
 
   bool _applySplit(DocumentEditor editor) {
     final offset = splitOffset;
-    if (offset == null || element == null) return false;
+    if (offset == null) return false;
 
     final targetIndex = editor.indexOf(targetId);
     if (targetIndex == -1) return false;

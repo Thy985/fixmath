@@ -128,6 +128,7 @@ void main() {
     test('op 自动加入 TransactionBuilder', () {
       final editor = MockDocumentEditor();
       final targetId = editor.addParagraph('a');
+      editor.addParagraph('b'); // P1 守卫：保证至少 1 块，故需 ≥2 块才能 delete
 
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
@@ -140,18 +141,19 @@ void main() {
       final editor = MockDocumentEditor();
       final targetId = editor.addParagraph('a');
       final targetIdValue = targetId.value;
+      editor.addParagraph('b'); // P1 守卫：保证至少 1 块，故需 ≥2 块才能 delete
 
       final builder = TransactionBuilder(origin: TransactionOrigin.programmatic);
       final ops = BlockOperations(editor, builder);
       ops.delete(targetId);
 
-      expect(editor.blockCount, equals(0));
+      expect(editor.blockCount, equals(1));
 
       for (final op in builder.ops.reversed) {
         op.revert(editor);
       }
-      expect(editor.blockCount, equals(1));
-      expect(editor.allSources, equals(['a']));
+      expect(editor.blockCount, equals(2));
+      expect(editor.allSources, equals(['a', 'b']));
       // revert 后 BlockId 保持稳定（preserveId）
       expect(editor.allIds.first.value, equals(targetIdValue));
     });
