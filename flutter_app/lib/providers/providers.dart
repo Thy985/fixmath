@@ -101,8 +101,12 @@ class CurrentDocumentNotifier extends StateNotifier<Document?> {
 }
 
 // ============ Editor Content + History ============
+//
+// **Phase 3.1-A PR #2 变更**：
+// `previewModeProvider` 从本文件移除（原违反 AGENTS.md §3.2「禁止在多个文件定义同名
+// Provider」）。唯一权威定义位于 `providers/editor_providers.dart`，仅供 legacy
+// `EditorScreen` fallback 使用。新 `EditorPage` 路径不再使用 previewMode（WYSIWYG 范式）。
 
-final previewModeProvider = StateProvider<bool>((ref) => false);
 final isExportingProvider = StateProvider<bool>((ref) => false);
 final searchQueryProvider = StateProvider<String>((ref) => '');
 

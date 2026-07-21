@@ -4,9 +4,17 @@ import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
 import '../../presentation/editor/editor_page.dart';
-import '../../presentation/editor/feature_flag.dart';
 import '../../core/constants/app_constants.dart';
 
+/// 应用路由表。
+///
+/// **Phase 3.1-A PR #2 起**：
+/// - `/editor` 默认指向新 [EditorPage]（Phase 3.0 production 路径）
+/// - `/editor-legacy` 指向旧 [EditorScreen]（fallback，迁移期保留）
+/// - `/editor3` 已移除（合并到 `/editor`）
+///
+/// 旧 UI 代码保留一个 release 周期，收集用户反馈后再决定是否完全删除
+/// （按 [phase3.1-task-contract.md v2.0 §3.4](../../docs/contracts/phase3.1-task-contract.md)）。
 final appRouter = GoRouter(
   initialLocation: '/files',
   errorBuilder: (context, state) => _ErrorScreen(error: state.error?.toString()),
@@ -19,26 +27,22 @@ final appRouter = GoRouter(
       path: '/documents',
       builder: (context, state) => const DocumentListScreen(),
     ),
+    // Phase 3.1-A PR #2：默认入口指向新 EditorPage（production 路径）
     GoRoute(
       path: '/editor',
       builder: (context, state) {
-        // Phase 3.0 feature flag：默认 false，使用旧 EditorScreen
-        // Phase 3.1 完成后改为 true，使用新 EditorPage
-        if (kEnableNewEditor) {
-          final seedSelector = state.extra as int?;
-          return EditorPage(seedSelector: seedSelector ?? 0);
-        }
-        final openPath = state.extra as String?;
-        return EditorScreen(initialPath: openPath);
-      },
-    ),
-    // Phase 3.0 测试路由：始终使用新 EditorPage，不受 feature flag 影响
-    // Phase 3.1 完成后可移除（届时 /editor 默认指向新 UI）
-    GoRoute(
-      path: '/editor3',
-      builder: (context, state) {
         final seedSelector = state.extra as int?;
         return EditorPage(seedSelector: seedSelector ?? 0);
+      },
+    ),
+    // Phase 3.1-A PR #2：旧 EditorScreen 作为 fallback 路由（迁移期保留）
+    // 入口隐藏在 EditorAppBar 设置中，普通用户不会发现。
+    // Phase 3.17 完成后移除此路由 + editor_screen.dart 文件。
+    GoRoute(
+      path: '/editor-legacy',
+      builder: (context, state) {
+        final openPath = state.extra as String?;
+        return EditorScreen(initialPath: openPath);
       },
     ),
   ],
