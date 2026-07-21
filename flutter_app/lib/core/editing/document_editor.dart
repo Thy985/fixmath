@@ -22,11 +22,21 @@ import 'package:formula_fix/core/editing/block_types.dart';
 /// - notification 责任在 [TransactionBuilder.commit] 一层（1 commit = 1 notification）
 /// - 所有 op 用 [BlockId] 定位（不用 index，因 index 在 insert/delete 后失效）
 ///
+/// v1.3 修订（Phase 2.9 PR 评审 R1）：新增 [allIds] getter，支持 CommandHandler
+/// 通过 [DocumentEditor] 接口查询相邻 BlockId（之前依赖 InMemoryDocumentEditor 的
+/// 辅助方法，导致循环依赖）。
+///
 /// 注：不加 `@immutable`，因实现类（如 mock / Phase 3 UI 实现类）必然持有可变状态。
 /// DocumentElement 本身保持 immutable（[document.dart:30](file:///d:/Projects/Active/math/flutter_app/lib/data/models/document.dart)）。
 abstract class DocumentEditor {
   /// 当前块数。
   int get blockCount;
+
+  /// 所有 [BlockId]（按文档顺序）。
+  ///
+  /// v1.3 新增。用于 CommandHandler 查询相邻 BlockId（如 merge prev / move up/down）。
+  /// 实现类应返回不可变列表（避免外部修改内部状态）。
+  List<BlockId> get allIds;
 
   /// 按 [BlockId] 查找块。
   ///

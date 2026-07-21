@@ -36,7 +36,7 @@ class BlockEditorFacade {
     required this.editor,
     required this.history,
   }) {
-    handler = CommandHandler(this);
+    handler = CommandHandler(editor: editor, history: history);
   }
 
   /// 从初始 [Document] 构造（每个段落成为一个块）。
@@ -86,6 +86,14 @@ class BlockEditorFacade {
   /// Undo 一步：从 history 弹出 Transaction，逆序 revert ops 到 editor。
   ///
   /// 返回被撤销的 Transaction（用于 UI 显示，如 "撤销：拆分块"），失败返回 null。
+  ///
+  /// **Prototype 限制**（PR 评审 R2，Phase 3.0 tech debt）：
+  /// `currentState` 使用空 Transaction（`ops: const []`）。
+  /// 这意味着 redo 后再 undo 时，从 redo 栈 pop 出来的 Transaction 是空的，
+  /// 即 redo → undo 链在第 2 步会丢失状态记录。
+  ///
+  /// Phase 3.0 需实现完整 state snapshot 机制（capture + restore），
+  /// 或改为 EditorHistory 接口要求调用方传入完整 currentState。
   Transaction? undo() {
     // current state snapshot（Prototype 简化：不保存完整 snapshot，传空 Transaction）
     final currentState = Transaction(
@@ -107,6 +115,10 @@ class BlockEditorFacade {
   /// Redo 一步：从 history 弹出 Transaction，顺序 apply ops 到 editor。
   ///
   /// 返回被重做的 Transaction，失败返回 null。
+  ///
+  /// **Prototype 限制**（PR 评审 R2，Phase 3.0 tech debt）：
+  /// 与 [undo] 相同，`currentState` 使用空 Transaction。
+  /// Phase 3.0 需实现完整 state snapshot。
   Transaction? redo() {
     final currentState = Transaction(
       id: TransactionId.next(),

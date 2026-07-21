@@ -134,6 +134,7 @@ class MockDocumentEditor implements DocumentEditor {
   }
 
   /// 返回当前所有 BlockId 列表（按顺序）。
+  @override
   List<BlockId> get allIds {
     return _blocks.map((e) => e.id).toList();
   }

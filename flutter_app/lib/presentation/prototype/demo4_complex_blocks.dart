@@ -28,6 +28,7 @@ class Demo4ComplexBlocks extends StatefulWidget {
 class _Demo4ComplexBlocksState extends State<Demo4ComplexBlocks> {
   late final BlockEditorFacade _facade;
   late final Map<BlockId, BlockViewState> _states;
+  // NOTE（R6）：FocusNode + TextEditingController + _onFocusChange + _commitSource 模式在 Demo 1/2/4 中重复。Phase 3.0 提取到 BlockEditController。
   late final Map<BlockId, TextEditingController> _controllers;
   late final Map<BlockId, FocusNode> _focusNodes;
   BlockId? _focusedId;

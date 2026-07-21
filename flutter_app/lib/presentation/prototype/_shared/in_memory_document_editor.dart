@@ -62,6 +62,14 @@ class InMemoryDocumentEditor implements DocumentEditor {
     throw StateError('BlockId not found: $id');
   }
 
+  /// **注意**（PR 评审 R5）：此方法会**变更 BlockId**（分配新 BlockId 给新 element）。
+  ///
+  /// 调用方在调用后必须更新所有持有旧 BlockId 的引用（如 BlockViewState、
+  /// focus 状态、UI 控制器等）。Prototype 阶段所有修改路径均使用
+  /// [updateBlockContent]（保持 BlockId 不变），故此方法目前**无调用路径**。
+  ///
+  /// Phase 3.0 迁移时若需用此方法（如 BlockType 转换），必须同步实现
+  /// BlockId 迁移通知机制，否则会导致 BlockViewState 失联。
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
     for (var i = 0; i < _blocks.length; i++) {
@@ -101,6 +109,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
   }
 
   /// 返回所有 [BlockId]（按顺序）。
+  @override
   List<BlockId> get allIds => _blocks.map((e) => e.id).toList(growable: false);
 
   /// 返回所有 [DocumentElement]（按顺序）。

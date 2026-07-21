@@ -11,25 +11,33 @@
 /// 5. 成功 → commit Transaction + push 到 [EditorHistory]
 /// 6. 失败 → rollback（清空已收集的 ops）
 ///
-/// **不持有 UI 状态**：CommandHandler 是纯逻辑层，由 [BlockEditorFacade] 持有。
+/// **不持有 UI 状态**：CommandHandler 是纯逻辑层，依赖 [DocumentEditor] +
+/// [EditorHistory] 两个内核抽象，不依赖任何 Facade/Coordinator（避免循环依赖）。
+///
+/// **依赖方向**（v1.1 修订，PR 评审 R1）：
+/// commands/ → core/editing/（单向依赖，不反向引用 prototype/_shared/）
 library;
 
 import '../../core/editing/block_operations.dart';
-import '../../core/editing/edit_operation.dart';
+import '../../core/editing/document_editor.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
-import '../prototype/_shared/block_editor_facade.dart';
 import 'commands.dart';
 import 'editor_command.dart';
 
 /// CommandHandler：解释 [EditorCommand] 为 [BlockOperation] 序列。
 ///
-/// 由 [BlockEditorFacade] 持有。UI 层通过 `facade.handler.handle(command)` 处理用户事件。
+/// 依赖 [DocumentEditor] + [EditorHistory] 两个内核抽象。
+/// 由 Facade/Coordinator 持有并注入这两个依赖（避免循环引用）。
 class CommandHandler {
-  final BlockEditorFacade _facade;
+  /// 编辑器内核（持有 Document AST + BlockId 分配）。
+  final DocumentEditor editor;
 
-  CommandHandler(this._facade);
+  /// Undo / Redo 历史栈。
+  final EditorHistory history;
+
+  CommandHandler({required this.editor, required this.history});
 
   /// 处理 [command]，返回是否成功。
   ///
@@ -42,13 +50,13 @@ class CommandHandler {
   /// 6. 失败 → builder.rollback()
   bool handle(EditorCommand command) {
     // Prototype 阶段不接入 ComposingController，守卫跳过
-    // Phase 3 正式实现时：if (_facade.composing?.isActive == true) return false;
+    // Phase 3 正式实现时：if (composing?.isActive == true) return false;
 
     final builder = TransactionBuilder(
       origin: _toTransactionOrigin(command.origin),
-      onChange: (tx) => _facade.history.push(tx),
+      onChange: (tx) => history.push(tx),
     );
-    final operations = BlockOperations(_facade.editor, builder);
+    final operations = BlockOperations(editor, builder);
 
     final success = _dispatch(command, operations, builder);
     if (success) {
@@ -61,8 +69,12 @@ class CommandHandler {
 
   /// 分发 [command] 到对应处理方法。
   ///
-  /// 使用 switch 表达式，编译器不强制穷举（因 [EditorCommand] 非 sealed），
+  /// 使用 if-else 链，编译器不强制穷举（因 [EditorCommand] 非 sealed），
   /// 新增 Command 类型时需手动添加分支。
+  ///
+  /// **Tech Debt**（PR 评审 R4）：Phase 3.0 时将 [EditorCommand] 转为 sealed class，
+  /// 改用 switch 表达式强制穷举。当前通过自省测试守门
+  /// （见 test/presentation/commands/command_handler_dispatch_test.dart）。
   bool _dispatch(
     EditorCommand command,
     BlockOperations operations,
@@ -111,9 +123,9 @@ class CommandHandler {
   }
 
   bool _handleMerge(MergeWithPreviousCommand c, BlockOperations ops) {
-    final currentIndex = _facade.editor.indexOf(c.blockId);
+    final currentIndex = editor.indexOf(c.blockId);
     if (currentIndex <= 0) return false; // 第一块无法合并
-    final prevId = _facade.editor.allIds[currentIndex - 1];
+    final prevId = editor.allIds[currentIndex - 1];
     return ops.merge(prevId, c.blockId);
   }
 
@@ -127,16 +139,16 @@ class CommandHandler {
   }
 
   bool _handleMoveUp(MoveBlockUpCommand c, BlockOperations ops) {
-    final currentIndex = _facade.editor.indexOf(c.blockId);
+    final currentIndex = editor.indexOf(c.blockId);
     if (currentIndex <= 0) return false;
-    final prevId = _facade.editor.allIds[currentIndex - 1];
+    final prevId = editor.allIds[currentIndex - 1];
     return ops.move(c.blockId, prevId, before: true);
   }
 
   bool _handleMoveDown(MoveBlockDownCommand c, BlockOperations ops) {
-    final currentIndex = _facade.editor.indexOf(c.blockId);
-    if (currentIndex + 1 >= _facade.editor.blockCount) return false;
-    final nextId = _facade.editor.allIds[currentIndex + 1];
+    final currentIndex = editor.indexOf(c.blockId);
+    if (currentIndex + 1 >= editor.blockCount) return false;
+    final nextId = editor.allIds[currentIndex + 1];
     return ops.move(c.blockId, nextId, before: false);
   }
 

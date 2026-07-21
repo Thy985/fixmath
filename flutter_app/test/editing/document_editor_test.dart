@@ -29,6 +29,10 @@ class _MockDocumentEditor implements DocumentEditor {
   int get blockCount => _blocks.length;
 
   @override
+  List<BlockId> get allIds =>
+      _blocks.map((e) => e.id).toList(growable: false);
+
+  @override
   DocumentElement? getBlock(BlockId id) {
     for (final entry in _blocks) {
       if (entry.id == id) return entry.element;

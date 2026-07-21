@@ -29,6 +29,9 @@ class _Demo1DualStateBlockState extends State<Demo1DualStateBlock> {
   late final BlockEditorFacade _facade;
   late final BlockId _blockId;
   late BlockViewState _state;
+  // NOTE（PR 评审 R6）：FocusNode + TextEditingController + _onFocusChange +
+  // _commitSource 模式在 Demo 1/2/4 中重复。Phase 3.0 应提取到 BlockEditController
+  // 公共组件（lib/presentation/blocks/block_edit_controller.dart）。
   late final TextEditingController _textController;
   late final FocusNode _focusNode;
 

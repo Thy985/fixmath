@@ -25,6 +25,9 @@ class Demo2BlockNavigation extends StatefulWidget {
 class _Demo2BlockNavigationState extends State<Demo2BlockNavigation> {
   late final BlockEditorFacade _facade;
   late final Map<BlockId, BlockViewState> _states;
+  // NOTE（PR 评审 R6）：Map<BlockId, FocusNode/TextEditingController> +
+  // _onFocusChange + _commitSource 模式在 Demo 1/2/4 中重复。
+  // Phase 3.0 应提取到 BlockEditController 公共组件。
   late final Map<BlockId, TextEditingController> _controllers;
   late final Map<BlockId, FocusNode> _focusNodes;
   BlockId? _focusedId;
