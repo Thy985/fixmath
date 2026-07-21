@@ -91,7 +91,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 | # | 任务 | 来源 | 类型 | 风险 |
 |---|------|------|------|------|
 | 3.1.A.1 | R6 - `EditorCommand` 改为 sealed class | R6 | 类型强化 | 低（编译期） |
-| 3.1.A.2 | R4 - 提取 `BlockEditing` mixin | R4 | 重构 | 中（mixin 设计） |
+| 3.1.A.2 | R4 - 提取 `BaseBlockState` 抽象基类 | R4 | 重构 | 中（抽象类设计） |
 | 3.1.A.3 | EditorCoordinator 内部 state 拆分（不拆 Notifier） | R1 调整为弱化版 | 状态建模 | 低（仅内部重组） |
 | 3.1.A.4 | Default Editor Migration（新 UI 默认 + 旧 UI 降级为 fallback） | ROADMAP 3.1（重命名） | 范式切换 | 中（产品迁移） |
 | 3.1.A.5 | R5 - BlockId 迁移通知机制（备用） | R5 | 修复 | 低（当前无调用路径） |
@@ -198,12 +198,12 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 - 守门测试已覆盖 exhaustive
 - 独立 PR
 
-### 3.2 任务 3.1.A.2：R4 - 提取 `BlockEditing` mixin
+### 3.2 任务 3.1.A.2：R4 - 提取 `BaseBlockState` 抽象基类
 
 **输出**：`lib/presentation/blocks/base_block_state.dart` + 3 个 Block 改造
 
 **改动**：
-1. 提取 `mixin BlockEditing<T extends DocumentElement> on State<BlockWidget<T>>`
+1. 提取 `abstract class BaseBlockState<T extends StatefulWidget> extends State<T>`
 2. 共享逻辑：
    - `late final TextEditingController textController`
    - `late final FocusNode focusNode`
@@ -219,27 +219,23 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 - 提取后新增 Block 只需实现 `build()` + `_buildInlineSpan`
 
 **风险**：中
-- mixin 设计需仔细处理生命周期
+- 抽象类设计需仔细处理生命周期（Flutter State 是 class，mixin-on-class 约束较多）
 - 测试需覆盖 3 个 Block 双态切换行为不变
-- 守门测试需新增"mixin 不引入状态泄漏"（TC-ARCH-UI-10）
+- 守门测试需新增"抽象类共享样板不引入状态泄漏"（TC-ARCH-UI-10）
 
 ### 3.3 任务 3.1.A.3：EditorCoordinator 内部 state 拆分（弱化版 R1）
 
 **输出**：`lib/presentation/editor/editor_coordinator.dart`
 
 **改动**：
-1. 内部按状态职责拆分 state class（不拆 Notifier）：
-   ```dart
-   class EditorCoordinator extends ChangeNotifier {
-     final DocumentState document;    // 文档级状态（block list / source）
-     final FocusState focus;          // 焦点状态（focusedId / render mode）
-     final HistoryState history;      // 撤销历史（canUndo / canRedo）
-     // ...
-   }
-   ```
-2. 单一 `notifyListeners()` 保留（不拆分）
-3. 各 state 内部是不可变数据，外部通过 `coordinator.document.xxx` 访问
-4. 新增守门测试 TC-ARCH-UI-11（弱化版）：EditorCoordinator 内部按 state 拆分但 Notifier 不拆
+1. 将 `Map<BlockId, BlockViewState> _viewStates` + `BlockId? _focusedId` 两个可变字段合并为单一不可变 `CoordinatorState _state` 单字段
+2. `CoordinatorState` 是不可变聚合对象（`@immutable`），所有修改返回新副本：
+   - `updateViewState(id, state)` — 更新 UI 状态
+   - `focusOn(id)` — 聚焦，自动将旧块切回渲染态
+   - `clearFocusOf(id)` — 清除焦点
+   - `syncViewStates(ids)` — 同步 BlockId（增删）
+3. 单一 `notifyListeners()` 保留（不拆分 Notifier）
+4. 新增守门测试 TC-ARCH-UI-11（弱化版）：EditorCoordinator 持有 CoordinatorState 不可变单字段
 
 **为什么弱化（不拆 Notifier）**：
 - 完整版 R1 是"架构投资"，当前无 500 Block 性能瓶颈数据支撑
@@ -323,9 +319,9 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 
 | 测试 ID | 守门内容 | 文件 |
 |---------|---------|------|
-| TC-ARCH-UI-9 | `EditorCommand` 必须 sealed + 子类必须 final | `test/architecture/ui_command_sealed_test.dart` |
-| TC-ARCH-UI-10 | `BlockEditing` mixin 不引入状态泄漏 | `test/architecture/ui_mixin_isolation_test.dart` |
-| TC-ARCH-UI-11（弱化） | EditorCoordinator 内部按 state 拆分但 Notifier 不拆 | `test/architecture/ui_state_split_test.dart` |
+| TC-ARCH-UI-9 | `EditorCommand` 必须 sealed + 子类必须 final | `test/architecture/ui_phase31a_test.dart` |
+| TC-ARCH-UI-10 | `BaseBlockState` 抽象基类共享样板，3 个 Block 不重复声明 controller/focus | `test/architecture/ui_phase31a_test.dart` |
+| TC-ARCH-UI-11（弱化） | EditorCoordinator 持有 CoordinatorState 不可变单字段 | `test/architecture/ui_phase31a_test.dart` |
 | TC-ARCH-UI-14 | 旧 `editor_screen.dart` 仍存在（保留为 fallback） | `test/architecture/ui_editor_legacy_fallback_test.dart` |
 
 **对比 v1.0**：
@@ -377,7 +373,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 | TC-ARCH-UI-7 | chrome/ 不 import blocks/ / panels/ | 3.0 |
 | TC-ARCH-UI-8 | BlockRenderer 必须 exhaustive switch + 不允许 _ => fallback | 3.0 |
 | **TC-ARCH-UI-9** | EditorCommand 必须 sealed + 子类必须 final | **3.1-A 新增** |
-| **TC-ARCH-UI-10** | BlockEditing mixin 不引入状态泄漏 | **3.1-A 新增** |
+| **TC-ARCH-UI-10** | BaseBlockState 抽象基类共享样板，3 个 Block 不重复声明 controller/focus | **3.1-A 新增** |
 | **TC-ARCH-UI-11（弱化）** | EditorCoordinator 内部按 state 拆分但 Notifier 不拆 | **3.1-A 新增** |
 | **TC-ARCH-UI-14** | 旧 editor_screen.dart 仍存在（fallback 保留） | **3.1-A 新增** |
 
@@ -393,7 +389,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 
 - [ ] TC-ARCH-UI-1 ~ 8（Phase 3.0 沿用）全 PASS
 - [ ] TC-ARCH-UI-9（EditorCommand sealed）PASS
-- [ ] TC-ARCH-UI-10（BlockEditing mixin 隔离）PASS
+- [ ] TC-ARCH-UI-10（BaseBlockState 抽象基类共享样板）PASS
 - [ ] TC-ARCH-UI-11（state 拆分弱化版）PASS
 - [ ] TC-ARCH-UI-14（fallback 保留）PASS
 

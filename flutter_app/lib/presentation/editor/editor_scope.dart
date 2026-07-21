@@ -55,7 +55,7 @@ class EditorScope extends InheritedWidget {
   ///
   /// 用于测试 / 错误恢复场景。生产代码应使用 [EditorScope.of]。
   ///
-  /// **Phase 3.1-A 修订**：被 [BlockEditing] mixin 引用（mixin 不应假设 EditorScope
+  /// **Phase 3.1-A 修订**：被 [BaseBlockState] 引用（抽象类不应假设 EditorScope
   /// 一定存在——例如 EditorScope 在 widget tree 之外时）。
   static EditorScope? maybeOf(BuildContext context, {bool listen = false}) {
     if (listen) {
