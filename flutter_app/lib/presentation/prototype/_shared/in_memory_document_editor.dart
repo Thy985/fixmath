@@ -62,21 +62,58 @@ class InMemoryDocumentEditor implements DocumentEditor {
     throw StateError('BlockId not found: $id');
   }
 
-  /// **注意**（PR 评审 R5）：此方法会**变更 BlockId**（分配新 BlockId 给新 element）。
+  /// **Phase 3.1-A PR #2（R5）行为变更**：此方法默认**保持 [BlockId] 不变**
+  /// （不再默默分配新 BlockId 给新 element）。
   ///
-  /// 调用方在调用后必须更新所有持有旧 BlockId 的引用（如 BlockViewState、
-  /// focus 状态、UI 控制器等）。Prototype 阶段所有修改路径均使用
-  /// [updateBlockContent]（保持 BlockId 不变），故此方法目前**无调用路径**。
+  /// 调用方持有旧 [BlockId] 的引用（如 BlockViewState、focus 状态、UI 控制器）
+  /// 依然有效。
   ///
-  /// Phase 3.0 迁移时若需用此方法（如 BlockType 转换），必须同步实现
-  /// BlockId 迁移通知机制，否则会导致 BlockViewState 失联。
+  /// 若需分配新 [BlockId]（如 BlockType 转换场景），使用
+  /// [replaceBlockWithMigration] 显式选择并接受迁移回调。
+  ///
+  /// [replaceBlockKeepId] 是本方法的显式版本（行为相同，语义更清晰）。
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
+        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+        _blocks[i] = _Entry(id, element);
+        return old;
+      }
+    }
+    throw StateError('BlockId not found: $id');
+  }
+
+  /// 显式保持 [BlockId] 不变的替换（[replaceBlock] 的显式版本）。
+  ///
+  /// 行为等同 [replaceBlock]，但语义更清晰：调用方主动声明"保持 BlockId"。
+  @override
+  DocumentElement replaceBlockKeepId(BlockId id, DocumentElement element) {
+    return replaceBlock(id, element);
+  }
+
+  /// 替换 [id] 对应的块为 [element]，分配新 [BlockId]，并通过 [onMigrated]
+  /// 回调通知调用方迁移信息。
+  ///
+  /// **使用场景**：BlockType 转换（如 Paragraph → Heading）需要重建 element
+  /// 但保留 source；调用方在 [onMigrated] 中更新 BlockViewState / focus / UI
+  /// 控制器的 BlockId 引用。
+  ///
+  /// 若 [onMigrated] 为 null，行为等同旧版 `replaceBlock`（分配新 BlockId 但不通知），
+  /// 仅用于向后兼容（不推荐）。
+  @override
+  DocumentElement replaceBlockWithMigration(
+    BlockId id,
+    DocumentElement element, {
+    void Function(BlockId oldId, BlockId newId)? onMigrated,
+  }) {
+    for (var i = 0; i < _blocks.length; i++) {
+      if (_blocks[i].id == id) {
+        final old = _blocks[i].element;
         final newId = BlockId(_nextIdValue++);
         _blocks[i] = _Entry(newId, element);
+        onMigrated?.call(id, newId);
         return old;
       }
     }

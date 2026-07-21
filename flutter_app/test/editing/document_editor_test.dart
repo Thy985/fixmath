@@ -73,9 +73,31 @@ class _MockDocumentEditor implements DocumentEditor {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
-        // 替换：新 BlockId 由 DocumentEditor 重新分配（删除旧条目，插入新条目到同位置）
+        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+        _blocks[i] = _Entry(id, element);
+        return old;
+      }
+    }
+    throw StateError('BlockId not found: $id');
+  }
+
+  @override
+  DocumentElement replaceBlockKeepId(BlockId id, DocumentElement element) {
+    return replaceBlock(id, element);
+  }
+
+  @override
+  DocumentElement replaceBlockWithMigration(
+    BlockId id,
+    DocumentElement element, {
+    void Function(BlockId oldId, BlockId newId)? onMigrated,
+  }) {
+    for (var i = 0; i < _blocks.length; i++) {
+      if (_blocks[i].id == id) {
+        final old = _blocks[i].element;
         final newId = BlockId(_nextIdValue++);
         _blocks[i] = _Entry(newId, element);
+        onMigrated?.call(id, newId);
         return old;
       }
     }
@@ -160,7 +182,7 @@ void main() {
       });
     });
 
-    group('replaceBlock', () {
+    group('replaceBlock（R5：保持 BlockId 行为）', () {
       test('返回旧元素', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
@@ -168,11 +190,60 @@ void main() {
         expect(old, isA<ParagraphElement>());
       });
 
-      test('replace 后旧 BlockId 失效（新 BlockId 重新分配）', () {
+      test('replace 后 BlockId 保持不变（Phase 3.1-A PR #2 R5 行为变更）', () {
         final editor = _MockDocumentEditor();
         final id = editor.addParagraph('old');
         editor.replaceBlock(id, const ParagraphElement(children: [TextElement('new')]));
-        expect(editor.getBlock(id), isNull);
+        // R5：replaceBlock 默认保持 BlockId（之前是分配新 BlockId）
+        expect(editor.getBlock(id), isNotNull,
+            reason: 'R5：replaceBlock 后 BlockId 应保持有效');
+        expect(editor.getBlock(id), isA<ParagraphElement>());
+      });
+
+      test('replaceBlockKeepId 行为等同 replaceBlock', () {
+        final editor = _MockDocumentEditor();
+        final id = editor.addParagraph('old');
+        final old = editor.replaceBlockKeepId(
+            id, const ParagraphElement(children: [TextElement('new')]));
+        expect(old, isA<ParagraphElement>());
+        expect(editor.getBlock(id), isNotNull,
+            reason: 'replaceBlockKeepId 保持 BlockId 不变');
+      });
+
+      test('replaceBlockWithMigration 分配新 BlockId 并触发回调', () {
+        final editor = _MockDocumentEditor();
+        final id = editor.addParagraph('old');
+        BlockId? capturedOld;
+        BlockId? capturedNew;
+        final old = editor.replaceBlockWithMigration(
+          id,
+          const ParagraphElement(children: [TextElement('new')]),
+          onMigrated: (oldId, newId) {
+            capturedOld = oldId;
+            capturedNew = newId;
+          },
+        );
+        expect(old, isA<ParagraphElement>());
+        expect(capturedOld, equals(id),
+            reason: '回调应收到原 BlockId');
+        expect(capturedNew, isNot(equals(id)),
+            reason: '回调应收到新 BlockId（与原 BlockId 不同）');
+        expect(editor.getBlock(id), isNull,
+            reason: 'replaceBlockWithMigration 后旧 BlockId 应失效');
+        expect(editor.allIds.contains(capturedNew), isTrue,
+            reason: '新 BlockId 应在 allIds 中');
+      });
+
+      test('replaceBlockWithMigration 无回调时仍分配新 BlockId（向后兼容）', () {
+        final editor = _MockDocumentEditor();
+        final id = editor.addParagraph('old');
+        editor.replaceBlockWithMigration(
+          id,
+          const ParagraphElement(children: [TextElement('new')]),
+          // onMigrated 省略
+        );
+        expect(editor.getBlock(id), isNull,
+            reason: '无回调时旧 BlockId 仍应失效');
       });
     });
 

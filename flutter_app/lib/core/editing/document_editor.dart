@@ -70,11 +70,46 @@ abstract class DocumentEditor {
 
   /// 替换 [id] 对应的块为 [element]，返回旧元素（用于 revert）。
   ///
-  /// 找不到时抛 [StateError]。
+  /// **Phase 3.1-A PR #2（R5）行为变更**：
+  /// 此方法默认**保持 [BlockId] 不变**（不再默默分配新 BlockId）。
+  /// 调用方持有旧 [BlockId] 的引用（如 BlockViewState、focus 状态、
+  /// UI 控制器）依然有效。
   ///
-  /// 注意：[element] 的新 [BlockId] 由 DocumentEditor 重新分配，
-  /// 旧 [BlockId] 失效。若需保持 BlockId 不变，应使用 [updateBlockContent]。
+  /// 若需分配新 [BlockId]（如 BlockType 转换场景），使用
+  /// [replaceBlockWithMigration] 显式选择并接受迁移回调。
+  ///
+  /// 找不到时抛 [StateError]。
   DocumentElement replaceBlock(BlockId id, DocumentElement element);
+
+  /// 显式保持 [BlockId] 不变的替换（[replaceBlock] 的显式版本）。
+  ///
+  /// 行为等同于 [replaceBlock]（Phase 3.1-A PR #2 起）+ [updateBlockContent]，
+  /// 但语义更清晰：调用方主动声明"保持 BlockId"。
+  ///
+  /// 用于代码可读性高的场景（如 Block source 同步更新）。
+  ///
+  /// 找不到时抛 [StateError]。
+  DocumentElement replaceBlockKeepId(BlockId id, DocumentElement element);
+
+  /// 替换 [id] 对应的块为 [element]，分配新 [BlockId]，并通过 [onMigrated]
+  /// 回调通知调用方迁移信息。
+  ///
+  /// **使用场景**：BlockType 转换（如 Paragraph → Heading）需要重建 element
+  /// 但保留 source；调用方在 [onMigrated] 中更新 BlockViewState / focus / UI
+  /// 控制器的 BlockId 引用。
+  ///
+  /// [onMigrated] 回调签名：`(BlockId oldId, BlockId newId) -> void`。
+  /// 若 [onMigrated] 为 null，行为等同旧版 `replaceBlock`（分配新 BlockId 但不通知），
+  /// 仅用于向后兼容（不推荐）。
+  ///
+  /// 返回旧 [DocumentElement]（用于 revert）。
+  ///
+  /// 找不到时抛 [StateError]。
+  DocumentElement replaceBlockWithMigration(
+    BlockId id,
+    DocumentElement element, {
+    void Function(BlockId oldId, BlockId newId)? onMigrated,
+  });
 
   /// 仅替换 [id] 对应块的内容（保持 [BlockId] 不变）。
   ///

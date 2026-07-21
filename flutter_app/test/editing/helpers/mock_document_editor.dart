@@ -73,9 +73,31 @@ class MockDocumentEditor implements DocumentEditor {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
-        // 替换：新 BlockId 由 DocumentEditor 重新分配（删除旧条目，插入新条目到同位置）
+        // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
+        _blocks[i] = _Entry(id, element);
+        return old;
+      }
+    }
+    throw StateError('BlockId not found: $id');
+  }
+
+  @override
+  DocumentElement replaceBlockKeepId(BlockId id, DocumentElement element) {
+    return replaceBlock(id, element);
+  }
+
+  @override
+  DocumentElement replaceBlockWithMigration(
+    BlockId id,
+    DocumentElement element, {
+    void Function(BlockId oldId, BlockId newId)? onMigrated,
+  }) {
+    for (var i = 0; i < _blocks.length; i++) {
+      if (_blocks[i].id == id) {
+        final old = _blocks[i].element;
         final newId = BlockId(_nextIdValue++);
         _blocks[i] = _Entry(newId, element);
+        onMigrated?.call(id, newId);
         return old;
       }
     }

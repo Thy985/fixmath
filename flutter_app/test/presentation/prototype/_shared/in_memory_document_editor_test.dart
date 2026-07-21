@@ -5,7 +5,7 @@
 /// **覆盖范围**：
 /// - insertBlock：返回新 BlockId（>=100，唯一），index 越界抛 RangeError
 /// - removeBlock：返回被移除元素，找不到抛 StateError
-/// - replaceBlock：返回旧元素，**变更 BlockId**（PR 评审 R5 已标注）
+/// - replaceBlock：返回旧元素，**保持 BlockId 不变**（Phase 3.1-A PR #2 R5 行为变更）
 /// - updateBlockContent：保持 BlockId 不变
 /// - getBlock / indexOf：查询行为
 /// - allIds / allElements / allSources：返回不可变列表
@@ -97,7 +97,7 @@ void main() {
       });
     });
 
-    group('replaceBlock（R5：变更 BlockId 行为）', () {
+    group('replaceBlock（R5：保持 BlockId 行为）', () {
       test('返回旧元素', () {
         final editor = InMemoryDocumentEditor();
         final id = editor.addParagraph('old');
@@ -106,30 +106,65 @@ void main() {
         expect(old, isA<ParagraphElement>());
       });
 
-      test('replace 后旧 BlockId 失效（新 BlockId 重新分配）', () {
+      test('replace 后 BlockId 保持不变（Phase 3.1-A PR #2 R5 行为变更）', () {
         final editor = InMemoryDocumentEditor();
         final id = editor.addParagraph('old');
         editor.replaceBlock(
             id, const ParagraphElement(children: [TextElement('new')]));
-        expect(editor.getBlock(id), isNull,
-            reason: 'R5：replaceBlock 后旧 BlockId 应失效');
+        // R5：replaceBlock 默认保持 BlockId（之前是分配新 BlockId）
+        expect(editor.getBlock(id), isNotNull,
+            reason: 'R5：replaceBlock 后 BlockId 应保持有效');
         expect(editor.blockCount, equals(1),
             reason: '块数不变（替换而非插入）');
       });
 
-      test('replace 后新 BlockId 在 allIds 中（位置不变）', () {
+      test('replace 后 BlockId 在 allIds 中（位置不变）', () {
         final editor = InMemoryDocumentEditor();
         final id1 = editor.addParagraph('first');
         final id2 = editor.addParagraph('second');
         // 替换第一块
         editor.replaceBlock(
             id1, const ParagraphElement(children: [TextElement('new first')]));
-        // allIds 长度不变，但首块 BlockId 已变
+        // allIds 长度不变，且首块 BlockId 保持不变
         expect(editor.allIds.length, equals(2));
-        expect(editor.allIds[0], isNot(equals(id1)),
-            reason: '首块 BlockId 应已被替换');
+        expect(editor.allIds[0], equals(id1),
+            reason: 'R5：首块 BlockId 应保持不变');
         expect(editor.allIds[1], equals(id2),
             reason: '第二块 BlockId 应保持不变');
+      });
+
+      test('replaceBlockKeepId 行为等同 replaceBlock', () {
+        final editor = InMemoryDocumentEditor();
+        final id = editor.addParagraph('old');
+        final old = editor.replaceBlockKeepId(
+            id, const ParagraphElement(children: [TextElement('new')]));
+        expect(old, isA<ParagraphElement>());
+        expect(editor.getBlock(id), isNotNull,
+            reason: 'replaceBlockKeepId 保持 BlockId 不变');
+      });
+
+      test('replaceBlockWithMigration 分配新 BlockId 并触发回调', () {
+        final editor = InMemoryDocumentEditor();
+        final id = editor.addParagraph('old');
+        BlockId? capturedOld;
+        BlockId? capturedNew;
+        final old = editor.replaceBlockWithMigration(
+          id,
+          const ParagraphElement(children: [TextElement('new')]),
+          onMigrated: (oldId, newId) {
+            capturedOld = oldId;
+            capturedNew = newId;
+          },
+        );
+        expect(old, isA<ParagraphElement>());
+        expect(capturedOld, equals(id),
+            reason: '回调应收到原 BlockId');
+        expect(capturedNew, isNot(equals(id)),
+            reason: '回调应收到新 BlockId（与原 BlockId 不同）');
+        expect(editor.getBlock(id), isNull,
+            reason: 'replaceBlockWithMigration 后旧 BlockId 应失效');
+        expect(editor.allIds.contains(capturedNew), isTrue,
+            reason: '新 BlockId 应在 allIds 中');
       });
 
       test('找不到 id 抛 StateError', () {
