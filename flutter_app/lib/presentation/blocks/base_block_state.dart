@@ -20,6 +20,9 @@
 /// 2. `class _MermaidBlockState extends BaseBlockState<MermaidBlock>`
 /// 3. `@override Widget buildRenderContent(...)` 实现 render 差异
 /// 4. 无需重复 controller / focus / commit 样板（约 40 行/Block）
+///
+/// **实现选择**：Flutter [State] 是 class，mixin-on-class 约束较多，
+/// 因此选择抽象类继承而非 mixin 模式。
 library;
 
 import 'package:flutter/material.dart';
@@ -108,7 +111,15 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 当前 Block 的渲染模式（从 [BlockViewState] 拿，子类必须实现）。
   RenderMode get currentMode;
 
-  /// 从 [oldWidget] 拿前一次的模式（默认取 [currentMode]，子类可覆盖）。
+  /// 从 [oldWidget] 拿前一次的模式。
+  ///
+  /// **安全警告**：默认返回 [currentMode]（即新 mode），
+  /// 这意味着如果子类不覆盖此方法，`didUpdateWidget` 中的模式变化检测
+  /// `currentMode != previousMode(oldWidget)` 始终为 false，
+  /// 模式切换将无法触发 controller 同步 + 焦点请求。
+  /// 当前 3 个 Block 子类已正确覆盖此方法。未来新增 Block 类型时应
+  /// 实现 `previousMode(oldWidget) => oldWidget.state.mode` 或等价逻辑。
+  @protected
   RenderMode previousMode(T oldWidget) => currentMode;
 
   /// 初始 source（默认从 coordinator 拿当前块 source）。
@@ -132,6 +143,13 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 调用 [buildRenderContent] 时应区分当前 [RenderMode]：
   /// - [RenderMode.rendered]：显示最终样式（如富文本 / 标题样式 / 代码块样式）
   /// - [RenderMode.editing]：显示 [TextField] + Markdown source
+  ///
+  /// **过渡状态**（Phase 3.1-A）：当前 3 个 Block 子类直接在 [build] 中按
+  /// mode 分发（`build()` → `_buildEditing()` / `_buildRendered()`），
+  /// 并未使用此抽象方法，导致 [buildRenderContent] 成为空壳死代码。
+  /// 在 Phase 3.2+ 之前应通过以下方式清理：
+  /// (a) 让 [build] 调用 [buildRenderContent] 并移除子类的 [build] 重写；
+  /// (b) 或移除抽象 [buildRenderContent] 改用 [build] 约定。
   @protected
   Widget buildRenderContent(BuildContext context);
 

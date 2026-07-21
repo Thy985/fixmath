@@ -131,7 +131,7 @@ void main() {
     });
 
     test('BaseBlockState 是 abstract 类', () {
-      final file = File('lib/presentation/blocks/block_editing_mixin.dart');
+      final file = File('lib/presentation/blocks/base_block_state.dart');
       expect(file.existsSync(), isTrue);
       final content = file.readAsStringSync();
       expect(

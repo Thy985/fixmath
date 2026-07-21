@@ -23,7 +23,7 @@ import '../../core/editing/block_types.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
-import 'block_editing_mixin.dart';
+import 'base_block_state.dart';
 
 /// 代码块（render + edit 双态，显示 language 标签 + monospace）。
 class CodeBlock extends StatefulWidget {

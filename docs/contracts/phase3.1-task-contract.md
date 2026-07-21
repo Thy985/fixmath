@@ -200,7 +200,7 @@ v1.0 草案一次性包含 7 个任务（架构补强 + 性能基建 + 范式切
 
 ### 3.2 任务 3.1.A.2：R4 - 提取 `BlockEditing` mixin
 
-**输出**：`lib/presentation/blocks/block_editing_mixin.dart` + 3 个 Block 改造
+**输出**：`lib/presentation/blocks/base_block_state.dart` + 3 个 Block 改造
 
 **改动**：
 1. 提取 `mixin BlockEditing<T extends DocumentElement> on State<BlockWidget<T>>`

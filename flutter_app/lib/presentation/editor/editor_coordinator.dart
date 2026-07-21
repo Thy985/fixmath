@@ -88,8 +88,13 @@ class EditorCoordinator extends ChangeNotifier {
   BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
 
   /// 更新指定块的 [BlockViewState]（调用方用 `state.copyWith(...)` 构造新状态）。
+  ///
+  /// **语义**：更新后触发 [notifyListeners]（与 [setFocus] / [clearFocus] 一致），
+  /// 确保 UI 自动重建反映变更。如果调用方需要批量更新多个 BlockViewState
+  /// 后单次通知，请先直接操作 [_state] 再手动调用 [notifyListeners]。
   void updateViewState(BlockId id, BlockViewState state) {
     _state = _state.updateViewState(id, state);
+    notifyListeners();
   }
 
   BlockId? get focusedId => _state.focusedId;

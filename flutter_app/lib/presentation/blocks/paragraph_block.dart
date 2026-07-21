@@ -22,7 +22,7 @@ import '../../core/editing/block_types.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
-import 'block_editing_mixin.dart';
+import 'base_block_state.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
 class ParagraphBlock extends StatefulWidget {
