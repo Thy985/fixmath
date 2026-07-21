@@ -9,17 +9,19 @@
 
 ## 评审项清单
 
-### R1. 变更通知粒度（性能）
+### R1. 变更通知粒度（性能）— Phase 3.1-A 弱化版已落地
 
 - **严重性**：⚠️ 中（Phase 3.0 无感，Phase 3.1 实时编辑必现）
-- **现状**：`EditorCoordinator` 继承 `ChangeNotifier`，`handle` / `setFocus` / `clearFocus` / `undo` / `redo` 均调用 `notifyListeners()`，导致 `EditorShell` 整树重建（所有 Block + chrome + panels + status bar）
-- **代码位置**：`lib/presentation/editor/editor_coordinator.dart:68,106,116,135,149`
+- **现状**：Phase 3.1-A 已落地弱化版 R1：`EditorCoordinator` 内部 `_viewStates` + `_focusedId` 合并为不可变 `CoordinatorState` 单字段，每次修改产生新副本。但 Notifier 拆分（FocusNotifier / ContentNotifier / UndoNotifier）留到 Phase 3.1-B 触发制。
+- **代码位置**：
+  - `lib/presentation/states/coordinator_state.dart`（新增不可变聚合）
+  - `lib/presentation/editor/editor_coordinator.dart`（持有 `_state` 单字段）
 - **触发条件**：3 个种子 Block 无感；500+ Block 真实文档会卡顿
-- **建议方案**（Phase 3.1+）：拆分细粒度通知通道
+- **建议方案（3.1-B）**：拆分细粒度通知通道
   - `FocusNotifier` → 仅 block 级 Widget 订阅
   - `ContentNotifier` → EditorViewport + StatusBar
   - `UndoNotifier` → StatusBar 的 undo/redo 按钮
-- **归属**：Phase 3.1（WYSIWYG 实时编辑前置）
+- **归属**：Phase 3.1-A（弱化版已落地，见 PR #45）→ 3.1-B（完整 Notifier 拆分）
 
 ### R2. undo/redo 空 currentState（已知限制，已注释）
 
@@ -48,16 +50,17 @@
   - `lib/presentation/blocks/heading_block.dart`（同构）
   - `lib/presentation/blocks/code_block.dart`（同构）
 - **重复量**：约 30 行 × 3 = 90 行
-- **建议方案**：提取 mixin
+- **建议方案（Phase 3.1-A 已落地）**：提取 `BaseBlockState<T extends StatefulWidget>` 抽象类（而非 mixin，因为 Flutter State 是 class，mixin-on-class 约束更多）
   ```dart
-  mixin BlockEditing<T extends DocumentElement> on State<BlockWidget<T>> {
+  abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     late final TextEditingController textController;
     late final FocusNode focusNode;
     // ... shared focus/commit logic
   }
   ```
-  各 Block 的 `build()` 保持独立（渲染差异），消除 controller/focus 样板
-- **归属**：Phase 3.1 早期（新增 BlockType 前先提取，避免重复扩大）
+  各 Block 的 `build()` 保持独立（渲染差异），消除 controller/focus 样板。
+  实现文件：`flutter_app/lib/presentation/blocks/base_block_state.dart`
+- **归属**：Phase 3.1-A（已落地，见 PR #45）
 
 ### R5. replaceBlock 悄悄改 BlockId（已知风险，已注释）
 
@@ -68,13 +71,12 @@
 - **建议方案**：Phase 3.1 若需 BlockType 转换，先实现 BlockId 迁移通知机制；或改为 `replaceBlock` 保持原 BlockId
 - **归属**：Phase 3.1+（视是否引入 BlockType 转换而定）
 
-### R6. command_handler 非密封 dispatch（类型安全）
+### R6. command_handler 非密封 dispatch（类型安全）— 已落地
 
 - **严重性**：⚠️ 低（守门测试已覆盖 exhaustive）
-- **现状**：`EditorCommand` 若非 sealed，switch dispatch 缺少编译期 exhaustive 保证
-- **代码位置**：`lib/presentation/commands/command_handler.dart:162` / `editor_command.dart`
-- **建议方案**：将 `EditorCommand` 改为 sealed class，让 switch 强制 exhaustive
-- **归属**：Phase 3.1（或作为独立小 PR，不改变运行行为）
+- **现状**：Phase 3.1-A 已落地，`EditorCommand` 改为 sealed class + 8 个 final class 子类，switch dispatch 获得编译期 exhaustive 保证。
+- **代码位置**：`lib/presentation/commands/editor_command.dart` + `lib/presentation/commands/command_handler.dart`
+- **变更 PR**：#45
 
 ---
 
@@ -82,14 +84,14 @@
 
 Phase 3.1（WYSIWYG 模式迁移）启动时，任务规划应纳入：
 
-1. **R1 通知粒度** — WYSIWYG 实时编辑的性能前置
+1. **R1 通知粒度** — WYSIWYG 实时编辑的性能前置（Phase 3.1-A 做了弱化版 state 拆分，Notifier 拆分留到 3.1-B）
 2. **R3 InlineSpan 缓存** — 依赖 R1
-3. **R4 BlockEditing mixin** — 新增 6 种 BlockType 前先提取
-4. **R2 state snapshot** — undo/redo 正确性
-5. **R5 BlockId 迁移** — 视 BlockType 转换需求
-6. **R6 sealed dispatch** — 类型安全小改进
+3. **R4 BaseBlockState 抽象基类** ✅ 已落地（PR #45）
+4. **R6 sealed dispatch** ✅ 已落地（PR #45）
+5. **R2 state snapshot** — undo/redo 正确性（合同推迟到 3.1-C）
+6. **R5 BlockId 迁移** — 视 BlockType 转换需求
 
-建议顺序：R6（最小风险热身）→ R4（重构铺路）→ R1（性能基建）→ R3（依赖 R1）→ R2 → R5。
+建议顺序：R6 ✅ → R4 ✅ → R1（3.1-B）→ R3（依赖 R1）→ R2（3.1-C）→ R5。
 
 ---
 
