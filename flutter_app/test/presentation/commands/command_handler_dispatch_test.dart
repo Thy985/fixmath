@@ -67,6 +67,7 @@ void main() {
       final id = editor.addParagraph('hello');
       final success = handler.handle(InsertBlockAfterCommand(
         blockId: id,
+        element: ParagraphElement(children: [TextElement('')]),
         origin: CommandOrigin.keyboard,
       ));
       expect(success, isTrue,

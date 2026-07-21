@@ -1,18 +1,21 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
 ///
 /// 落地 ADR-0009 §3.5 + Phase 3.0 Task Contract §3.4 + §2.4（避免 God Object）。
+/// 落地 Phase 3.1-A Task Contract §3.1.A.3（弱化版 R1 评审反馈）：
+/// - 内部 `Map<BlockId, BlockViewState> _viewStates` + `BlockId? _focusedId`
+///   合并为不可变 [CoordinatorState] `_state` 单字段
+/// - 每次修改产生新副本（不可变更新），消除多步修改的中间不一致状态
 ///
 /// **职责**（只协调，不持有业务状态）：
 /// - 持有 [InMemoryDocumentEditor] + [EditorHistory] + [CommandHandler]
-/// - 管理 `Map<BlockId, BlockViewState>`（UI 视图状态，与 AST 解耦）
-/// - 管理块间焦点切换（`_focusedId`）
+/// - 管理 [CoordinatorState]（UI 视图状态聚合，与 AST 解耦）
 /// - 提供 [handle] 封装 [CommandHandler.handle] + [notifyListeners]
 /// - 提供 [undo] / [redo] 方法（封装 Transaction revert/apply）
 ///
 /// **变更通知**：继承 [ChangeNotifier]，状态变化时调用 [notifyListeners]，
 /// 让 [EditorShell] 等订阅者重建。
 ///
-/// **Hard Rule 1（AST 零污染）**：UI 状态通过 [BlockViewState] 单独建模，
+/// **Hard Rule 1（AST 零污染）**：UI 状态通过 [CoordinatorState] 单独建模，
 /// 不在 [DocumentElement] 新增字段。
 /// **Hard Rule 4（避免 God Object）**：不持有 Theme / File / Route 等领域状态。
 /// **Hard Rule 8（依赖方向）**：editor/ → core/editing/（单向依赖）。
@@ -30,6 +33,7 @@ import '../../data/models/document.dart';
 import '../commands/command_handler.dart';
 import '../commands/editor_command.dart';
 import '../states/block_view_state.dart';
+import '../states/coordinator_state.dart';
 import 'in_memory_document_editor.dart';
 
 /// UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
@@ -44,20 +48,23 @@ class EditorCoordinator extends ChangeNotifier {
   final EditorHistory history;
   late final CommandHandler handler;
 
-  /// UI 视图状态（按 [BlockId] 索引，Hard Rule 1：AST 零污染）。
-  final Map<BlockId, BlockViewState> _viewStates = {};
-
-  /// 当前聚焦的块（null = 无聚焦）。
-  BlockId? _focusedId;
+  /// UI 状态聚合（不可变，Phase 3.1-A R1 弱化版）。
+  ///
+  /// 所有 viewStates / focusedId 修改都通过 [CoordinatorState] 不可变方法返回新副本，
+  /// EditorCoordinator 持有单字段 `_state`，由 ChangeNotifier 统一通知。
+  CoordinatorState _state;
 
   EditorCoordinator({
     required this.editor,
     required this.history,
-  }) {
+  }) : _state = const CoordinatorState.empty() {
     handler = CommandHandler(editor: editor, history: history);
+    // 初始化 viewStates（每个 BlockId 一份默认 BlockViewState）
+    final initial = <BlockId, BlockViewState>{};
     for (final id in editor.allIds) {
-      _viewStates[id] = BlockViewState(id: id);
+      initial[id] = BlockViewState(id: id);
     }
+    _state = CoordinatorState.initial(initial);
   }
 
   // ============ Command 入口 ============
@@ -76,43 +83,34 @@ class EditorCoordinator extends ChangeNotifier {
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
 
-  // ============ UI 视图状态（Hard Rule 1：AST 零污染） ============
+  // ============ UI 视图状态（Hard Rule 1：AST 零污染）============
 
-  BlockViewState? viewStateOf(BlockId id) => _viewStates[id];
+  BlockViewState? viewStateOf(BlockId id) => _state.viewStateOf(id);
 
   /// 更新指定块的 [BlockViewState]（调用方用 `state.copyWith(...)` 构造新状态）。
+  ///
+  /// **语义**：更新后触发 [notifyListeners]（与 [setFocus] / [clearFocus] 一致），
+  /// 确保 UI 自动重建反映变更。如果调用方需要批量更新多个 BlockViewState
+  /// 后单次通知，请先直接操作 [_state] 再手动调用 [notifyListeners]。
   void updateViewState(BlockId id, BlockViewState state) {
-    _viewStates[id] = state;
+    _state = _state.updateViewState(id, state);
+    notifyListeners();
   }
 
-  BlockId? get focusedId => _focusedId;
+  BlockId? get focusedId => _state.focusedId;
 
   /// 聚焦指定块。旧块切回渲染态，新块切到编辑态，触发 [notifyListeners]。
   void setFocus(BlockId id) {
-    if (_focusedId == id) return;
-    if (_focusedId != null) {
-      final oldState = _viewStates[_focusedId!];
-      if (oldState != null) {
-        _viewStates[_focusedId!] =
-            oldState.copyWith(isFocused: false, mode: RenderMode.rendered);
-      }
-    }
-    final curState = _viewStates[id];
-    if (curState != null) {
-      _viewStates[id] =
-          curState.copyWith(isFocused: true, mode: RenderMode.editing);
-    }
-    _focusedId = id;
+    if (_state.focusedId == id) return;
+    _state = _state.focusOn(id);
     notifyListeners();
   }
 
   /// 清除指定块的焦点（切回渲染态），触发 [notifyListeners]。
   void clearFocus(BlockId id) {
-    final state = _viewStates[id];
-    if (state == null) return;
-    _viewStates[id] =
-        state.copyWith(isFocused: false, mode: RenderMode.rendered);
-    if (_focusedId == id) _focusedId = null;
+    final next = _state.clearFocusOf(id);
+    if (identical(next, _state)) return;
+    _state = next;
     notifyListeners();
   }
 
@@ -158,19 +156,12 @@ class EditorCoordinator extends ChangeNotifier {
         origin: origin,
       );
 
-  /// 同步 _viewStates：移除已不在 editor 的 BlockId，补全新增的 BlockId。
+  /// 同步 viewStates：移除已不在 editor 的 BlockId，补全新增的 BlockId。
   void _syncViewStates() {
-    final currentIds = {...editor.allIds};
-    _viewStates.removeWhere((id, _) => !currentIds.contains(id));
-    for (final id in editor.allIds) {
-      _viewStates.putIfAbsent(id, () => BlockViewState(id: id));
-    }
-    if (_focusedId != null && !currentIds.contains(_focusedId)) {
-      _focusedId = null;
-    }
+    _state = _state.syncViewStates(editor.allIds);
   }
 
   @override
   String toString() => 'EditorCoordinator(blockCount=$blockCount, '
-      'focused=$_focusedId, canUndo=$canUndo, canRedo=$canRedo)';
+      'focused=${_state.focusedId}, canUndo=$canUndo, canRedo=$canRedo)';
 }

@@ -69,35 +69,27 @@ class CommandHandler {
 
   /// 分发 [command] 到对应处理方法。
   ///
-  /// 使用 if-else 链，编译器不强制穷举（因 [EditorCommand] 非 sealed），
-  /// 新增 Command 类型时需手动添加分支。
+  /// **Phase 3.1-A 修订（R6）**：从 if-else 链改为 switch 表达式。
+  /// 配合 [EditorCommand] 的 `sealed class` 声明，编译器强制穷举所有 8 种 Command 子类。
+  /// 新增 Command 类型时，编译器立即报错提示添加 case 分支。
   ///
-  /// **Tech Debt**（PR 评审 R4）：Phase 3.0 时将 [EditorCommand] 转为 sealed class，
-  /// 改用 switch 表达式强制穷举。当前通过自省测试守门
-  /// （见 test/presentation/commands/command_handler_dispatch_test.dart）。
+  /// **变量绑定**（`XCommand c`）：让 narrowed 后的具体类型直接传给 `_handleX`，
+  /// 避免再写一次 `command is XCommand` 类型检查。
   bool _dispatch(
     EditorCommand command,
     BlockOperations operations,
     TransactionBuilder builder,
   ) {
-    if (command is SplitBlockCommand) {
-      return _handleSplitBlock(command, operations);
-    } else if (command is MergeWithPreviousCommand) {
-      return _handleMerge(command, operations);
-    } else if (command is InsertBlockAfterCommand) {
-      return _handleInsert(command, operations);
-    } else if (command is DeleteBlockCommand) {
-      return _handleDelete(command, operations);
-    } else if (command is MoveBlockUpCommand) {
-      return _handleMoveUp(command, operations);
-    } else if (command is MoveBlockDownCommand) {
-      return _handleMoveDown(command, operations);
-    } else if (command is UpdateBlockSourceCommand) {
-      return _handleUpdateSource(command, operations);
-    } else if (command is TransformBlockCommand) {
-      return _handleTransform(command, operations);
-    }
-    return false;
+    return switch (command) {
+      SplitBlockCommand c => _handleSplitBlock(c, operations),
+      MergeWithPreviousCommand c => _handleMerge(c, operations),
+      InsertBlockAfterCommand c => _handleInsert(c, operations),
+      DeleteBlockCommand c => _handleDelete(c, operations),
+      MoveBlockUpCommand c => _handleMoveUp(c, operations),
+      MoveBlockDownCommand c => _handleMoveDown(c, operations),
+      UpdateBlockSourceCommand c => _handleUpdateSource(c, operations),
+      TransformBlockCommand c => _handleTransform(c, operations),
+    };
   }
 
   /// [CommandOrigin] → [TransactionOrigin] 映射。
