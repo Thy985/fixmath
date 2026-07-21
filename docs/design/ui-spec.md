@@ -370,24 +370,58 @@ core/editing  (内核，UI 不直接访问 mutation)
 
 ---
 
-## 7. Phase 3.1+ 扩展点
+## 7. Phase 3.1+ 扩展点（v1.2 同步 ROADMAP 阶段重新划分）
 
-Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽：
+Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 
-| Phase | 任务 | 扩展点 | 不破坏的契约 |
-|-------|------|--------|-------------|
-| 3.1 | 移除 previewModeProvider | EditorPage 路由切换 | EditorShell 布局不变 |
-| 3.2 | 实现 6 种剩余 BlockType | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.3 | 公式渲染（MathJax / KaTeX） | FormulaBlock 新增 | BlockViewState 不变 |
-| 3.4 | 双态切换动画 | ParagraphBlock 内部 | EditorCoordinator API 不变 |
-| 3.5 | 图片管理 | ImageElement 渲染 | AST 不污染 |
-| 3.6 | 快捷键 | EditorCommand 新增 | CommandHandler 路径不变 |
-| 3.7 | TOC 面板 | SidePanelHost 显示 | EditorShell 布局不变 |
-| 3.8 | 文件树面板 | SidePanelHost 显示 | EditorShell 布局不变 |
-| 3.9 | 主题切换 | EditorTokens 升级为 ThemeExtension | 所有 token 引用不变 |
-| 3.10 | 字号缩放 | EditorTokens 新增 scale 参数 | 所有 token 引用不变 |
-| 3.11 | 焦点模式 | EditorAppBar 隐藏 + SidePanel 隐藏 | EditorShell 布局不变 |
-| 3.12 | 导出集成 | EditorAppBar action | EditorCoordinator 不变 |
+**阶段重新划分说明**（2026-07-21 修订，详见 [ROADMAP.md §Phase 3.1+ 阶段重新划分说明](../ROADMAP.md)）：
+- 原 Phase 3.2"移除预览卡片包裹，改为沉浸式全屏编辑"已被 Phase 3.1-A 提前完成（架构层沉浸式），此条不再作为独立任务
+- **沉浸式概念拆分**：架构层沉浸式（已完成）vs 体验层沉浸式（Phase 3.3）
+- 新阶段划分：3.1 WYSIWYG Migration（✅ 已完成） / 3.2 Block Runtime Expansion / 3.3 Immersive Experience / 3.4+ Advanced Capabilities
+
+### Phase 3.1 — WYSIWYG Migration（✅ 已完成）
+
+- [x] EditorPage 路由切换（`/editor` → EditorPage 默认入口，`/editor-legacy` → EditorScreen fallback）
+- [x] 无 preview mode（移除 `previewModeProvider` 重复定义）
+- [x] 无 PreviewContent 卡片包装（架构层沉浸式已达成）
+
+**契约不变**：EditorShell 布局不变。
+
+### Phase 3.2 — Block Runtime Expansion（当前阶段）
+
+| # | 任务 | 扩展点 | 不破坏的契约 |
+|---|------|--------|-------------|
+| 3.2.1 | MathBlock（行内 + 块级公式） | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.2 | MermaidBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.3 | QuoteBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.4 | TableBlock（含可视化编辑） | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.5 | ImageBlock（含 alt 占位） | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.6 | LinkBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/` | 目录重组 | 依赖方向守门（Hard Rule 8） |
+| 3.2.8 | WebView 预热机制 | 后台预热通道 | EditorCoordinator API 不变 |
+| 3.2.9 | 公式 / Mermaid 渲染缓存 | 缓存层 | AST 不污染 |
+| 3.2.10 | 代码块语法高亮 | CodeBlock 内部 | BlockViewState 不变 |
+
+### Phase 3.3 — Immersive Experience（体验层沉浸式）
+
+| # | 任务 | 扩展点 | 不破坏的契约 |
+|---|------|--------|-------------|
+| 3.3.1 | AppBar 显示文档标题 + 修改状态 | EditorAppBar 内部 | EditorShell 布局不变 |
+| 3.3.2 | 字号缩放（Ctrl +/- / 双指缩放） | EditorTokens 新增 scale 参数 | 所有 token 引用不变 |
+| 3.3.3 | 焦点模式 / 打字机模式 | EditorAppBar 隐藏 + SidePanel 隐藏 | EditorShell 布局不变 |
+| 3.3.4 | 实时字数统计 | EditorStatusBar 内部 | EditorShell 布局不变 |
+| 3.3.5 | 撤销 / 重做按钮接入 UI | EditorAppBar action | EditorCoordinator 不变 |
+| 3.3.6 | 自动配对 | EditorCommand 新增 | CommandHandler 路径不变 |
+| 3.3.7 | 快捷键支持 | EditorCommand 新增 | CommandHandler 路径不变 |
+
+### Phase 3.4+ — Advanced Capabilities
+
+| # | 任务 | 扩展点 | 不破坏的契约 |
+|---|------|--------|-------------|
+| 3.4.1 | TOC 面板 | SidePanelHost 显示 | EditorShell 布局不变 |
+| 3.4.2 | 文件树面板 | SidePanelHost 显示 | EditorShell 布局不变 |
+| 3.4.3 | 主题切换 | EditorTokens 升级为 ThemeExtension | 所有 token 引用不变 |
+| 3.4.4 | 导出集成 | EditorAppBar action | EditorCoordinator 不变 |
 
 ---
 
@@ -404,4 +438,4 @@ Phase 3.0 完成时，本文件应满足以下验证：
 
 ---
 
-**本文件由 AI Agent 起草，版本 v1.1（同步 Typora 化演进方向），生效日期 2026-07-21。**
+**本文件由 AI Agent 起草，版本 v1.2（同步 ROADMAP 阶段重新划分：3.1 WYSIWYG Migration 已完成 / 3.2 Block Runtime Expansion / 3.3 Immersive Experience / 3.4+ Advanced Capabilities），生效日期 2026-07-21。**
