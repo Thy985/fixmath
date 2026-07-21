@@ -287,33 +287,99 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 **前置条件**：Phase 3.0 全部退出（UI Skeleton 建立 + 架构守门通过）。
 
+### 阶段重新划分说明（2026-07-21 修订）
+
+**修订背景**：原 ROADMAP 把"移除预览卡片包裹，改为沉浸式全屏编辑"列为 Phase 3.2 任务。但 Phase 3.1-A 的实际落地（`/editor` → EditorPage 默认入口 + 移除 PreviewContent 卡片包裹 + 移除 `previewModeProvider`）已经**提前完成架构层沉浸式**。继续保留旧 3.2 定义会造成 roadmap drift（开发者看到任务已存在但状态仍为待办，可能误修改已稳定的 EditorShell）。
+
+**沉浸式概念拆分**：
+
+- **架构层沉浸式**（已完成）：无 preview/editor 两个模式、无 PreviewContent 卡片包裹。Phase 3.1-A 已完成。
+- **体验层沉浸式**（未完成）：隐藏 chrome、自动隐藏工具栏、打字机模式、焦点模式、页面宽度控制、阅读体验。归入 Phase 3.3。
+
+**新阶段划分**：
+
+| Phase | 主题 | 目标 |
+|-------|------|------|
+| 3.1 | WYSIWYG Migration | 完成 WYSIWYG 架构迁移（沉浸式基础）✅ |
+| 3.2 | Block Runtime Expansion | 完成 Block Runtime 扩展（内容能力） |
+| 3.3 | Immersive Experience | 完成 Typora 级沉浸体验（交互体验） |
+| 3.4+ | Advanced Capabilities | 高级能力（TOC / 文件树 / 主题 / 导出 / 协作） |
+
+### Phase 3.1 — WYSIWYG Migration（已完成）
+
+**目标**：移除 preview/editor 双模式，EditorPage 成为默认入口，EditorCommand 转 sealed class，BlockId 迁移通知机制建立。
+
+**状态**：✅ Phase 3.1-A 已完成（PR #1 + PR #2 已合并）。Phase 3.1-B/C 为触发制延后项（性能 / Undo 正确性），不阻塞 Phase 3.2。
+
+**已交付**：
+- `kEnableNewEditor = true`（新 UI 成为默认）
+- `/editor` → EditorPage，`/editor-legacy` → EditorScreen（fallback），移除 `/editor3`
+- 移除 `previewModeProvider` 重复定义
+- `EditorCommand` 转 sealed class
+- `replaceBlock` / `replaceBlockKeepId` / `replaceBlockWithMigration` 三方法建立 BlockId 迁移通知机制
+- `BaseBlockState.previousMode` 改为抽象方法（强制子类实现）
+- `EditorScope` 移除 `maybeOf` 变体
+
+### Phase 3.2 — Block Runtime Expansion（当前阶段）
+
+**目标**：从最小可编辑系统（paragraph / heading / code 三种 BlockType）扩展为完整 Markdown Block Runtime，支持 6 种剩余 BlockType + 建立 `blocks/<type>/` 目录结构。
+
+**前置条件**：Phase 3.1-A 完成（已满足）。
+
+**核心理念**：Phase 3.0 只验证了 3 种 BlockType 的 BlockRenderer exhaustive switch 通路。Phase 3.2 解决"从最小可编辑系统 → 完整 Markdown Block Runtime"。Block 数量增加后，真正的问题会出现（Block 间共享逻辑、Block 工具栏、Block 选中、Block 拖拽），所以 Phase 3.2 必须同时建立 `blocks/<type>/` 目录结构 + `blocks/shared/` 共享组件，避免 Phase 3.5+ 再次重构。
+
 ### 任务
 
-| # | 任务 | 来源 |
-|---|------|------|
-| 3.1 | 移除 `previewModeProvider` 与"编辑/预览"切换按钮 | 范式完成的标志 |
-| 3.2 | 移除预览卡片包裹，改为沉浸式全屏编辑 | [preview_content.dart:38-47](file:///d:/Projects/Active/math/flutter_app/lib/presentation/widgets/preview_content.dart#L38-47) |
-| 3.3 | AppBar 显示当前文档标题 + 修改状态（`•`） | - |
-| 3.4 | WebView 预热机制（App 启动后并行加载，不阻塞首屏） | - |
-| 3.5 | 公式 / Mermaid 渲染缓存策略改造（不退出清空） | - |
-| 3.6 | 代码块语法高亮 | highlight.js / flutter_highlight |
-| 3.7 | 大纲 / TOC 侧滑面板，点击跳转标题 | - |
-| 3.8 | 文件树侧滑（替代文件管理独立屏幕） | - |
-| 3.9 | 多套主题（GitHub / Night / Sepia / Newsprint） | - |
-| 3.10 | 字号可缩放（Ctrl +/- / 双指缩放） | - |
-| 3.11 | 焦点模式 / 打字机模式 | - |
-| 3.12 | 实时字数统计（底部状态栏） | - |
-| 3.13 | 撤销 / 重做按钮接入 UI（`HistoryManager` 已实现） | - |
-| 3.14 | 自动配对（`$` / `(` / `[` / `*` 等） | - |
-| 3.15 | 表格可视化编辑（点击 cell 直接编辑） | - |
-| 3.16 | 快捷键支持（Android 物理键盘 + Web） | - |
-| 3.17 | 导出进度反馈（百分比 + 当前公式计数） | - |
+| # | 任务 | 来源 | 状态 |
+|---|------|------|------|
+| 3.2.1 | MathBlock（行内 + 块级公式） | ui-spec.md §7 | ⏳ |
+| 3.2.2 | MermaidBlock（流程图 / 时序图） | ui-spec.md §7 | ⏳ |
+| 3.2.3 | QuoteBlock（引用块） | ui-spec.md §7 | ⏳ |
+| 3.2.4 | TableBlock（含可视化编辑） | ui-spec.md §7 | ⏳ |
+| 3.2.5 | ImageBlock（含 alt 占位） | ui-spec.md §7 | ⏳ |
+| 3.2.6 | LinkBlock（行内链接） | ui-spec.md §7 | ⏳ |
+| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/`（block_toolbar / block_selection / block_drag_handle） | 架构演进 | ⏳ |
+| 3.2.8 | WebView 预热机制（App 启动后并行加载，不阻塞首屏） | Phase 3.1 原 3.4 | ⏳ |
+| 3.2.9 | 公式 / Mermaid 渲染缓存策略改造（不退出清空） | Phase 3.1 原 3.5 | ⏳ |
+| 3.2.10 | 代码块语法高亮（highlight.js / flutter_highlight） | Phase 3.1 原 3.6 | ⏳ |
 
-### 退出条件
+详见 [Phase 3.2 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase3.2-task-contract.md)。
 
-- [ ] 用户不再需要切换"编辑/预览"模式
-- [ ] WebView 冷启动时间 < 500ms 或预热完成后才显示编辑器
-- [ ] 21 项 Typora 核心特性对齐度 ≥ 80%
+### Phase 3.3 — Immersive Experience
+
+**目标**：完成 Typora 级沉浸体验（交互体验层）。架构层沉浸式已在 Phase 3.1-A 完成，本阶段解决体验层沉浸式。
+
+### 任务
+
+| # | 任务 | 来源 | 状态 |
+|---|------|------|------|
+| 3.3.1 | AppBar 显示当前文档标题 + 修改状态（`•`） | Phase 3.1 原 3.3 | ⏳ |
+| 3.3.2 | 字号可缩放（Ctrl +/- / 双指缩放） | Phase 3.1 原 3.10 | ⏳ |
+| 3.3.3 | 焦点模式 / 打字机模式 | Phase 3.1 原 3.11 | ⏳ |
+| 3.3.4 | 实时字数统计（底部状态栏） | Phase 3.1 原 3.12 | ⏳ |
+| 3.3.5 | 撤销 / 重做按钮接入 UI（`HistoryManager` 已实现） | Phase 3.1 原 3.13 | ⏳ |
+| 3.3.6 | 自动配对（`$` / `(` / `[` / `*` 等） | Phase 3.1 原 3.14 | ⏳ |
+| 3.3.7 | 快捷键支持（Android 物理键盘 + Web） | Phase 3.1 原 3.16 | ⏳ |
+
+### Phase 3.4+ — Advanced Capabilities
+
+**目标**：高级能力扩展（TOC / 文件树 / 主题 / 导出 / 协作等）。
+
+### 任务
+
+| # | 任务 | 来源 | 状态 |
+|---|------|------|------|
+| 3.4.1 | 大纲 / TOC 侧滑面板，点击跳转标题 | Phase 3.1 原 3.7 | ⏳ |
+| 3.4.2 | 文件树侧滑（替代文件管理独立屏幕） | Phase 3.1 原 3.8 | ⏳ |
+| 3.4.3 | 多套主题（GitHub / Night / Sepia / Newsprint） | Phase 3.1 原 3.9 | ⏳ |
+| 3.4.4 | 导出进度反馈（百分比 + 当前公式计数） | Phase 3.1 原 3.17 | ⏳ |
+
+### 退出条件（Phase 3.1+ 整体）
+
+- [x] 用户不再需要切换"编辑/预览"模式（Phase 3.1-A 已完成）
+- [ ] WebView 冷启动时间 < 500ms 或预热完成后才显示编辑器（Phase 3.2）
+- [ ] 9 种 BlockType 全部支持双态切换（Phase 3.2）
+- [ ] 21 项 Typora 核心特性对齐度 ≥ 80%（Phase 3.3+）
 
 ---
 
@@ -355,6 +421,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 2.9 PR 待合并 + Phase 3.0 Task Contract 起草中
-**最近更新**：2026-07-20（Phase 2.9 Prototype 完成 + 起草 Phase 3.0 Task Contract + ROADMAP 新增 Phase 3.0 节）
+**当前阶段**：Phase 3.2 — Block Runtime Expansion（roadmap drift 修正后）
+**最近更新**：2026-07-21（Phase 3.1-A 完成 + ROADMAP 阶段重新划分：3.1 WYSIWYG Migration / 3.2 Block Runtime Expansion / 3.3 Immersive Experience / 3.4+ Advanced Capabilities）
 **维护人**：首席架构工程师
