@@ -1,6 +1,9 @@
 /// HeadingBlock：标题块（level 1-6，render + edit 双态）。
 ///
 /// 落地 Phase 3.0 Task Contract §3.3（3 种 BlockType 之一）+ ADR-0009 §3.3。
+/// 落地 Phase 3.1-A Task Contract §3.1.A.2（R4 评审反馈）：
+/// - `_HeadingBlockState` 改为 `extends BaseBlockState<HeadingBlock>` 共享样板
+/// - 消除约 40 行 controller / focus / commit 重复代码
 ///
 /// **双态切换**：
 /// - [RenderMode.rendered]：显示标题文本，按 [HeadingElement.level] 1-6 渲染不同字号
@@ -20,10 +23,9 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../data/models/document.dart';
-import '../commands/commands.dart';
-import '../commands/editor_command.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
+import 'block_editing_mixin.dart';
 
 /// 标题块（render + edit 双态，level 1-6）。
 class HeadingBlock extends StatefulWidget {
@@ -47,70 +49,38 @@ class HeadingBlock extends StatefulWidget {
   State<HeadingBlock> createState() => _HeadingBlockState();
 }
 
-class _HeadingBlockState extends State<HeadingBlock> {
-  late final TextEditingController _textController;
-  late final FocusNode _focusNode;
+/// 标题块 State：extends [BaseBlockState] 共享 controller / focus / commit 样板。
+///
+/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<HeadingBlock>`，
+/// 消除约 40 行 controller / focus / commit 样板。
+class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
+  @override
+  BlockId get blockId => widget.state.id;
 
   @override
-  void initState() {
-    super.initState();
-    _textController = TextEditingController(
-      text: widget.coordinator.sourceOf(widget.state.id),
-    );
-    _focusNode = FocusNode();
-    _focusNode.addListener(_onFocusChange);
-  }
+  RenderMode get currentMode => widget.state.mode;
 
   @override
-  void didUpdateWidget(covariant HeadingBlock oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.state.mode != oldWidget.state.mode) {
-      _textController.text = widget.coordinator.sourceOf(widget.state.id);
-      if (widget.state.mode == RenderMode.editing) {
-        _focusNode.requestFocus();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
-    _textController.dispose();
-    super.dispose();
-  }
-
-  void _onFocusChange() {
-    if (!_focusNode.hasFocus && widget.state.mode == RenderMode.editing) {
-      _commitSource();
-      widget.coordinator.clearFocus(widget.state.id);
-    }
-  }
-
-  void _onBlockTap() {
-    widget.coordinator.setFocus(widget.state.id);
-  }
-
-  void _commitSource() {
-    widget.coordinator.handle(UpdateBlockSourceCommand(
-      blockId: widget.state.id,
-      newSource: _textController.text,
-      origin: CommandOrigin.keyboard,
-    ));
-  }
+  RenderMode previousMode(HeadingBlock oldWidget) => oldWidget.state.mode;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.state.mode == RenderMode.editing) {
+    if (currentMode == RenderMode.editing) {
       return _buildEditing();
     }
     return _buildRendered();
   }
 
+  @override
+  Widget buildRenderContent(BuildContext context) {
+    // 当前实现直接在 build() 中按 mode 分发，保留 buildRenderContent 为兼容空实现
+    return const SizedBox.shrink();
+  }
+
   Widget _buildEditing() {
     return TextField(
-      controller: _textController,
-      focusNode: _focusNode,
+      controller: textController,
+      focusNode: focusNode,
       maxLines: 1,
       textInputAction: TextInputAction.done,
       decoration: const InputDecoration(
@@ -118,13 +88,13 @@ class _HeadingBlockState extends State<HeadingBlock> {
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      onSubmitted: (_) => _focusNode.unfocus(),
+      onSubmitted: (_) => focusNode.unfocus(),
     );
   }
 
   Widget _buildRendered() {
     return GestureDetector(
-      onTap: _onBlockTap,
+      onTap: onBlockTap,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
