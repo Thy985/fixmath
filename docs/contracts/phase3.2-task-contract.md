@@ -455,22 +455,49 @@ flutter test     # 0 regression
 
 ---
 
-## 6. 成功标准
+## 6. 成功标准（Phase 3.2 Exit Gate）
 
-### 6.1 完成定义（Definition of Done）
+参照 [Phase 3.0 Task Contract §4 退出条件](./phase3.0-task-contract.md) 的四维度结构，Phase 3.2 Exit Gate 也分维度验证。
 
-- [ ] 6 种新 Block 全部实现双态切换
-- [ ] `blocks/<type>/` 目录结构建立
-- [ ] `blocks/shared/` 3 个共享组件实现
-- [ ] WebView 预热机制工作
-- [ ] 渲染缓存机制工作
-- [ ] 代码块语法高亮工作
-- [ ] `flutter analyze` 0 error
-- [ ] `flutter test` 0 regression（现有 922 tests 全 PASS）
-- [ ] 新增 ~46 测试全 PASS
-- [ ] 架构守门测试更新并全 PASS
+### 6.1 UI 验证
 
-### 6.2 反馈信号
+- [ ] 含表格 / 引用 / Mermaid / 公式 / 图片占位 / 行内链接的 .md 文档可在 `/editor` 正常打开（无 `UnimplementedError`）
+- [ ] 6 种新 Block 双态切换正常（render ↔ edit）
+- [ ] 行内公式 / 行内链接在 ParagraphBlock inline renderer 中正确渲染
+- [ ] BlockToolbar 在每个 Block 上挂载可用（hover / long-press 触发）
+
+### 6.2 架构验证
+
+- [ ] AST 零污染（`grep` 守门通过：`DocumentElement` 无 isFocused / isSelected / selection 字段）
+- [ ] 依赖方向守门通过（`blocks/<type>/` 不 import `editor/` / `panels/` / `chrome/`，更新 `TC-ARCH-UI-5 ~ 7` 断言）
+- [ ] BlockRenderer exhaustive switch（新增 case 分支，无 `_ =>` fallback）
+- [ ] 无 God Object（`blocks/shared/` 3 个文件职责单一，无 BlockUtils 大杂烩）
+- [ ] WebView 复用（MathBlock / MermaidBlock 共享 `WebViewPool`，无各自管理 WebView 实例）
+- [ ] §3.0 决策点已实施（方案 A 或方案 B，消除 `buildRenderContent` 死代码）
+
+### 6.3 工程验证
+
+- [ ] `flutter analyze` 0 error（warning 允许但应消除）
+- [ ] `flutter test` 0 regression（Phase 3.1-A 的 922 tests 全 PASS）
+- [ ] 新增 ~46 测试全 PASS（含 TC-BLOCK-* / TC-SHARED-* / TC-PERF-* / TC-ARCH-UI-*）
+- [ ] `flutter build apk --debug` 成功
+- [ ] `flutter build web` 成功
+- [ ] 新增 `flutter_highlight` 依赖（若 §3.11 选 A）通过 `dependency_overrides` 锁定版本
+
+### 6.4 性能验证
+
+- [ ] WebView 预热后冷启动 < 500ms（`TC-PERF-WEBVIEW-1` 通过）
+- [ ] 渲染缓存命中率 > 80%（相同 source 二次渲染，`TC-PERF-CACHE-1` 通过）
+- [ ] 1000 行含 6 种 Block 的文档编辑 keystroke latency < 100ms（不触发 Phase 3.1-B）
+
+### 6.5 文档验证
+
+- [ ] [ROADMAP.md](../ROADMAP.md) Phase 3.2 任务状态更新为 ✅
+- [ ] [design/ui-spec.md §7](../design/ui-spec.md) Phase 3.2 行 checkbox 全部勾选
+- [ ] Phase 3.2 Verification Report 完成（参照 [phase3.0-verification-report.md](../releases/) 格式）
+- [ ] 若引入新依赖，更新 [pubspec.yaml](../../flutter_app/pubspec.yaml) + ADR（若需要）
+
+### 6.6 反馈信号
 
 **成功信号**：
 - 用户可在 `/editor` 打开含表格 / 引用 / Mermaid / 公式的 .md 文档
@@ -481,6 +508,7 @@ flutter test     # 0 regression
 - 任何现有测试 regression
 - `UnimplementedError` 仍然被触发（说明有 Block 未实现）
 - WebView 内存泄漏（pool 借还不归还）
+- Phase 3.1-B/C 触发条件被触发（性能 / undo 回归）
 
 ---
 
