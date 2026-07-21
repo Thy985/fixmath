@@ -15,6 +15,18 @@
 
 本文件是 **Phase 3.0 Editor Shell 的 UI 设计参考**，回答"用什么颜色 / 间距 / 字号 / 布局来渲染 Phase 3.0 的 EditorShell 与 3 种 Block（paragraph / heading / code）"。
 
+**与 [docs/UI_SPEC.md](../UI_SPEC.md) 的关系**：
+- [UI_SPEC.md](../UI_SPEC.md)（顶层）：**产品视觉设计 source of truth**，覆盖 9 个屏幕（Home / Editor / Reader / Formula Sheet / Export / Files / Profile），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
+- 本文件（design/ui-spec.md）：**Phase 3.0+ 工程实现参考**，仅覆盖 EditorShell + 3 种 Block + chrome 组件，对应 `lib/presentation/` 代码实现
+
+**已知视觉规范冲突**（待 Human Owner 决策，详见 [UI_SPEC.md 头部冲突表](../UI_SPEC.md#已知视觉规范冲突待-human-owner-决策)）：
+- 正文字号：UI_SPEC.md 用 15px serif / 1.85，本文件用 16sp sans-serif / 1.5
+- H1 字号：UI_SPEC.md 用 26px，本文件用 28sp
+- 编辑器背景：UI_SPEC.md 用 `#FDFDFB` immersive paper，本文件依赖 Material Theme
+- 顶部栏高度：UI_SPEC.md 用 48px Floating Top Bar，本文件用 56dp AppBar
+
+冲突未解决前，Phase 3.0 代码以本文件为准（因为已落地为 [EditorTokens](../../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
+
 **不是**：
 - ❌ 完整设计系统（Phase 3.9+ 主题切换时再补）
 - ❌ Phase 3.1+ 的功能交互设计（沉浸模式 / 快捷键 / TOC 等）

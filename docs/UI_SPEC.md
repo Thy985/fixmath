@@ -3,6 +3,26 @@
 > Version 1.0 | 2026-07-18
 > Tokens: `design-system/tokens.json`
 > Prototype: `formulafix-redesign.design/pages/`
+>
+> **文档定位**（2026-07-21 加注）：本文件是 **产品视觉设计 source of truth**，
+> 覆盖 9 个屏幕（Home / Editor / Reader / Formula Sheet / Export / Files / Profile 等），
+> 对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型。
+>
+> **与 [docs/design/ui-spec.md](design/ui-spec.md) 的关系**：
+> - 本文件（UI_SPEC.md）：产品视觉设计，含具体 px 值 / CSS 风格 / HTML 原型对照
+> - design/ui-spec.md：Phase 3.0+ 工程实现参考，含 EditorTokens 引用 / 依赖方向守门 / 扩展点
+>
+> **已知视觉规范冲突**（待 Human Owner 决策）：
+>
+> | 项目 | 本文件（UI_SPEC.md） | design/ui-spec.md |
+> |------|---------------------|-------------------|
+> | 正文字号 | 15px serif, line-height 1.85 | 16sp sans-serif, line-height 1.5 |
+> | H1 字号 | 26px | 28sp |
+> | 编辑器背景 | `#FDFDFB` immersive paper | 依赖 Material Theme |
+> | 顶部栏高度 | 48px Floating Top Bar | 56dp AppBar (`kToolbarHeight`) |
+>
+> 冲突未解决前，Phase 3.0 代码以 [design/ui-spec.md](design/ui-spec.md) 为准
+> （因为已落地为 [EditorTokens](../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
 
 ---
 
