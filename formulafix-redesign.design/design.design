@@ -17,18 +17,50 @@
       }
     },
     {
+      "id": "page-home-v2-typora",
+      "title": "首页 · 便携查看器（Typora 化）",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784685600000,
+      "canvasData": {
+        "x": 309,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/home-v2-typora.html",
+        "interactions": []
+      }
+    },
+    {
       "id": "page-home",
       "title": "首页 · 文档库（旧版对比）",
       "type": "page",
       "version": 1,
       "createdAt": 1784330000000,
       "canvasData": {
-        "x": 420,
+        "x": 618,
         "y": 0,
         "group": 0
       },
       "devMetadata": {
         "htmlSrc": "pages/home.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-home-v3",
+      "title": "首页 · 极简文件列表（Typora 化）",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784678401000,
+      "canvasData": {
+        "x": 927,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/home-v3.html",
         "interactions": []
       }
     },
@@ -39,12 +71,28 @@
       "version": 1,
       "createdAt": 1784330001000,
       "canvasData": {
-        "x": 840,
+        "x": 1236,
         "y": 0,
         "group": 0
       },
       "devMetadata": {
         "htmlSrc": "pages/editor.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-editor-typora",
+      "title": "编辑器 · Typora 化（Document 非 Block）",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784678400000,
+      "canvasData": {
+        "x": 1545,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/editor-typora.html",
         "interactions": []
       }
     },
@@ -55,7 +103,7 @@
       "version": 1,
       "createdAt": 1784333401000,
       "canvasData": {
-        "x": 1260,
+        "x": 1854,
         "y": 0,
         "group": 0
       },
@@ -71,12 +119,44 @@
       "version": 1,
       "createdAt": 1784344600000,
       "canvasData": {
-        "x": 1680,
+        "x": 2163,
         "y": 0,
         "group": 0
       },
       "devMetadata": {
         "htmlSrc": "pages/reader-dark.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-reader-typora",
+      "title": "阅读器 · Typora 化（公式自然排版）",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784682000000,
+      "canvasData": {
+        "x": 2472,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/reader-typora.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-reader-dark-typora",
+      "title": "阅读器 · 深色 + Typora 化",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1784682001000,
+      "canvasData": {
+        "x": 2781,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/reader-dark-typora.html",
         "interactions": []
       }
     },
@@ -87,7 +167,7 @@
       "version": 1,
       "createdAt": 1784330002000,
       "canvasData": {
-        "x": 2100,
+        "x": 3090,
         "y": 0,
         "group": 0
       },
@@ -103,7 +183,7 @@
       "version": 1,
       "createdAt": 1784344601000,
       "canvasData": {
-        "x": 2520,
+        "x": 3399,
         "y": 0,
         "group": 0
       },
@@ -119,7 +199,7 @@
       "version": 1,
       "createdAt": 1784344602000,
       "canvasData": {
-        "x": 2940,
+        "x": 3708,
         "y": 0,
         "group": 0
       },
@@ -135,7 +215,7 @@
       "version": 1,
       "createdAt": 1784344603000,
       "canvasData": {
-        "x": 3360,
+        "x": 4017,
         "y": 0,
         "group": 0
       },
