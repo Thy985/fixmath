@@ -269,14 +269,12 @@
             1915 年 11 月 25 日，爱因斯坦向普鲁士科学院提交了最终形式的引力场方程。该方程将时空的几何结构（左侧的爱因斯坦张量）与其中的物质能量分布（右侧的能量-动量张量）联系起来。
           </p>
 
-          <!-- Schwarzschild formula block -->
-          <div class="my-6 rounded-xl p-5 border border-[var(--ff-primary)]/15" style="background:var(--ff-formula-bg);">
-            <div class="text-[10px] uppercase tracking-widest text-[var(--ff-muted-foreground)] mb-2">Schwarzschild Metric</div>
-            <div class="font-[var(--ff-font-serif)] text-[18px] text-[var(--ff-primary)] italic leading-[1.6] text-center px-2">
-              ds² = −(1 − 2GM/rc²) c²dt² + (1 − 2GM/rc²)⁻¹ dr² + r²(dθ² + sin²θ dφ²)
-            </div>
-            <div class="mt-2 text-[10px] font-mono text-[var(--ff-muted-foreground)] text-center opacity-80">
-              $$ ds^2 = -\left(1-\frac{2GM}{rc^2}\right)c^2 dt^2 + \left(1-\frac{2GM}{rc^2}\right)^{-1} dr^2 + r^2 d\Omega^2 $$
+          <!-- Schwarzschild formula — Typora: pure serif italic centered, no card/bg/border -->
+          <div class="my-6 font-[var(--ff-font-serif)] text-[18px] text-[var(--ff-foreground)] italic leading-[1.6] text-center">
+            ds² = −(1 − 2GM/rc²) c²dt² + (1 − 2GM/rc²)⁻¹ dr² + r²(dθ² + sin²θ dφ²)
+          </div>
+          <div class="mb-4 text-[10px] font-mono text-[var(--ff-muted-foreground)] text-center opacity-70">
+            $$ ds^2 = -\left(1-\frac{2GM}{rc^2}\right)c^2 dt^2 + \left(1-\frac{2GM}{rc^2}\right)^{-1} dr^2 + r^2 d\Omega^2 $$
             </div>
           </div>
 
@@ -288,10 +286,8 @@
             当半径 r 趋近于史瓦西半径 r_s = 2GM/c² 时，度规的时间分量趋于零，空间分量发散，这标志着事件视界的形成。
           </p>
 
-          <div class="my-6 rounded-xl p-5 border border-[var(--ff-primary)]/15" style="background:var(--ff-formula-bg);">
-            <div class="font-[var(--ff-font-serif)] text-[20px] text-[var(--ff-primary)] italic text-center">
-              Gμν + Λgμν = (8πG/c⁴) Tμν
-            </div>
+          <div class="my-6 font-[var(--ff-font-serif)] text-[20px] text-[var(--ff-foreground)] italic text-center">
+            Gμν + Λgμν = (8πG/c⁴) Tμν
           </div>
 
           <p class="font-[var(--ff-font-serif)] text-[16px] leading-[1.85] text-[var(--ff-foreground)] mb-4">
@@ -319,13 +315,13 @@
           </div>
         </div>
 
-        <!-- Live preview card -->
-        <div class="mx-4 mb-3 rounded-xl border border-[var(--ff-primary)]/20 p-4 flex flex-col items-center" style="background:var(--ff-formula-bg);">
-          <span class="text-[10px] text-[var(--ff-muted-foreground)] uppercase tracking-wider self-start mb-1.5 font-medium">预览</span>
-          <div class="font-[var(--ff-font-serif)] italic text-[22px] text-[var(--ff-primary)] leading-[1.4] text-center px-2" style="font-style:italic; font-weight:500;">
+        <!-- Live preview — Typora: mirrors real document formula, pure serif italic centered, no card/bg/border -->
+        <div class="mx-4 mb-3 rounded-xl border border-[var(--ff-border)] p-4 flex flex-col items-center bg-[var(--ff-card)]">
+          <span class="text-[10px] text-[var(--ff-muted-foreground)] uppercase tracking-wider self-start mb-2 font-medium">预览</span>
+          <div class="font-[var(--ff-font-serif)] italic text-[22px] text-[var(--ff-foreground)] leading-[1.5] text-center px-2 my-2">
             ∫<sub class="text-[13px] not-italic">0</sub><sup class="text-[13px] not-italic">∞</sup> e<sup class="text-[13px] not-italic">−x²</sup> dx = √π/2
           </div>
-          <div class="mt-1.5 text-[11px] font-mono text-[var(--ff-muted-foreground)] text-center font-[var(--ff-font-mono)] opacity-80 truncate max-w-full px-2">
+          <div class="mt-1.5 text-[11px] font-mono text-[var(--ff-muted-foreground)] text-center font-[var(--ff-font-mono)] opacity-70 truncate max-w-full px-2">
             $$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$
           </div>
         </div>

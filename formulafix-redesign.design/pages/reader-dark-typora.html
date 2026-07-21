@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormulaFix · 阅读</title>
+    <style id="theme-vars">
+/**
+ * FormulaFix Redesign — Design Tokens
+ * 学术写作工具，沉稳、专业、沉浸式
+ */
+
+:root, .light {
+  /* Brand */
+  --ff-primary: #1E3A5F;
+  --ff-primary-foreground: #FFFFFF;
+  --ff-primary-hover: #16304F;
+  --ff-accent: #E76F51;
+  --ff-accent-foreground: #FFFFFF;
+
+  /* Semantic */
+  --ff-success: #2D6A4F;
+  --ff-warning: #E9C46A;
+  --ff-error: #C1121F;
+
+  /* Surface — 纸张质感 */
+  --ff-background: #FAFAF7;
+  --ff-foreground: #1A1D23;
+  --ff-card: #FFFFFF;
+  --ff-card-foreground: #1A1D23;
+  --ff-popover: #FFFFFF;
+  --ff-popover-foreground: #1A1D23;
+  --ff-muted: #F0EFEA;
+  --ff-muted-foreground: #6B7280;
+  --ff-border: #E5E4DF;
+  --ff-input: #E5E4DF;
+  --ff-ring: #1E3A5F;
+
+  /* Editor specific */
+  --ff-editor-bg: #FDFDFB;
+  --ff-editor-line: #EFEDE6;
+  --ff-toolbar-bg: rgba(255,255,255,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #EBF0F5 0%, #E8EEF2 100%);
+
+  /* Radius */
+  --ff-radius-sm: 6px;
+  --ff-radius-md: 10px;
+  --ff-radius-lg: 16px;
+  --ff-radius-xl: 24px;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(26,29,35,0.04);
+  --ff-shadow-md: 0 4px 12px rgba(26,29,35,0.06);
+  --ff-shadow-lg: 0 12px 40px rgba(26,29,35,0.10);
+  --ff-shadow-xl: 0 24px 60px rgba(26,29,35,0.14);
+
+  /* Typography */
+  --ff-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --ff-font-serif: "Iowan Old Style", "Palatino Linotype", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --ff-font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+.dark {
+  /* Brand — 深色模式下调和亮度 */
+  --ff-primary: #5B8DB8;
+  --ff-primary-foreground: #0F1419;
+  --ff-primary-hover: #7AA5CA;
+  --ff-accent: #F4A261;
+  --ff-accent-foreground: #0F1419;
+
+  /* Semantic */
+  --ff-success: #52B788;
+  --ff-warning: #E9C46A;
+  --ff-error: #E76F51;
+
+  /* Surface — 深墨 */
+  --ff-background: #0F1419;
+  --ff-foreground: #E8EAED;
+  --ff-card: #1A1D23;
+  --ff-card-foreground: #E8EAED;
+  --ff-popover: #1A1D23;
+  --ff-popover-foreground: #E8EAED;
+  --ff-muted: #242830;
+  --ff-muted-foreground: #9AA0A6;
+  --ff-border: #2A2F38;
+  --ff-input: #2A2F38;
+  --ff-ring: #5B8DB8;
+
+  /* Editor specific */
+  --ff-editor-bg: #13171D;
+  --ff-editor-line: #22272F;
+  --ff-toolbar-bg: rgba(26,29,35,0.92);
+  --ff-formula-bg: linear-gradient(135deg, #1E2A36 0%, #1C2530 100%);
+
+  /* Shadows — 更深但透明 */
+  --ff-shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --ff-shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --ff-shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+  --ff-shadow-xl: 0 24px 60px rgba(0,0,0,0.6);
+}
+
+/* ---------- Semantic alias mapping for fill-html-head ---------- */
+:root {
+  --background: var(--ff-background);
+  --foreground: var(--ff-foreground);
+  --card: var(--ff-card);
+  --card-foreground: var(--ff-card-foreground);
+  --popover: var(--ff-popover);
+  --popover-foreground: var(--ff-popover-foreground);
+  --primary: var(--ff-primary);
+  --primary-foreground: var(--ff-primary-foreground);
+  --muted: var(--ff-muted);
+  --muted-foreground: var(--ff-muted-foreground);
+  --border: var(--ff-border);
+  --input: var(--ff-input);
+  --ring: var(--ff-ring);
+  --radius-sm: var(--ff-radius-sm);
+  --radius-md: var(--ff-radius-md);
+  --radius-lg: var(--ff-radius-lg);
+  --success: var(--ff-success);
+  --warning: var(--ff-warning);
+  --error: var(--ff-error);
+  --accent: var(--ff-accent);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--ff-background);
+    --color-foreground: var(--ff-foreground);
+    --color-card: var(--ff-card);
+    --color-card-foreground: var(--ff-card-foreground);
+    --color-popover: var(--ff-popover);
+    --color-popover-foreground: var(--ff-popover-foreground);
+    --color-primary: var(--ff-primary);
+    --color-primary-foreground: var(--ff-primary-foreground);
+    --color-muted: var(--ff-muted);
+    --color-muted-foreground: var(--ff-muted-foreground);
+    --color-accent: var(--ff-accent);
+    --color-border: var(--ff-border);
+    --color-input: var(--ff-input);
+    --color-ring: var(--ff-ring);
+    --radius-sm: var(--ff-radius-sm);
+    --radius-md: var(--ff-radius-md);
+    --radius-lg: var(--ff-radius-lg);
+  }
+  @layer base {
+    body { background: var(--background); color: var(--foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--ff-background); }
+      .text-background { color: var(--ff-background); }
+      .border-background { border-color: var(--ff-background); }
+      .ring-background { --tw-ring-color: var(--ff-background); }
+      .bg-foreground { background-color: var(--ff-foreground); }
+      .text-foreground { color: var(--ff-foreground); }
+      .border-foreground { border-color: var(--ff-foreground); }
+      .ring-foreground { --tw-ring-color: var(--ff-foreground); }
+      .bg-card { background-color: var(--ff-card); }
+      .text-card { color: var(--ff-card); }
+      .border-card { border-color: var(--ff-card); }
+      .ring-card { --tw-ring-color: var(--ff-card); }
+      .bg-card-foreground { background-color: var(--ff-card-foreground); }
+      .text-card-foreground { color: var(--ff-card-foreground); }
+      .border-card-foreground { border-color: var(--ff-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--ff-card-foreground); }
+      .bg-popover { background-color: var(--ff-popover); }
+      .text-popover { color: var(--ff-popover); }
+      .border-popover { border-color: var(--ff-popover); }
+      .ring-popover { --tw-ring-color: var(--ff-popover); }
+      .bg-popover-foreground { background-color: var(--ff-popover-foreground); }
+      .text-popover-foreground { color: var(--ff-popover-foreground); }
+      .border-popover-foreground { border-color: var(--ff-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--ff-popover-foreground); }
+      .bg-primary { background-color: var(--ff-primary); }
+      .text-primary { color: var(--ff-primary); }
+      .border-primary { border-color: var(--ff-primary); }
+      .ring-primary { --tw-ring-color: var(--ff-primary); }
+      .bg-primary-foreground { background-color: var(--ff-primary-foreground); }
+      .text-primary-foreground { color: var(--ff-primary-foreground); }
+      .border-primary-foreground { border-color: var(--ff-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--ff-primary-foreground); }
+      .bg-muted { background-color: var(--ff-muted); }
+      .text-muted { color: var(--ff-muted); }
+      .border-muted { border-color: var(--ff-muted); }
+      .ring-muted { --tw-ring-color: var(--ff-muted); }
+      .bg-muted-foreground { background-color: var(--ff-muted-foreground); }
+      .text-muted-foreground { color: var(--ff-muted-foreground); }
+      .border-muted-foreground { border-color: var(--ff-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--ff-muted-foreground); }
+      .bg-accent { background-color: var(--ff-accent); }
+      .text-accent { color: var(--ff-accent); }
+      .border-accent { border-color: var(--ff-accent); }
+      .ring-accent { --tw-ring-color: var(--ff-accent); }
+      .bg-border { background-color: var(--ff-border); }
+      .text-border { color: var(--ff-border); }
+      .border-border { border-color: var(--ff-border); }
+      .ring-border { --tw-ring-color: var(--ff-border); }
+      .bg-input { background-color: var(--ff-input); }
+      .text-input { color: var(--ff-input); }
+      .border-input { border-color: var(--ff-input); }
+      .ring-input { --tw-ring-color: var(--ff-input); }
+      .bg-ring { background-color: var(--ff-ring); }
+      .text-ring { color: var(--ff-ring); }
+      .border-ring { border-color: var(--ff-ring); }
+      .ring-ring { --tw-ring-color: var(--ff-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="min-h-screen bg-[var(--ff-editor-bg)]" style="font-family: var(--ff-font-sans);">
+      <!-- Reading progress bar (thin 2px fixed at very top) -->
+      <div class="fixed top-0 left-0 right-0 z-50 h-0.5 bg-transparent">
+        <div class="h-full bg-[var(--ff-primary)]" style="width: 66%;"></div>
+      </div>
+
+      <!-- Document scroll container (max-w-md centered) -->
+      <div class="max-w-md mx-auto bg-[var(--ff-editor-bg)] pb-32 relative">
+
+        <!-- Reader top bar (sticky, dark toolbar bg with backdrop blur) -->
+        <header class="sticky top-0.5 z-40 px-3 h-12 flex items-center justify-between bg-[var(--ff-editor-bg)]/85 backdrop-blur-sm">
+          <!-- Left: back button -->
+          <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)]/60 transition-colors" aria-label="返回">
+            <i data-lucide="chevron-left" class="w-[18px] h-[18px] text-[var(--ff-foreground)]"></i>
+          </button>
+
+          <!-- Center: title + source -->
+          <div class="flex flex-col items-center min-w-0 px-2">
+            <span class="text-[12px] font-medium text-[var(--ff-foreground)] max-w-[160px] truncate leading-tight">贝叶斯统计笔记.md</span>
+            <span class="text-[10px] text-[var(--ff-muted-foreground)] flex items-center gap-1 leading-tight mt-0.5">
+              <i data-lucide="message-circle" class="w-[9px] h-[9px] text-[#07C160]"></i>
+              来自微信 · 张教授
+            </span>
+          </div>
+
+          <!-- Right: bookmark + share -->
+          <div class="flex items-center gap-0.5">
+            <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)]/60 transition-colors" aria-label="添加书签">
+              <i data-lucide="bookmark" class="w-[18px] h-[18px] text-[var(--ff-muted-foreground)]"></i>
+            </button>
+            <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)]/60 transition-colors" aria-label="分享">
+              <i data-lucide="share-2" class="w-[18px] h-[18px] text-[var(--ff-muted-foreground)]"></i>
+            </button>
+          </div>
+        </header>
+
+        <!-- External file badge -->
+        <div class="mx-5 mt-2 inline-flex self-start">
+          <span class="rounded-full bg-[var(--ff-primary)]/[0.08] border border-[var(--ff-primary)]/[0.15] px-2.5 py-1 inline-flex items-center gap-1 whitespace-nowrap">
+            <i data-lucide="eye" class="w-[11px] h-[11px] text-[var(--ff-primary)]"></i>
+            <span class="text-[10px] text-[var(--ff-primary)] font-medium">外部文件 · 只读副本</span>
+          </span>
+        </div>
+
+        <!-- Article header block -->
+        <div class="px-7 pt-5 pb-2">
+          <div class="text-[10px] uppercase tracking-wider text-[var(--ff-primary)]/70 font-medium" style="letter-spacing: 0.1em;">统计学习 / 笔记</div>
+          <h1 class="font-serif text-[28px] font-bold leading-[1.25] text-[var(--ff-foreground)] mt-2" style="text-wrap: balance; word-break: keep-all; overflow-wrap: break-word; font-family: var(--ff-font-serif);">
+            贝叶斯统计笔记
+          </h1>
+          <div class="mt-3 flex items-center gap-3 text-[11px] text-[var(--ff-muted-foreground)] flex-wrap">
+            <span class="flex items-center gap-1 whitespace-nowrap">
+              <i data-lucide="user" class="w-[11px] h-[11px]"></i>
+              张教授
+            </span>
+            <span class="flex items-center gap-1 whitespace-nowrap">
+              <i data-lucide="calendar" class="w-[11px] h-[11px]"></i>
+              2026年7月12日
+            </span>
+            <span class="flex items-center gap-1 whitespace-nowrap">
+              <i data-lucide="clock" class="w-[11px] h-[11px]"></i>
+              约 12 分钟
+            </span>
+            <span class="flex items-center gap-1 whitespace-nowrap">
+              <i data-lucide="type" class="w-[11px] h-[11px]"></i>
+              4,821 字
+            </span>
+          </div>
+          <!-- Decorative divider -->
+          <div class="w-8 h-px bg-[var(--ff-border)] mx-auto mt-5"></div>
+        </div>
+
+        <!-- Article body (serif reading text) -->
+        <article class="px-7 py-4" style="font-family: var(--ff-font-serif);">
+          <!-- Opening paragraph -->
+          <p class="text-[16px] leading-[1.9] text-[var(--ff-foreground)]/90 mb-5" style="font-family: var(--ff-font-serif);">
+            贝叶斯统计是一种将概率解释为<strong class="font-semibold text-[var(--ff-foreground)]">信念度</strong>（degree of belief）的统计方法。与频率学派不同，贝叶斯方法允许我们在观测数据之前对参数持有先验信念，并在数据到来之后更新这一信念。
+          </p>
+
+          <!-- Display formula 1 (Typora: pure serif italic, no card) -->
+          <div class="my-6 text-center">
+            <div class="font-serif text-[21px] italic text-[var(--ff-foreground)] leading-relaxed" style="font-family: var(--ff-font-serif); font-style: italic;">
+              P(A|B) = P(B|A) · P(A) / P(B)
+            </div>
+          </div>
+
+          <!-- H2 section 1 -->
+          <h2 class="font-serif text-[20px] font-semibold mt-8 mb-3 text-[var(--ff-foreground)]" style="font-family: var(--ff-font-serif);">一、先验分布的选择</h2>
+
+          <p class="text-[16px] leading-[1.9] text-[var(--ff-foreground)]/90 mb-4" style="font-family: var(--ff-font-serif);">
+            选择先验分布是贝叶斯分析中最具主观性的一步，也是最常被频率学派批评的环节。常见的先验选择策略包括：无信息先验（如 Jeffreys 先验）、共轭先验、以及基于历史数据构建的经验先验。
+          </p>
+
+          <!-- Bulleted list -->
+          <ul class="my-3 pl-2 space-y-2">
+            <li class="flex gap-3 items-start">
+              <span class="text-[var(--ff-primary)] text-[18px] leading-tight mt-0.5" style="font-family: var(--ff-font-serif);">•</span>
+              <span class="text-[16px] leading-[1.8] text-[var(--ff-foreground)]/90 flex-1" style="font-family: var(--ff-font-serif);">共轭先验使得后验分布与先验同属一个分布族，计算便捷</span>
+            </li>
+            <li class="flex gap-3 items-start">
+              <span class="text-[var(--ff-primary)] text-[18px] leading-tight mt-0.5" style="font-family: var(--ff-font-serif);">•</span>
+              <span class="text-[16px] leading-[1.8] text-[var(--ff-foreground)]/90 flex-1" style="font-family: var(--ff-font-serif);">Jeffreys 先验具有参数变换不变性，是一种无信息先验</span>
+            </li>
+            <li class="flex gap-3 items-start">
+              <span class="text-[var(--ff-primary)] text-[18px] leading-tight mt-0.5" style="font-family: var(--ff-font-serif);">•</span>
+              <span class="text-[16px] leading-[1.8] text-[var(--ff-foreground)]/90 flex-1" style="font-family: var(--ff-font-serif);">经验贝叶斯方法从数据本身估计先验的超参数</span>
+            </li>
+          </ul>
+
+          <!-- H2 section 2 -->
+          <h2 class="font-serif text-[20px] font-semibold mt-8 mb-3 text-[var(--ff-foreground)]" style="font-family: var(--ff-font-serif);">二、后验推断</h2>
+
+          <p class="text-[16px] leading-[1.9] text-[var(--ff-foreground)]/90 mb-4" style="font-family: var(--ff-font-serif);">
+            得到后验分布后，我们通常通过点估计（后验均值、后验中位数、后验众数）和区间估计（可信区间, credible interval）来总结参数信息。
+          </p>
+
+          <!-- Display formula 2 (Typora: pure serif italic, no card) -->
+          <div class="my-6 text-center">
+            <div class="font-serif text-[21px] italic text-[var(--ff-foreground)] leading-relaxed" style="font-family: 'Cambria Math', 'Times New Roman', var(--ff-font-serif); font-style: italic;">
+              π(θ|x) = f(x|θ) · π(θ) / ∫ f(x|θ') π(θ') dθ'
+            </div>
+          </div>
+
+          <!-- Pull quote block (Typora: minimal border-left, no icon, no accent bg) -->
+          <blockquote class="my-6 border-l-2 border-[var(--ff-muted-foreground)]/40 pl-5">
+            <p class="text-[15px] italic leading-relaxed text-[var(--ff-foreground)]/70" style="font-family: var(--ff-font-serif); font-style: italic;">
+              贝叶斯方法的本质不在于公式本身，而在于我们如何看待不确定性——它不是世界的属性，而是我们知识的状态。
+            </p>
+          </blockquote>
+
+          <p class="text-[16px] leading-[1.9] text-[var(--ff-foreground)]/90 mb-4" style="font-family: var(--ff-font-serif);">
+            在实际应用中，后验分布通常无法解析求解，这也是贝叶斯方法长期被边缘化的原因之一。MCMC（马尔可夫链蒙特卡洛）方法的普及，特别是 Hamiltonian Monte Carlo 与 NUTS 采样器的出现，使得贝叶斯模型在过去二十年中得到了广泛应用。
+          </p>
+
+          <!-- Figure placeholder (dark muted bg) -->
+          <figure class="my-5 rounded-xl bg-[var(--ff-muted)]/50 border border-[var(--ff-border)] aspect-[16/10] flex items-center justify-center flex-col">
+            <i data-lucide="image" class="w-7 h-7 text-[var(--ff-muted-foreground)] opacity-40 mb-1"></i>
+            <figcaption class="text-[11px] text-[var(--ff-muted-foreground)] font-sans" style="font-family: var(--ff-font-sans);">图 1：后验分布采样示意</figcaption>
+          </figure>
+
+          <!-- H2 section 3 -->
+          <h2 class="font-serif text-[20px] font-semibold mt-8 mb-3 text-[var(--ff-foreground)]" style="font-family: var(--ff-font-serif);">三、总结</h2>
+
+          <p class="text-[16px] leading-[1.9] text-[var(--ff-foreground)]/90 mb-4" style="font-family: var(--ff-font-serif);">
+            贝叶斯统计为我们提供了一种统一而优雅的框架来处理不确定性。尽管其哲学基础仍有争议，但在机器学习、生物统计、社会科学等领域，贝叶斯方法已经成为不可或缺的工具。
+          </p>
+
+          <!-- End-of-article ornament -->
+          <div class="my-10 flex items-center justify-center gap-3 text-[var(--ff-muted-foreground)]/50">
+            <span class="w-8 h-px bg-[var(--ff-border)] inline-block"></span>
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+            <span class="w-8 h-px bg-[var(--ff-border)] inline-block"></span>
+          </div>
+        </article>
+
+        <!-- Article actions -->
+        <div class="px-7 pb-2 flex items-center justify-between">
+          <div class="flex items-center gap-1">
+            <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="点赞">
+              <i data-lucide="thumbs-up" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+            </button>
+            <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="评论">
+              <i data-lucide="message-circle" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+            </button>
+          </div>
+          <span class="text-[11px] text-[var(--ff-muted-foreground)] tabular-nums font-sans" style="font-family: var(--ff-font-sans);">阅读进度 66%</span>
+        </div>
+      </div>
+
+      <!-- Floating Reader Toolbar (fixed bottom, dark card bg) -->
+      <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 rounded-2xl bg-[var(--ff-card)] border border-[var(--ff-border)]/80 px-2 py-2 flex items-center gap-1 backdrop-blur" style="box-shadow: var(--ff-shadow-lg);">
+        <!-- Primary edit button (lighter blue #5B8DB8 in dark, dark text) -->
+        <button class="w-10 h-10 rounded-xl bg-[var(--ff-primary)] text-[var(--ff-primary-foreground)] flex items-center justify-center hover:bg-[var(--ff-primary-hover)] transition-colors" aria-label="进入编辑">
+          <i data-lucide="pencil" class="w-[18px] h-[18px]"></i>
+        </button>
+        <!-- Vertical divider -->
+        <div class="w-px h-6 bg-[var(--ff-border)] mx-0.5"></div>
+        <!-- Font size -->
+        <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="字号">
+          <i data-lucide="type" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+        </button>
+        <!-- Theme (moon icon for dark mode) -->
+        <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="阅读主题">
+          <i data-lucide="moon" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+        </button>
+        <!-- TOC -->
+        <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="目录">
+          <i data-lucide="list" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+        </button>
+        <!-- More -->
+        <button class="w-9 h-9 rounded-full flex items-center justify-center hover:bg-[var(--ff-muted)] transition-colors" aria-label="更多">
+          <i data-lucide="more-horizontal" class="w-4 h-4 text-[var(--ff-muted-foreground)]"></i>
+        </button>
+      </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

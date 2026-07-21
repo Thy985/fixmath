@@ -1,6 +1,6 @@
 # FormulaFix Editor Shell — UI Design Reference
 
-> **版本**：v1.0
+> **版本**：v1.1（同步 Typora 化演进方向）
 > **起草日期**：2026-07-21
 > **起草人**：AI Agent（GLM-5.2）
 > **状态**：Phase 3.0 Reference（落地 [Phase 3.0 Task Contract §3.5](../contracts/phase3.0-task-contract.md)）
@@ -16,7 +16,7 @@
 本文件是 **Phase 3.0 Editor Shell 的 UI 设计参考**，回答"用什么颜色 / 间距 / 字号 / 布局来渲染 Phase 3.0 的 EditorShell 与 3 种 Block（paragraph / heading / code）"。
 
 **与 [docs/UI_SPEC.md](../UI_SPEC.md) 的关系**：
-- [UI_SPEC.md](../UI_SPEC.md)（顶层）：**产品视觉设计 source of truth**，覆盖 9 个屏幕（Home / Editor / Reader / Formula Sheet / Export / Files / Profile），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
+- [UI_SPEC.md](../UI_SPEC.md)（顶层）：**产品视觉设计 source of truth**，覆盖 14 个屏幕（含 5 张 Typora 化对比页），对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型
 - 本文件（design/ui-spec.md）：**Phase 3.0+ 工程实现参考**，仅覆盖 EditorShell + 3 种 Block + chrome 组件，对应 `lib/presentation/` 代码实现
 
 **已知视觉规范冲突**（待 Human Owner 决策，详见 [UI_SPEC.md 头部冲突表](../UI_SPEC.md#已知视觉规范冲突待-human-owner-决策)）：
@@ -26,6 +26,13 @@
 - 顶部栏高度：UI_SPEC.md 用 48px Floating Top Bar，本文件用 56dp AppBar
 
 冲突未解决前，Phase 3.0 代码以本文件为准（因为已落地为 [EditorTokens](../../flutter_app/lib/presentation/themes/editor_tokens.dart)）。
+
+**Phase 3.1 Typora 化新增冲突**（待 Phase 3.1 实现时统一）：
+- Edit 态视觉：本文件 §3.1/3.2/3.3 规定 edit 态有左侧蓝色竖线 + 淡色背景，Typora 化原则要求 edit/render 视觉无差异
+- 公式渲染：本文件 §3.1 FormulaElement 原未规定卡片背景，Typora 化要求纯 serif italic 无卡片
+- Blockquote：本文件原未规定，Typora 化要求左侧 3dp 灰色竖线 + serif 正文
+
+Phase 3.1 实现时，以 [UI_SPEC.md](../UI_SPEC.md) Typora 化对比页为准，本文件相应条款已标注为"Phase 3.1 演进方向"。
 
 **不是**：
 - ❌ 完整设计系统（Phase 3.9+ 主题切换时再补）
@@ -54,7 +61,7 @@
 | Apple HIG | 字号梯度（28/24/22/20/18/16）、圆角（4dp chip / block） |
 | Typora | 双态切换体验（render ↔ edit 无缝过渡） |
 | VS Code | chrome / workspace 分离（AppBar / Editor / StatusBar 三层） |
-| Notion | Block-based 编辑模型（块作为第一公民） |
+| Typora（v2.0 确立） | Document-first 体验（用户看到的是 Document 而不是 Block；块是工程抽象，不暴露给用户） |
 
 ---
 
@@ -114,6 +121,8 @@
 | 渲染态边框（hover / 默认） | `#E0E0E0` | `EditorTokens.borderDefault` |
 | 代码块背景 | `#F5F5F5` | `EditorTokens.codeBackground` |
 | 代码 language chip | `#E0E0E0` | `EditorTokens.codeLanguageChip` |
+| 公式（行内/块级）render | serif italic，无卡片背景 | Typora 化原则（Phase 3.1 演进） |
+| Blockquote 引用 | 左侧 3dp `#C0C0C0` 竖线 + serif 正文 | Typora 化原则（Phase 3.1 演进） |
 
 **Phase 3.9+ 演进**：以上颜色将升级为 `light` / `dark` / `sepia` 三主题，通过 `ThemeExtension<EditorTokens>` 注入。
 
@@ -156,6 +165,8 @@
 - **边框**：左侧 2dp 蓝色竖线（`borderFocused`）
 - **背景**：淡灰色（`codeBackground`，待 Phase 3.1 接入主题后调整）
 
+> **Phase 3.1 Typora 化演进**：移除左侧蓝色竖线与淡色背景，edit 态与 render 态视觉无差异，仅靠光标位置区分（Document-first，不暴露 Block 感）。
+
 #### Inline 元素样式
 
 | Inline 类型 | Render 视觉 | Edit source |
@@ -165,7 +176,7 @@
 | ItalicElement | *斜体*（FontStyle.italic） | `*text*` |
 | StrikethroughElement | ~~删除线~~（TextDecoration.lineThrough） | `~~text~~` |
 | InlineCodeElement | `monospace`（fontFamily: monospace） | `` `code` `` |
-| FormulaElement | LaTeX 渲染（Phase 3.2+ 接入 WebView） | `$latex$` |
+| FormulaElement | LaTeX 渲染（Phase 3.2+ 接入 WebView）；**Typora 化：纯 serif italic，无卡片背景** | `$latex$` |
 | LinkElement | 蓝色文本 + 下划线 | `[text](url)` |
 | ImageElement | 占位 + alt 文本（Phase 3.5+ 接入图片管理） | `![alt](url)` |
 
@@ -189,6 +200,8 @@
 - 与 render 态字号一致（不放大不缩小）
 - 左侧 2dp 蓝色竖线（`borderFocused`）
 - 行首显示 `#` 前缀（用户编辑时可见）
+
+> **Phase 3.1 Typora 化演进**：移除左侧蓝色竖线，edit 态与 render 态视觉无差异，仅行首 `#` 前缀提示当前在 edit 态。
 
 ### 3.3 CodeBlock（代码块）
 
@@ -222,6 +235,8 @@
 - 与 render 态视觉一致（字号 / 颜色 / 背景不变）
 - 左侧 2dp 蓝色竖线（`borderFocused`）
 - 行首显示 ```` ```dart ```` fence（用户编辑时可见）
+
+> **Phase 3.1 Typora 化说明**：代码块保留卡片感（背景 + chip + 圆角）是 Typora 本身的做法，不算 Block 感泄漏；但 edit 态左侧蓝色竖线应移除，仅靠 fence 标记区分。
 
 ---
 
@@ -389,4 +404,4 @@ Phase 3.0 完成时，本文件应满足以下验证：
 
 ---
 
-**本文件由 AI Agent 起草，版本 v1.0，生效日期 2026-07-21。**
+**本文件由 AI Agent 起草，版本 v1.1（同步 Typora 化演进方向），生效日期 2026-07-21。**

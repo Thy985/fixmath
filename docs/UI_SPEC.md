@@ -1,12 +1,16 @@
 # FormulaFix UI Specification
 
-> Version 1.0 | 2026-07-18
+> Version 2.0 | 2026-07-18 初版 · 2026-07-21 Typora 化修订
 > Tokens: `design-system/tokens.json`
 > Prototype: `formulafix-redesign.design/pages/`
 >
-> **文档定位**（2026-07-21 加注）：本文件是 **产品视觉设计 source of truth**，
-> 覆盖 9 个屏幕（Home / Editor / Reader / Formula Sheet / Export / Files / Profile 等），
+> **文档定位**（2026-07-21 加注，v2.0 更新）：本文件是 **产品视觉设计 source of truth**，
+> 覆盖 14 个屏幕（Home / Editor / Reader / Formula Sheet / Export / Files / Profile 等，含 5 张 Typora 化对比页），
 > 对应 `docs/assets/ui-prototype/pages/*.html` 高保真原型。
+>
+> **v2.0 Typora 化修订（2026-07-21）**：新增 Screen 10（Home v3 极简文件列表）、Screen 11（Editor Typora 化）、Screen 12（Home v2 便携查看器 Typora 化）、Screen 13（Reader Typora 化）、Screen 14（Reader Dark Typora 化）五张对比页，
+> 落地"用户看到的是 Document 而不是 Block"的总原则与三层 UI 哲学。Screen 1/9（Home 旧版）与 Screen 2（Editor 旧版）保留为 v1.0 基线对比，
+> 其 Hero/统计/模板/公式卡片/常驻工具栏等设计已被 v2.0 取代（详见 [DESIGN.md §0.1、§6 D6-D9](DESIGN.md)）。
 >
 > **与 [docs/design/ui-spec.md](design/ui-spec.md) 的关系**：
 > - 本文件（UI_SPEC.md）：产品视觉设计，含具体 px 值 / CSS 风格 / HTML 原型对照
@@ -528,3 +532,315 @@
 **File**: `pages/home.html`
 **Status**: Kept for before/after comparison. Navigation structure aligned with Home v2 (tabs: 首页/文件/阅读/我的).
 **Differences from v2**: No hero section, simpler greeting, list-style recent docs instead of grid+external, original tab labels (写作/大纲/我的 — now patched to match v2).
+
+---
+
+# Screen 10: Home v3 — 极简文件列表（Typora 化）
+
+**File**: `pages/home-v3.html`
+**Navigation source**: Bottom Tab "首页"
+**Status**: v2.0 新增，取代 Screen 1/9 的 Hero/统计/模板/FAB 设计
+**Device**: Mobile, max-width 390px centered
+
+## 设计意图
+首页是"任意来源 .md 即开即看"的便携查看器入口，不是 App 仪表盘。去掉 Hero 问候、统计三连、模板网格、脉冲 FAB；回归纯排版文件列表 + 一条便携入口。
+
+## Layout（top to bottom, scrollable）
+
+### 10.1 Status Bar
+- Height 48px, transparent，iOS 风格 "9:41" + 信号/Wi-Fi/电池 SVG。沿用 Screen 1。
+
+### 10.2 Minimal Header
+- Padding horizontal 20px, 8px top
+- Layout: flex justify-between items-center
+  - Left: wordmark "FormulaFix" 19px serif font-semibold foreground
+  - Right: 两个低调图标按钮，w-10 h-10 rounded-full hover:bg-muted
+    - search 18px muted-foreground
+    - plus 18px muted-foreground（新建文档入口，取代 FAB）
+- **无问候语、无头像、无通知铃铛**
+
+### 10.3 便携查看器入口（Portable Entry）
+- Margin 16px horizontal, 16px top
+- Style: `border border-dashed border-[var(--ff-border)] rounded-lg px-4 py-3 flex items-center gap-2`
+- Layout: flex items-center gap 8px
+  - icon folder-open 18px muted-foreground
+  - "打开任意 .md 文件" 13px foreground/80
+  - Spacer
+  - "即开即看" 11px muted-foreground
+- 强化便携查看器定位，不做成醒目 CTA
+
+### 10.4 Section Label "最近"
+- Margin 24px top, 20px horizontal
+- "最近" 13px serif muted-foreground（极小标签，非大标题）
+
+### 10.5 文件列表（Minimal Document List）
+- Margin 12px top, 20px horizontal
+- 纯排版 `ul/li` 列表，**无图标方块、无彩色底、无左侧竖条、无 shadow**
+- 每行 `border-b border-[var(--ff-border)]/50` 细分隔线，py 12px
+- 每行 Layout: flex items-center gap 12px
+  - Left（flex-1 min-w-0）:
+    - 标题: serif 15px font-semibold foreground, truncate
+    - 摘要: muted 12px line-clamp-1, margin-top 2px
+  - Right: 时间 muted 11px（"2小时前" / "昨天" / "3天前"）
+- 三份最近文档（沿用 Screen 1/9）:
+  - 广义相对论场方程推导 / 2,341字·47公式 / 2小时前
+  - 线性代数期末复习笔记 / 5,802字·89公式 / 昨天
+  - 量子力学随笔 / 草稿 / 3天前
+
+### 10.6 Section Label "更早"
+- Margin 24px top, 20px horizontal
+- "更早" 13px serif muted-foreground
+
+### 10.7 更早文档列表
+- 同 10.5 样式，1-2 条旧文档:
+  - 傅里叶变换笔记 / 上周
+  - 概率论习题整理 / 上月
+
+### 10.8 Bottom Tab Bar
+- 沿用 Screen 1（fixed bottom-0 max-w-md h-16 grid-cols-4，首页 tab 高亮 primary，图标 h-[22px] w-[22px]，home indicator）
+
+## 与 Screen 1/9 的差异（v2.0 反"Notion 化"）
+| 移除项 | v1.0（Screen 1/9） | v2.0（Screen 10） |
+|--------|--------------------|-------------------|
+| Hero 问候栏 | 头像 Σ + "开始今天的写作" + 铃铛 | 删除，改为 wordmark + search/plus |
+| 大搜索药丸 | h-44 rounded-full muted | 删除，收敛为 header search 图标 |
+| 统计三连 | 12 本月/347 公式/8.2k 字 | 删除 |
+| 模板网格 | 空白/学术/公式/实验 2×2 | 删除 |
+| 脉冲 FAB | fixed + animate-ping | 删除，新建走 header plus |
+| 装饰水印 | ∫ π σ √ 大号 | 删除 |
+| 文档卡 | 彩色图标块 + 左竖条 + shadow | 纯排版列表 + 细分隔线 |
+
+### Interactions
+| Gesture | Target | Action |
+|---------|--------|--------|
+| Tap search 图标 | Search overlay | 搜索任意文档/公式/标签 |
+| Tap plus 图标 | Editor | 新建空白文档 |
+| Tap 便携入口 | System file picker | 打开任意来源 .md 文件 |
+| Tap 文件行 | Editor（自有）/ Reader（外部） | 打开文档 |
+| Tap 底部 tab | 对应屏 | 切换 tab |
+
+---
+
+# Screen 11: Editor · Typora 化（Document 非 Block）
+
+**File**: `pages/editor-typora.html`
+**Navigation source**: Deep link from Home, Files, or new document
+**Status**: v2.0 新增，取代 Screen 2 的公式卡片/活动行高亮/常驻工具栏设计
+**Mode**: Immersive（无底部 tab bar）
+**Device**: Mobile, max-width 390px centered
+
+## 设计意图
+用户看到的是 Document，而不是 Block。Block 是工程抽象，不应成为用户认知；BlockRenderer 是排版引擎，不是卡片系统。公式回归自然排版，活动行无 Block 感，工具栏情境化，AI 以行内轻提示出现。
+
+## 三层 UI 哲学（适用于 Editor）
+| 层级 | 可见性 | 内容 |
+|------|--------|------|
+| Layer 1 · 常驻 | 始终可见 | 标题 + 正文 + 极简状态栏。仅此而已 |
+| Layer 2 · 情境 | 选中/点击才浮现 | 选区浮动工具栏 |
+| Layer 3 · 隐藏 | 默认不可见 | AI 助手行内轻提示（ghost text） |
+
+## Layout
+
+### 11.1 Floating Top Bar（Layer 1，沿用 Screen 2.1）
+- sticky top-0 z-30, h-48px, backdrop-blur-md, bg editor-bg/85, border-bottom border/50
+- Left: ghost circle 36px, chevron-left 18px
+- Center: 标题 13px serif font-medium truncate + 已自动保存小绿点
+- Right: more-horizontal + share ghost circles
+
+### 11.2 Document Body（Layer 1，immersive paper）
+- bg editor-bg (#FDFDFB), padding horizontal 24px / top 24px / bottom 128px
+- serif throughout, 15px body, 1.85 line-height
+- **H1**: 26px font-bold serif
+- **Meta line**: 11px muted-foreground, calendar/tag icons
+- **H2**: 19px font-semibold serif, **无橙色竖条装饰**（v1.0 的 `w-[3px] h-5 bg-accent` 已移除）
+- **Paragraph**: 15px serif line-height 1.85 foreground/90
+- **Bullet list**: pl-4, bullet dot 6px bg primary
+- **Blockquote**（原 Callout 改造）: `border-l-2 border-[var(--ff-border)] pl-4` + serif italic + text-foreground/75，**无 lightbulb 图标、无 accent 底色、无 border-l-4 accent**
+
+### 11.3 块公式 · 自然排版（v2.0 核心改动，取代 Screen 2.2 Display formula block）
+- **无底色、无边框、无编号、无卡片**
+- 样式: serif italic 19px, centered, 纵向大留白 `my-6`~`my-8`
+- 就是文档流中居中的一行排式，像 LaTeX `\[ \]` 印在纸上
+- **不**加 hairline 分隔线、**不**加 `(1.1) Einstein 场方程` 编号
+- v1.0 移除项: `--ff-formula-bg` 渐变底、`border-l-[3px] border-primary` 左边框、右下角编号 label
+
+### 11.4 行内公式
+- serif italic，**无 primary/5 底色高亮**（v1.0 的 bg primary/5 px-2 rounded 已移除）
+- 就是正文里的斜体 serif，与文字同流
+
+### 11.5 活动编辑行 · 无 Block 感（v2.0 核心改动，取代 Screen 2.2 Active editing line）
+- 活动行就是一条普通 `<p>` 段落
+- **无 primary/3% 底色、无左侧 3px primary 高亮条**（v1.0 已移除）
+- 唯一活动指示: 行内闪烁插入符 `.ff-caret`（2px × 20px bg primary animate blink）
+
+### 11.6 Layer 3 · AI 行内轻提示（v2.0 新增）
+- 位置: 活动行插入符之后
+- 样式: serif italic 13px, `text-[var(--ff-muted-foreground)]` opacity-50
+- 文案示例: "（建议补充 Schwarzschild 度规表达式）"
+- **绝不**以弹窗、侧栏、主 UI 元素形态出现；属 Layer 3 隐藏层
+
+### 11.7 渲染中公式（v2.0 改造，取代 Screen 2.2 Rendering formula indicator）
+- serif italic, opacity-60
+- 行尾内联小转圈: `w-3 h-3 border-2 rounded-full animate-spin`
+- **无卡片、无渐变底、无左边框、无右上角 spinner 卡片**
+
+### 11.8 Layer 2 · 情境化选区工具栏（v2.0 核心改动，取代 Screen 2.3 Floating Contextual Toolbar）
+- **不再** fixed bottom 常驻；**仅**在选中文本时浮现
+- 选区: 文档中段一小段文字加 `bg-[color-mix(in_srgb,var(--ff-primary)_14%,transparent)]` 涂抹高亮
+- 工具栏: absolute 定位浮于选区正上方（top: -56px），同款药丸样式
+  - rounded-full, bg card, shadow-lg, border border/80, backdrop-blur, px-6 py-4
+  - 8 个图标按钮（32×32 rounded-full）: bold(active) / italic / function-square(primary) / code-2 / list / quote / type / image
+- 未选中文本时工具栏完全不可见
+
+### 11.9 Bottom Status Bar（Layer 1，沿用 Screen 2.4）
+- fixed bottom-0 max-w-md h-32px, bg card/95 backdrop-blur, border-top border/60
+- Left: "第 3 节 · 第 12 行" 11px muted + align-left
+- Center: "2,341 字 · 47 公式"
+- Right: "读写 · 3 分钟" + clock
+
+## 与 Screen 2 的差异（v2.0 反"Notion 化"）
+| 项目 | v1.0（Screen 2） | v2.0（Screen 11） |
+|------|------------------|-------------------|
+| 块公式底色 | 渐变 #EBF0F5→#E8EEF2 | 无底色 |
+| 块公式左边框 | 3px solid primary | 无 |
+| 块公式编号 | "(1.1) Einstein 场方程" | 无编号 |
+| 行内公式 | bg primary/5 rounded | 纯 serif italic，无底色 |
+| H2 装饰 | 无（本就克制） | 无橙色竖条（更克制） |
+| Callout | border-l-4 accent + lightbulb + accent/5 | border-l-2 border + italic serif（blockquote） |
+| 活动行 | primary/3% 底 + 3px 左高亮 | 无底色无高亮，仅 caret |
+| 工具栏 | fixed bottom 常驻 | 选区上方情境浮现 |
+| 渲染中公式 | opacity-70 卡片 + 右上 spinner | opacity-60 + 行尾内联 spinner |
+| AI 助手 | 无 | 行内 ghost 提示（Layer 3） |
+
+### Interactions
+| Gesture | Target | Action |
+|---------|--------|--------|
+| Tap chevron-left | Previous screen | Save & navigate back |
+| 选中正文文字 | Self | Layer 2 选区工具栏浮现于选区上方 |
+| Tap 工具栏 bold/italic/etc | Document | 切换选区格式 |
+| Tap 工具栏 function | Formula Sheet | 打开公式插入面板 |
+| Type in document body | Document | WYSIWYG 编辑，caret 闪烁 |
+| 长按/双击空行 | Self | Layer 3 AI 行内 ghost 提示出现 |
+
+---
+
+# Screen 12: Home v2 · 便携查看器（Typora 化）
+
+**File**: `pages/home-v2-typora.html`
+**Navigation source**: Bottom Tab "首页"
+**Status**: v2.0 新增（P1），home-v2 便携查看器版的 Typora 化，保留便携查看器特色
+**Device**: Mobile, max-width 390px centered
+
+## 设计意图
+home-v2 是"便携查看器"定位的首页。Typora 化后移除 Hero CTA/快捷访问三连/大搜索药丸/FAB/装饰水印，但保留"外部文件来源"特色。与 home-v3 差异化：home-v3 是纯文档列表，home-v2-typora 是便携入口+来源 chips+外部文件+文档列表的融合。
+
+## Layout（top to bottom, scrollable）
+
+### 12.1 Status Bar
+- Height 48px, iOS 风格 "9:41" + 信号/Wi-Fi/电池 SVG。沿用 home-v2。
+
+### 12.2 Minimal Header（Typora 化）
+- Padding horizontal 20px, 8px top
+- Left: wordmark "FormulaFix" 19px serif font-semibold foreground
+- Right: search + plus 两个 w-10 h-10 rounded-full hover:bg-muted 图标按钮
+- **无问候语、无头像、无 Hero CTA**
+
+### 12.3 便携查看器入口 + 来源 chips（home-v2 特色保留）
+- 虚线入口：`border border-dashed border-[var(--ff-border)] rounded-lg px-4 py-3`，file-input 图标 18px muted-foreground + "打开任意 .md 文件" 13px foreground/80 + "即开即看" 11px muted-foreground
+- 来源 chips（降级为极简水平行）：5 个 pill（微信/邮件/下载/AirDrop/文件App），`text-[11px] text-muted-foreground bg-muted/60 rounded-full px-2.5 py-1`，无图标，一行排开
+
+### 12.4 最近外部文件（极简列表，保留来源文字）
+- Section 标题「最近打开」serif 13px muted-foreground
+- 纯排版列表，每行 `border-b border-[var(--ff-border)]/50`，serif 15px 标题 + muted 12px 来源摘要（"来自微信 · 张教授"）+ 右对齐时间
+- 3 条外部文件（贝叶斯统计笔记/来自微信/狭义相对论复习/来自邮件 等）
+
+### 12.5 我的文档（极简列表）
+- Section 标题「我的文档」serif 13px muted-foreground
+- 同 12.4 样式，3 条文档（广义相对论场方程推导/线性代数期末复习笔记/量子力学随笔）
+
+### 12.6 Bottom Tab Bar
+- 沿用 home-v2 底部 nav（4-tab，首页高亮 primary，home indicator）
+
+## 与 home-v3 的差异化
+| 维度 | home-v3 | home-v2-typora |
+|------|---------|----------------|
+| 定位 | 纯文档列表 | 便携入口+文档列表融合 |
+| 便携入口 | 有（虚线框） | 有（虚线框+来源 chips） |
+| 外部文件 | 无 | 有（来源文字表达） |
+| 列表分段 | 最近/更早 | 最近打开/我的文档 |
+
+---
+
+# Screen 13: Reader · Typora 化（公式自然排版）
+
+**File**: `pages/reader-typora.html`
+**Navigation source**: Tab "阅读", 外部文件打开
+**Status**: v2.0 新增（P0），取代 Screen 3（reader.html 旧版）的公式卡片/pull quote 设计
+**Mode**: Immersive（无底部 tab bar）
+**Device**: Mobile, max-width 390px centered, light 模式
+
+## 设计意图
+阅读器是用户阅读 Document 的窗口，Document Layer 100% Typora 化，Application Layer（chrome）保留。Typora 化 Document Layer 而非整个 Application Layer。
+
+## Typora 化改动（相对于 Screen 3 reader.html）
+
+### 13.1 块公式去卡片化（两处，核心）
+- 贝叶斯定理 P(A|B)=... 和 后验分布核 π(θ|x)=...
+- v1.0：`rounded-xl px-6 py-5 border-l-[3px] border-primary` + `formula-bg 渐变底` + "(1) 贝叶斯定理" 编号
+- v2.0：纯 serif italic 21px 居中、`my-6` 纵向留白、`text-foreground`（不用 primary 色）、无卡片/底色/边框/编号
+
+### 13.2 Pull quote 降级（保留学术引用感，不过度削平）
+- v1.0：`border-l-4 border-accent + accent/5 底 + quote 图标 + rounded-r-lg`
+- v2.0：`border-l-2 border-[var(--ff-border)] pl-5` + serif italic + `text-foreground/70`（opacity 70%），移除图标/accent 底/rounded-r-lg
+
+### 13.3 Chrome 全部保留不动
+- 阅读进度条、Reader top bar（返回/标题/来源/bookmark/share）、外部文件 badge、article header（eyebrow/H1/meta/divider）、article actions、浮动 Reader Toolbar（pencil 主按钮+字号/主题/目录/更多）、图片占位符、末尾 ornament——全部沿用 Screen 3 原样
+
+## 与 Screen 3 的差异
+| 项目 | v1.0（Screen 3） | v2.0（Screen 13） |
+|------|------------------|-------------------|
+| 块公式底色 | formula-bg 渐变 | 无底色 |
+| 块公式左边框 | 3px solid primary | 无 |
+| 块公式编号 | "(1) 贝叶斯定理" | 无编号 |
+| 块公式颜色 | primary 色 | foreground 色 |
+| Pull quote | border-l-4 accent + 图标 + 底色 | border-l-2 border + italic + /70 |
+| chrome | — | 全部保留不动 |
+
+---
+
+# Screen 14: Reader · 深色 + Typora 化
+
+**File**: `pages/reader-dark-typora.html`
+**Navigation source**: Reader 深色模式
+**Status**: v2.0 新增（P0），Screen 13 的深色版，取代 Screen 4（reader-dark.html 旧版）
+**Mode**: Immersive, dark（html class="dark"）
+
+## 与 Screen 13 的关系
+改动完全对应，只是色板换深色：bg #0F1419 / foreground #E8EAED / primary #5B8DB8 / accent #F4A261 / border #2A2F38 / editor-bg #13171D。
+
+## 深色模式专属注意
+- 公式去底色后，serif italic 文字直接落在 #13171D 上，foreground #E8EAED 对比度足够，无需额外提亮
+- pull quote 的 border-l-2 border 在深色下 #2A2F38 偏淡，用 `border-[var(--ff-muted-foreground)]/40` 让引用线略微可见但不过分
+- 浮动工具栏 pencil 主按钮深色下是 `bg-primary`（#5B8DB8）+ `text-primary-foreground`（#0F1419 深字），保留不动
+
+---
+
+# P2 微调记录（2026-07-21）
+
+## home-v3.html
+- 便携入口图标 `folder-open` → `file-input`，弱化"文件夹操作"感，更贴近"文档流入"语义（底部 tab 的 folder-open 保留不动，是"文件"tab 标准图标）
+
+## files.html
+- 存储摘要卡降级：从 `primary/5 底 + primary/10 border + primary 图标 + primary/20 进度环 + primary 百分比` 全部降为中性 `card 底 + border + muted-foreground 图标 + border 进度环 + muted-foreground 百分比`。存储条是工具属性元素，不应使用品牌色强调
+
+## editor-typora.html（P0 遗留微调，补充记录）
+- 行内公式 `.ff-inline-math`：清除 primary 6% 底色 + padding + border-radius，改为纯 serif italic + foreground 色
+- 三处块公式留白：`my-8`（32px）→ `my-6`（24px），贴 Typora 桌面版 1.5em 节奏
+- AI ghost 提示：末尾加 `⇥` 极淡符号（opacity-30），暗示可 Tab 接受
+
+## formula-sheet.html（P0 微调，补充记录）
+- Live preview 卡片：从 `formula-bg 渐变 + primary/20 border + primary 色公式` 改为 `card 底 + border + foreground serif italic`，与真实文档公式一致
+- 两处背景示意公式（Schwarzschild/Einstein）：同步去卡片去编号
+
+## export-sheet.html（P1 微调）
+- Preview card：从图标块卡片（彩色 file-text 图标块 + 标题 + meta）改为打印预览感纯排版（文档预览 label + serif 标题 + serif italic 公式示例 + meta）
