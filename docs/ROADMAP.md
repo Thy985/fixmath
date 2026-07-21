@@ -309,7 +309,16 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 **目标**：移除 preview/editor 双模式，EditorPage 成为默认入口，EditorCommand 转 sealed class，BlockId 迁移通知机制建立。
 
-**状态**：✅ Phase 3.1-A 已完成（PR #1 + PR #2 已合并）。Phase 3.1-B/C 为触发制延后项（性能 / Undo 正确性），不阻塞 Phase 3.2。
+**状态**：✅ Phase 3.1-A 已完成（PR #1 + PR #2 已合并）。Phase 3.1-B/C 为触发制延后项，不阻塞 Phase 3.2。
+
+**Phase 3.1-B/C 可量化触发条件**（避免主观判断）：
+
+| 阶段 | 触发条件（任一满足即启动） | 自动化检测 |
+|------|--------------------------|-----------|
+| 3.1-B 性能 | (a) `TC-PERF-BLOCK-*` benchmark 回归测试 fail（per-block 解析 > 0.1ms 或 1000 行文档 keystroke latency > 100ms）；(b) 用户反馈编辑卡顿且本地复现 latency > 100ms | benchmark test 在 CI 中每次 PR 自动运行 |
+| 3.1-C Undo 正确性 | (a) `undo_redo_test.dart` 等回归测试 fail；(b) 用户反馈 undo 异常且能复现（提供复现步骤） | undo/redo 相关测试在 CI 中每次 PR 自动运行 |
+
+**未触发前的状态**：3.1-B/C 不阻塞 Phase 3.2 / 3.3 / 3.4+，但每次 Phase 3.x PR 的 CI 必须包含上述 benchmark + undo 测试，fail 立即触发对应延后项。
 
 **已交付**：
 - `kEnableNewEditor = true`（新 UI 成为默认）
@@ -337,7 +346,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | 3.2.3 | QuoteBlock（引用块） | ui-spec.md §7 | ⏳ |
 | 3.2.4 | TableBlock（含可视化编辑） | ui-spec.md §7 | ⏳ |
 | 3.2.5 | ImageBlock（含 alt 占位） | ui-spec.md §7 | ⏳ |
-| 3.2.6 | LinkBlock（行内链接） | ui-spec.md §7 | ⏳ |
+| 3.2.6 | LinkBlock（行内链接） — **注**：LinkElement 是行内元素，此任务仅扩展 ParagraphBlock 的 inline renderer，不创建独立 `blocks/link/` 目录 | ui-spec.md §7 | ⏳ |
 | 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/`（block_toolbar / block_selection / block_drag_handle） | 架构演进 | ⏳ |
 | 3.2.8 | WebView 预热机制（App 启动后并行加载，不阻塞首屏） | Phase 3.1 原 3.4 | ⏳ |
 | 3.2.9 | 公式 / Mermaid 渲染缓存策略改造（不退出清空） | Phase 3.1 原 3.5 | ⏳ |
