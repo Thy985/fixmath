@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/screens/editor_screen.dart';
 import '../../presentation/screens/file_manager_screen.dart';
 import '../../presentation/screens/document_list_screen.dart';
+import '../../presentation/editor/editor_page.dart';
+import '../../presentation/editor/feature_flag.dart';
 import '../../core/constants/app_constants.dart';
 
 final appRouter = GoRouter(
@@ -20,8 +22,23 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/editor',
       builder: (context, state) {
+        // Phase 3.0 feature flag：默认 false，使用旧 EditorScreen
+        // Phase 3.1 完成后改为 true，使用新 EditorPage
+        if (kEnableNewEditor) {
+          final seedSelector = state.extra as int?;
+          return EditorPage(seedSelector: seedSelector ?? 0);
+        }
         final openPath = state.extra as String?;
         return EditorScreen(initialPath: openPath);
+      },
+    ),
+    // Phase 3.0 测试路由：始终使用新 EditorPage，不受 feature flag 影响
+    // Phase 3.1 完成后可移除（届时 /editor 默认指向新 UI）
+    GoRoute(
+      path: '/editor3',
+      builder: (context, state) {
+        final seedSelector = state.extra as int?;
+        return EditorPage(seedSelector: seedSelector ?? 0);
       },
     ),
   ],
