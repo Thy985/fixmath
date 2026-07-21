@@ -175,7 +175,7 @@ void main() {
 
       // 应有 import
       expect(
-        RegExp(r"import\s+['\"].*coordinator_state\.dart['\"]").hasMatch(content),
+        RegExp("import\\s+['\"].*coordinator_state\\.dart['\"]").hasMatch(content),
         isTrue,
         reason: 'editor_coordinator.dart 必须 import coordinator_state.dart',
       );

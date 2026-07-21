@@ -57,7 +57,7 @@ class EditorCoordinator extends ChangeNotifier {
   EditorCoordinator({
     required this.editor,
     required this.history,
-  }) : _state = CoordinatorState.empty() {
+  }) : _state = const CoordinatorState.empty() {
     handler = CommandHandler(editor: editor, history: history);
     // 初始化 viewStates（每个 BlockId 一份默认 BlockViewState）
     final initial = <BlockId, BlockViewState>{};

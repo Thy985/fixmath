@@ -24,6 +24,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/editing/block_types.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import '../editor/editor_scope.dart';
