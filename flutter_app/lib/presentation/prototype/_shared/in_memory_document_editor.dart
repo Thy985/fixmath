@@ -1,15 +1,11 @@
-/// DocumentEditor 的 mock 实现（测试专用）。
+/// InMemoryDocumentEditor：DocumentEditor 的内存实现（Prototype 专用）。
 ///
-/// 用于 Phase 2.6 各类测试（TC-EDIT-6.1 ~ 6.9）验证 EditOperation / Transaction /
-/// EditorHistory / BlockOperations 的 apply / revert 行为，无需依赖真实 UI 层。
+/// 落地 ADR-0009 §4：Phase 2.9 Prototype 需要一个具体的 [DocumentEditor] 实现，
+/// 因内核（lib/core/editing/document_editor.dart）只定义抽象接口，
+/// Phase 3 才会实现正式 UI 层的具体类。
 ///
-/// 维护 `List<_Entry>` 保存每个 [BlockId] 对应的 [DocumentElement]，
-/// 模拟真实 DocumentEditor 的 BlockId 分配 / 查找 / 修改行为。
-///
-/// **不暴露 listener**（v1.1 评审反馈 2：DocumentEditor 是 model mutation boundary，
-/// notification 责任在 [TransactionBuilder.commit] 一层）。
-///
-/// 本文件仅用于 test/，不放入 lib/。
+/// 本类基于 test/editing/helpers/mock_document_editor.dart 的实现，
+/// 提取到 lib/ 供 Prototype Demo 使用。**不修改内核**。
 library;
 
 import 'package:formula_fix/core/editing/block_serializer.dart';
@@ -17,17 +13,15 @@ import 'package:formula_fix/core/editing/block_types.dart';
 import 'package:formula_fix/core/editing/document_editor.dart';
 import 'package:formula_fix/data/models/document.dart';
 
-/// 用于单测的 [DocumentEditor] mock 实现。
+/// 内存态 [DocumentEditor] 实现（Prototype 专用）。
 ///
-/// 维护 `List<_Entry>` 保存每个 [BlockId] 对应的 [DocumentElement]，
-/// 模拟真实 DocumentEditor 的 BlockId 分配 / 查找 / 修改行为。
-///
-/// 提供 [addParagraph] / [sourceOf] 等测试辅助方法，简化测试代码。
-class MockDocumentEditor implements DocumentEditor {
+/// 维护 `List<_Entry>` 保存每个 [BlockId] 对应的 [DocumentElement]。
+/// 提供 [addParagraph] / [sourceOf] / [allIds] / [allElements] 等辅助方法。
+class InMemoryDocumentEditor implements DocumentEditor {
   final List<_Entry> _blocks = [];
   int _nextIdValue = 100;
 
-  MockDocumentEditor();
+  InMemoryDocumentEditor();
 
   @override
   int get blockCount => _blocks.length;
@@ -68,12 +62,19 @@ class MockDocumentEditor implements DocumentEditor {
     throw StateError('BlockId not found: $id');
   }
 
+  /// **注意**（PR 评审 R5）：此方法会**变更 BlockId**（分配新 BlockId 给新 element）。
+  ///
+  /// 调用方在调用后必须更新所有持有旧 BlockId 的引用（如 BlockViewState、
+  /// focus 状态、UI 控制器等）。Prototype 阶段所有修改路径均使用
+  /// [updateBlockContent]（保持 BlockId 不变），故此方法目前**无调用路径**。
+  ///
+  /// Phase 3.0 迁移时若需用此方法（如 BlockType 转换），必须同步实现
+  /// BlockId 迁移通知机制，否则会导致 BlockViewState 失联。
   @override
   DocumentElement replaceBlock(BlockId id, DocumentElement element) {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         final old = _blocks[i].element;
-        // 替换：新 BlockId 由 DocumentEditor 重新分配（删除旧条目，插入新条目到同位置）
         final newId = BlockId(_nextIdValue++);
         _blocks[i] = _Entry(newId, element);
         return old;
@@ -86,7 +87,6 @@ class MockDocumentEditor implements DocumentEditor {
   void updateBlockContent(BlockId id, DocumentElement newContent) {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
-        // 保持 BlockId 不变，仅替换 element
         _blocks[i] = _Entry(id, newContent);
         return;
       }
@@ -94,32 +94,29 @@ class MockDocumentEditor implements DocumentEditor {
     throw StateError('BlockId not found: $id');
   }
 
-  // ============ 测试辅助方法 ============
+  // ============ Prototype 辅助方法 ============
 
-  /// 用 source 构造 [ParagraphElement] 并插入到末尾，返回 [BlockId]。
-  ///
-  /// 用于快速设置测试初始状态。
+  /// 用 source 构造 [ParagraphElement] 并追加到末尾，返回 [BlockId]。
   BlockId addParagraph(String source) {
     return insertBlock(_blocks.length, ParagraphElement(children: [
       TextElement(source),
     ]));
   }
 
-  /// 用 source 构造 [ParagraphElement] 并插入到指定位置，返回 [BlockId]。
-  BlockId addParagraphAt(int index, String source) {
-    return insertBlock(index, ParagraphElement(children: [
-      TextElement(source),
-    ]));
-  }
-
-  /// 用任意 source + type 构造 [DocumentElement] 并插入到末尾，返回 [BlockId]。
+  /// 用任意 source + type 构造 [DocumentElement] 并追加到末尾，返回 [BlockId]。
   BlockId addBlock(String source, BlockType type) {
     return insertBlock(_blocks.length, toElement(source, type));
   }
 
-  /// 获取指定 [BlockId] 对应块的 Markdown source（通过 [fromElement] 序列化）。
-  ///
-  /// 找不到时抛 [StateError]。
+  /// 返回所有 [BlockId]（按顺序）。
+  @override
+  List<BlockId> get allIds => _blocks.map((e) => e.id).toList(growable: false);
+
+  /// 返回所有 [DocumentElement]（按顺序）。
+  List<DocumentElement> get allElements =>
+      _blocks.map((e) => e.element).toList(growable: false);
+
+  /// 获取指定 [BlockId] 对应块的 Markdown source。
   String sourceOf(BlockId id) {
     final element = getBlock(id);
     if (element == null) {
@@ -128,16 +125,9 @@ class MockDocumentEditor implements DocumentEditor {
     return fromElement(element);
   }
 
-  /// 返回所有块的 source 列表（用于断言整体状态）。
-  List<String> get allSources {
-    return _blocks.map((e) => fromElement(e.element)).toList();
-  }
-
-  /// 返回当前所有 BlockId 列表（按顺序）。
-  @override
-  List<BlockId> get allIds {
-    return _blocks.map((e) => e.id).toList();
-  }
+  /// 返回所有块的 source 列表。
+  List<String> get allSources =>
+      _blocks.map((e) => fromElement(e.element)).toList(growable: false);
 }
 
 class _Entry {
