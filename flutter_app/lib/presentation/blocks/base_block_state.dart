@@ -100,10 +100,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   }
 
   /// 当前 Block 所属的 [EditorCoordinator]（从 [EditorScope] 拿）。
-  EditorCoordinator get coordinator {
-    final scope = EditorScope.of(context);
-    return scope.coordinator;
-  }
+  EditorCoordinator get coordinator => EditorScope.of(context);
 
   /// 当前 Block 的 [BlockId]（子类必须实现，从 widget 拿）。
   BlockId get blockId;
