@@ -110,14 +110,12 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
 
   /// 从 [oldWidget] 拿前一次的模式。
   ///
-  /// **安全警告**：默认返回 [currentMode]（即新 mode），
-  /// 这意味着如果子类不覆盖此方法，`didUpdateWidget` 中的模式变化检测
-  /// `currentMode != previousMode(oldWidget)` 始终为 false，
-  /// 模式切换将无法触发 controller 同步 + 焦点请求。
-  /// 当前 3 个 Block 子类已正确覆盖此方法。未来新增 Block 类型时应
-  /// 实现 `previousMode(oldWidget) => oldWidget.state.mode` 或等价逻辑。
+  /// **强制抽象**：子类必须实现，通常为 `previousMode(oldWidget) => oldWidget.state.mode`。
+  /// 此为抽象方法以避免静默不生效（若默认返回 [currentMode]，模式切换检测
+  /// `currentMode != previousMode(oldWidget)` 始终为 false，controller 同步 + 焦点
+  /// 请求将无法触发）。
   @protected
-  RenderMode previousMode(T oldWidget) => currentMode;
+  RenderMode previousMode(T oldWidget);
 
   /// 初始 source（默认从 coordinator 拿当前块 source）。
   String _initialSource() {
@@ -141,12 +139,21 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// - [RenderMode.rendered]：显示最终样式（如富文本 / 标题样式 / 代码块样式）
   /// - [RenderMode.editing]：显示 [TextField] + Markdown source
   ///
-  /// **过渡状态**（Phase 3.1-A）：当前 3 个 Block 子类直接在 [build] 中按
-  /// mode 分发（`build()` → `_buildEditing()` / `_buildRendered()`），
-  /// 并未使用此抽象方法，导致 [buildRenderContent] 成为空壳死代码。
-  /// 在 Phase 3.2+ 之前应通过以下方式清理：
-  /// (a) 让 [build] 调用 [buildRenderContent] 并移除子类的 [build] 重写；
-  /// (b) 或移除抽象 [buildRenderContent] 改用 [build] 约定。
+  /// **⚠️ 死代码警告（Phase 3.1-A PR #2 已知问题，Phase 3.2 决策点）**：
+  /// 当前 3 个 Block 子类直接在 [build] 中按 mode 分发（`build()` →
+  /// `_buildEditing()` / `_buildRendered()`），并未调用此抽象方法，导致
+  /// [buildRenderContent] 成为空壳死代码（子类返回 `SizedBox.shrink()`）。
+  ///
+  /// **Phase 3.2 启动时必须二选一**（不实施则本接口成为半永久死代码）：
+  /// - **方案 A**：让基类 `build()` 统一调用 [buildRenderContent] + [buildEditField]，
+  ///   移除子类的 `build()` 重写，让子类只实现两个构造方法。
+  /// - **方案 B**：移除抽象 [buildRenderContent]，让 `build()` 成为子类的约定
+  ///   （保持当前模式分发结构）。
+  ///
+  /// **推荐**：方案 A（让基类统一调度，子类职责更聚焦）。但需要先在 Phase 3.2
+  /// 评估与沉浸式全屏编辑的契合度。
+  ///
+  /// TODO(Phase 3.2): 决定方案 A 或 B 并实施清理 —— 见 ROADMAP Phase 3.2
   @protected
   Widget buildRenderContent(BuildContext context);
 

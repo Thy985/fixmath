@@ -70,13 +70,15 @@ abstract class DocumentEditor {
 
   /// 替换 [id] 对应的块为 [element]，返回旧元素（用于 revert）。
   ///
-  /// **Phase 3.1-A PR #2（R5）行为变更**：
-  /// 此方法默认**保持 [BlockId] 不变**（不再默默分配新 BlockId）。
-  /// 调用方持有旧 [BlockId] 的引用（如 BlockViewState、focus 状态、
-  /// UI 控制器）依然有效。
+  /// **⚠️ BREAKING CHANGE（Phase 3.1-A PR #2 / R5）**：
+  /// 此方法的行为已**静默变更**。之前版本：分配新 [BlockId] 给 [element]，
+  /// 旧 [BlockId] 失效。当前版本：**保持 [BlockId] 不变**，调用方持有旧
+  /// [BlockId] 的引用（如 BlockViewState、focus 状态、UI 控制器）依然有效。
   ///
-  /// 若需分配新 [BlockId]（如 BlockType 转换场景），使用
-  /// [replaceBlockWithMigration] 显式选择并接受迁移回调。
+  /// **迁移警告**：若未来有代码依赖旧行为（即 `replaceBlock` 后 `id` 变化），
+  /// 会引入难以排查的 bug。需要分配新 [BlockId] 的场景（如 BlockType 转换）
+  /// 必须显式使用 [replaceBlockWithMigration] 并通过 [onMigrated] 回调
+  /// 更新所有持有旧 [BlockId] 的引用。
   ///
   /// 找不到时抛 [StateError]。
   DocumentElement replaceBlock(BlockId id, DocumentElement element);

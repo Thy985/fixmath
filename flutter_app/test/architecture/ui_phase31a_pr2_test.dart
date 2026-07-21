@@ -111,39 +111,30 @@ void main() {
     });
 
     test('3. InMemoryDocumentEditor.replaceBlock 不含 _nextIdValue++（保持 BlockId）', () {
-      // 静态守门：replaceBlock 实现不应分配新 BlockId
+      // 静态守门：replaceBlock 实现不应分配新 BlockId。
+      //
+      // 简化策略（Issue #6 反馈）：不通过括号匹配提取方法体（脆弱），
+      // 而是断言整个文件中 replaceBlock 方法签名附近的实现不调用 _nextIdValue++。
+      // 通过命名约定规避：replaceBlockKeepId 委托 replaceBlock，replaceBlockWithMigration
+      // 必须使用 _nextIdValue++（那是它的职责）。
+      //
+      // 因此我们改用更弱但更稳定的守门：检查 replaceBlock 方法签名后第一个
+      // `}` 前的实现段（简化为：从 replaceBlock 签名到 replaceBlockKeepId 之间不含 _nextIdValue++）。
+      // 这样即使 replaceBlockWithMigration 含 _nextIdValue++ 也不会误报。
       final implFile =
           File('$libRoot/presentation/editor/in_memory_document_editor.dart');
       expect(implFile.existsSync(), isTrue);
       final content = implFile.readAsStringSync();
-      // 提取 replaceBlock 方法体
-      // 匹配 "DocumentElement replaceBlock(BlockId id, DocumentElement element) { ... }"
-      // 到下一个 @override 或 replaceBlockKeepId
-      final match = RegExp(
-        r'DocumentElement replaceBlock\(BlockId id, DocumentElement element\)\s*\{',
-      ).firstMatch(content);
-      expect(match, isNotNull,
-          reason: '应找到 replaceBlock 方法实现');
-
-      // 从 match 开始提取方法体（匹配 { ... }）
-      final startIdx = match!.end - 1; // 指向 '{'
-      var depth = 0;
-      var endIdx = startIdx;
-      for (var i = startIdx; i < content.length; i++) {
-        final c = content[i];
-        if (c == '{') depth++;
-        if (c == '}') {
-          depth--;
-          if (depth == 0) {
-            endIdx = i;
-            break;
-          }
-        }
-      }
-      final body = content.substring(startIdx, endIdx + 1);
-      // replaceBlock 方法体内不应调用 _nextIdValue++
-      expect(body.contains('_nextIdValue++'), isFalse,
-          reason: 'replaceBlock 方法体不应分配新 BlockId（R5 默认保持 BlockId）');
+      // 截取 "replaceBlock(BlockId" 到 "replaceBlockKeepId" 之间的内容
+      final startIdx = content.indexOf('DocumentElement replaceBlock(BlockId');
+      expect(startIdx, greaterThanOrEqualTo(0),
+          reason: '应找到 replaceBlock 方法签名');
+      final endIdx = content.indexOf('replaceBlockKeepId', startIdx);
+      expect(endIdx, greaterThan(startIdx),
+          reason: '应找到 replaceBlockKeepId 方法签名（作为 replaceBlock 实现的边界）');
+      final replaceBlockSection = content.substring(startIdx, endIdx);
+      expect(replaceBlockSection.contains('_nextIdValue++'), isFalse,
+          reason: 'replaceBlock 方法段不应分配新 BlockId（R5 默认保持 BlockId）');
     });
 
     test('4. replaceBlockWithMigration 含 onMigrated 回调调用', () {
