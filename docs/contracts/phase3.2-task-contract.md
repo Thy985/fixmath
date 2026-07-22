@@ -1,10 +1,11 @@
 # Phase 3.2 Task Contract: Block Runtime Expansion
 
-> **版本**：v1.1（Human Owner 已审批,进入执行阶段）
+> **版本**：v1.2（小型修订,消除 PR 划分依赖矛盾 + AST 类型命名错误）
 > **起草日期**：2026-07-21
 > **v1.1 修订日期**：2026-07-21（记录 §9 决策事项结果）
+> **v1.2 修订日期**：2026-07-22（§3.6 / §3.7 改为 inline rendering；§8.1 PR 划分调整；§6.1 Exit Gate 拆分；ui-spec.md §7 同步）
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Accepted（Human Owner 审批通过 2026-07-21）
+> **状态**：Accepted（v1.1 Human Owner 审批通过 2026-07-21；v1.2 为小型修订,无架构决策变化）
 > **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项,不阻塞 Phase 3.2）
 > **后继阶段**：Phase 3.3 Immersive Experience（体验层沉浸式：焦点模式 / 打字机模式 / 字号缩放等）
 >
@@ -282,34 +283,44 @@ lib/presentation/blocks/
 - TC-BLOCK-TABLE-2：双态切换
 - TC-BLOCK-TABLE-3：含对齐标记的表格
 
-### 3.6 任务 3.2.5：ImageBlock
+### 3.6 任务 3.2.5：Image Inline Rendering Enhancement
 
-**AST 类型**：`ImageElement`（已存在）
+> **v1.2 修订**：任务名从 "ImageBlock" 改为 "Image Inline Rendering Enhancement"。
+> 原命名误导（`ImageBlock` 暗示独立 BlockType），实际 AST 中
+> [ImageElement extends InlineElement](../../flutter_app/lib/data/models/document.dart)，
+> 不进入 BlockRenderer 的 exhaustive switch。
+
+**AST 类型**：`ImageElement extends InlineElement`（已存在,**行内元素**）
 
 **视觉规范**（见 [ui-spec.md §3.1](../design/ui-spec.md)）：
 - render 态：占位 + alt 文本（Phase 3.5+ 接入图片管理）
 - edit 态：`![alt](url)` source
 
 **实现要点**：
-- Phase 3.2 只实现占位渲染（不实际加载图片）
+- 扩展 `paragraph_block.dart` 的 inline 渲染器（已有占位渲染,Phase 3.2 仅微调）
+- 不在 BlockRenderer 新增 case（违反 TC-ARCH-UI-8 exhaustive switch 守门）
 - 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
 
 **测试**：
 - TC-BLOCK-IMAGE-1：占位 + alt 文本 render
 - TC-BLOCK-IMAGE-2：双态切换
 
-### 3.7 任务 3.2.6：LinkBlock
+### 3.7 任务 3.2.6：Link Inline Rendering Enhancement
 
-**AST 类型**：`LinkElement`（已存在，但是行内元素）
+> **v1.2 修订**：任务名从 "LinkBlock" 改为 "Link Inline Rendering Enhancement"。
+> 与 §3.6 同理,`LinkElement extends InlineElement`,不进入 BlockRenderer。
 
-**设计决策**：LinkBlock 作为**行内元素**，不是独立 Block。Phase 3.2 在 ParagraphBlock 的 inline 渲染中实现 LinkElement 的 render 态（蓝色文本 + 下划线）+ edit 态（`[text](url)` source）。
+**AST 类型**：`LinkElement extends InlineElement`（已存在,**行内元素**）
+
+**设计决策**：Link 作为**行内元素**,不是独立 Block。Phase 3.2 在 ParagraphBlock 的 inline 渲染中实现 LinkElement 的 render 态（蓝色文本 + 下划线,不显示多余 URL）+ edit 态（`[text](url)` source）。
 
 **实现要点**：
-- 扩展 `paragraph_block.dart` 的 inline 渲染器
-- 不创建独立 `blocks/link/` 目录（但保留在 ROADMAP 以便跟踪）
+- 扩展 `paragraph_block.dart` 的 inline 渲染器（已有占位渲染,Phase 3.2 仅微调：移除多余 ` (url)` 后缀）
+- 不创建独立 `blocks/link/` 目录（不进入 BlockRenderer case）
+- 不在 BlockRenderer 新增 case（违反 TC-ARCH-UI-8）
 
 **测试**：
-- TC-BLOCK-LINK-1：行内链接 render 视觉
+- TC-BLOCK-LINK-1：行内链接 render 视觉（蓝色 + 下划线,无多余 URL）
 - TC-BLOCK-LINK-2：edit source 显示正确
 
 ### 3.8 任务 3.2.7：blocks/shared/ 共享组件
@@ -462,8 +473,19 @@ flutter test     # 0 regression
 
 ### 6.1 UI 验证
 
+> **v1.2 修订**：原 "6 种新 Block 双态切换正常" 表述错误。
+> 实际 BlockType 新增 4 种（Quote / Table / Math / Mermaid）,
+> Image / Link 是 InlineElement（不进入 BlockRenderer case）。
+> 验收标准按 AST 事实拆分为两条。
+
 - [ ] 含表格 / 引用 / Mermaid / 公式 / 图片占位 / 行内链接的 .md 文档可在 `/editor` 正常打开（无 `UnimplementedError`）
-- [ ] 6 种新 Block 双态切换正常（render ↔ edit）
+- [ ] **4 种新增 Block 双态切换正常**（render ↔ edit）：
+  - QuoteBlock / TableBlock（PR #2）
+  - MathBlock / MermaidBlock（PR #3）
+- [ ] **Image / Link Inline Rendering 符合设计规范**：
+  - Image：占位 + alt 文本（Phase 3.5+ 接入图片管理）
+  - Link：蓝色文本 + 下划线（不显示多余 URL 后缀）
+  - 两者均扩展自 ParagraphBlock 的 inline renderer,不进入 BlockRenderer exhaustive switch
 - [ ] 行内公式 / 行内链接在 ParagraphBlock inline renderer 中正确渲染
 - [ ] BlockToolbar 在每个 Block 上挂载可用（hover / long-press 触发）
 
@@ -540,13 +562,24 @@ flutter test     # 0 regression
 
 ### 8.1 单 PR vs 分 PR
 
-Phase 3.2 任务量大（10 个子任务），建议分 3 个 PR：
+> **v1.2 修订**：原 PR 划分把 MathBlock / MermaidBlock 放入 PR #2,
+> 但 §3.2 / §3.3 明确声明这两个任务依赖 §3.2.8 WebView 预热（原 PR #3）,
+> 形成倒置依赖。修订后把 WebView 相关任务聚合到 PR #3,消除依赖冲突。
+> 同时 §3.6 / §3.7 改为 inline rendering,PR #2 范围相应调整。
+
+Phase 3.2 任务量大（10 个子任务），分 3 个 PR：
 
 | PR | 范围 | 依赖 |
 |----|------|------|
-| PR #1 | §3.0 方案 A 重构 + 任务 3.2.7 目录重组 | 无 |
-| PR #2 | 任务 3.2.1-3.2.6（6 个新 Block） | PR #1 |
-| PR #3 | 任务 3.2.8-3.2.10（性能 + 高亮） | PR #2 |
+| PR #1 | §3.0 方案 A 重构 + 任务 3.2.7 目录重组 | 无（✅ 已合并 main） |
+| PR #2 | 任务 3.2.3 QuoteBlock + 3.2.4 TableBlock + 3.2.5 Image inline 微调 + 3.2.6 Link inline 微调（纯 Flutter,4 项） | PR #1 |
+| PR #3 | 任务 3.2.1 MathBlock + 3.2.2 MermaidBlock + 3.2.8 WebView 预热 + 3.2.9 渲染缓存 + 3.2.10 语法高亮（WebView 相关,5 项） | PR #2 |
+
+**v1.2 修订理由**：
+- MathBlock / MermaidBlock 依赖 WebViewPool（§3.2 / §3.3 明确声明）
+- WebViewPool 是 §3.2.8 的产物,原 PR #3 内容
+- 若 MathBlock / MermaidBlock 在 PR #2,则 PR #2 依赖 PR #3 → 倒置依赖错误
+- 修订后依赖树正确：`WebViewPool → MathBlock → MermaidBlock`（PR #3 内部顺序）
 
 ### 8.2 分支命名
 

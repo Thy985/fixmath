@@ -6,8 +6,12 @@
 /// 守门内容：
 /// - `BlockRenderer` 必须使用 `switch (element)` exhaustive 语法
 /// - `BlockRenderer` 不允许 `_ =>` fallback 分支
-/// - `BlockRenderer` 必须显式支持 3 种 BlockType（paragraph / heading / code）
-/// - 未实现的 6 种类型必须显式 throw UnimplementedError（不默默退化显示）
+/// - `BlockRenderer` 必须显式支持 5 种 BlockType
+///   （Phase 3.0: paragraph / heading / code
+///    Phase 3.2 PR #2: quote / table）
+/// - 未实现的 4 种类型必须显式 throw UnimplementedError（不默默退化显示）
+///   （listItem / taskListItem / mermaid / horizontalRule）
+///   MathBlock / MermaidBlock 留 PR #3（依赖 WebViewPool）
 ///
 /// 为什么不允许 GenericBlock fallback（Human Owner 反馈）：
 /// - 若有 fallback，新增 Block 类型时不会立刻暴露未实现，可能默默退化显示
@@ -58,10 +62,10 @@ void main() {
       );
     });
 
-    test('block_renderer.dart 显式支持 3 种 BlockType', () {
+    test('block_renderer.dart 显式支持 5 种 BlockType（Phase 3.0 + Phase 3.2 PR #2）', () {
       final file = File('lib/presentation/blocks/block_renderer.dart');
       final content = file.readAsStringSync();
-      // 必须显式 case ParagraphElement / HeadingElement / CodeElement
+      // Phase 3.0：3 种基础 BlockType
       expect(
         content.contains('ParagraphElement'),
         isTrue,
@@ -77,12 +81,24 @@ void main() {
         isTrue,
         reason: 'BlockRenderer 必须支持 CodeElement',
       );
-      // 其他 6 种类型必须显式 throw UnimplementedError（不默默 fallback）
+      // Phase 3.2 PR #2：2 种新增 BlockType
+      expect(
+        content.contains('BlockquoteElement'),
+        isTrue,
+        reason: 'Phase 3.2 PR #2：BlockRenderer 必须支持 BlockquoteElement',
+      );
+      expect(
+        content.contains('TableElement'),
+        isTrue,
+        reason: 'Phase 3.2 PR #2：BlockRenderer 必须支持 TableElement',
+      );
+      // 其他 4 种类型必须显式 throw UnimplementedError（不默默 fallback）
+      // MathBlock / MermaidBlock 留 PR #3（依赖 WebViewPool）
       expect(
         content.contains('UnimplementedError'),
         isTrue,
-        reason: 'Phase 3.0：未实现的 6 种类型必须显式 throw UnimplementedError，'
-            '不允许默默退化显示。',
+        reason: 'Phase 3.2 PR #2：未实现的 4 种类型必须显式 throw '
+            'UnimplementedError，不允许默默退化显示。',
       );
     });
   });

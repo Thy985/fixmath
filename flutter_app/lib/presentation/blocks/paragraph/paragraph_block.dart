@@ -26,6 +26,7 @@ import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
@@ -132,23 +133,21 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           text: '\$$latex\$',
           style: baseStyle.copyWith(color: Colors.deepPurple),
         ),
-      LinkElement(:final text, :final url) => TextSpan(
+      // Phase 3.2 §3.7：Link inline rendering（蓝色 + 下划线,不显示多余 URL）
+      // 使用 EditorTokens.linkColor（TextSpan 不支持运行时 Theme 查找,需编译时常量）
+      LinkElement(:final text) => TextSpan(
           text: text,
           style: baseStyle.copyWith(
-            color: Colors.blue,
+            color: EditorTokens.linkColor,
             decoration: TextDecoration.underline,
           ),
-          children: [
-            TextSpan(
-              text: ' ($url)',
-              style: baseStyle,
-            ),
-          ],
         ),
+      // Phase 3.2 §3.6：Image inline rendering（占位 + alt 文本）
+      // 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
       ImageElement(:final alt) => TextSpan(
           text: '[图片: $alt]',
           style: baseStyle.copyWith(
-            color: Colors.grey,
+            color: EditorTokens.textSecondary,
             fontStyle: FontStyle.italic,
           ),
         ),
