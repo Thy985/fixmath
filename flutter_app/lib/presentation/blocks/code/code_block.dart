@@ -75,6 +75,11 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
       const TextStyle(fontFamily: 'monospace', fontSize: 14);
 
   /// edit 态允许多行 + newline action（代码块习惯）。
+  ///
+  /// **行为说明**：[TextInputAction.newline] 不会触发 [TextField.onSubmitted]
+  /// 回调（基类 [BaseBlockState.buildEditField] 中的 `onSubmitted`）,而是插入
+  /// 换行符。代码块的失焦通过点击其他区域触发 [BaseBlockState._onFocusChange]
+  /// 处理（focusNode 失焦时自动 commit）。
   @override
   TextInputAction get editFieldInputAction => TextInputAction.newline;
 
