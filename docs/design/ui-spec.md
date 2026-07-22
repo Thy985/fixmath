@@ -387,20 +387,22 @@ Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 
 **契约不变**：EditorShell 布局不变。
 
-### Phase 3.2 — Block Runtime Expansion（当前阶段）
+### Phase 3.2 — Block Runtime Expansion（Conditionally Complete）
 
-| # | 任务 | 扩展点 | 不破坏的契约 |
-|---|------|--------|-------------|
-| 3.2.1 | MathBlock（行内 + 块级公式） | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.2 | MermaidBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.3 | QuoteBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.4 | TableBlock（含可视化编辑） | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.5 | Image Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） |
-| 3.2.6 | Link Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） |
-| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/` | 目录重组 | 依赖方向守门（Hard Rule 8） |
-| 3.2.8 | WebView 预热机制 | 后台预热通道 | EditorCoordinator API 不变 |
-| 3.2.9 | 公式 / Mermaid 渲染缓存 | 缓存层 | AST 不污染 |
-| 3.2.10 | 代码块语法高亮 | CodeBlock 内部 | BlockViewState 不变 |
+> **状态**：⚠️ Conditionally Complete（2026-07-22）。8 项已交付,2 项延期至 Phase 3.5+。详见 [Phase 3.2 Verification Report](../releases/phase3.2-verification-report.md)。
+
+| # | 任务 | 扩展点 | 不破坏的契约 | 状态 |
+|---|------|--------|-------------|------|
+| 3.2.1 | MathBlock（行内 + 块级公式） | BlockRenderer 新增 case | exhaustive switch 守门 | 🔻 **延期 Phase 3.5**（依赖 FormulaSvgService 成熟） |
+| 3.2.2 | MermaidBlock | BlockRenderer 新增 case | exhaustive switch 守门 | ✅ 已交付（PR #3） |
+| 3.2.3 | QuoteBlock | BlockRenderer 新增 case | exhaustive switch 守门 | ✅ 已交付（PR #2） |
+| 3.2.4 | TableBlock（基本渲染,可视化编辑留 Phase 3.3） | BlockRenderer 新增 case | exhaustive switch 守门 | ✅ 已交付（PR #2） |
+| 3.2.5 | Image Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） | ✅ 已交付（PR #2） |
+| 3.2.6 | Link Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） | ✅ 已交付（PR #2） |
+| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/` | 目录重组 | 依赖方向守门（Hard Rule 8） | 🟡 **部分**（目录 ✅,shared/ 3 个组件延期 Phase 3.5+） |
+| 3.2.8 | WebView 预热机制 | 后台预热通道 | EditorCoordinator API 不变 | ✅ 已交付（退化：复用 MermaidService.awaitPageLoaded） |
+| 3.2.9 | Mermaid 渲染缓存 | 缓存层 | AST 不污染 | ✅ 已交付（复用 MermaidService LRU 256 entries） |
+| 3.2.10 | 代码块语法高亮 | CodeBlock 内部 | BlockViewState 不变 | ✅ 已交付（flutter_highlight 0.7.0 + githubTheme） |
 
 > **v1.2 修订**（2026-07-22）：任务 3.2.5 / 3.2.6 扩展点从
 > "BlockRenderer 新增 case" 改为 "ParagraphBlock inline renderer"。
@@ -408,6 +410,12 @@ Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 > 和 [LinkElement](../../flutter_app/lib/data/models/document.dart) 都是
 > `extends InlineElement`,不进入 BlockRenderer 的 exhaustive switch。
 > 详见 [Phase 3.2 Task Contract §3.6 / §3.7](../contracts/phase3.2-task-contract.md)。
+
+> **v1.3 修订**（2026-07-22 Closure）：MathBlock（§3.2.1）正式延期至 Phase 3.5
+> （依赖 FormulaSvgService 成熟 + AST 表达方式评审）。
+> blocks/shared/ 3 个共享组件（block_toolbar / block_selection / block_drag_handle）
+> 正式延期至 Phase 3.5+（实际验证发现非 Phase 3.2 核心能力,避免技术债）。
+> 详见 [Phase 3.2 Verification Report §3 延期决议](../releases/phase3.2-verification-report.md)。
 
 ### Phase 3.3 — Immersive Experience（体验层沉浸式）
 
