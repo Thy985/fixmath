@@ -109,10 +109,10 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (language != null && language.isNotEmpty)
-              _buildLanguageChip(language),
-            if (language != null && language.isNotEmpty)
+            if (language != null && language.isNotEmpty) ...[
+              _buildLanguageChip(_normalizeLanguage(language)),
               const SizedBox(height: 6),
+            ],
             HighlightView(
               widget.element.code,
               language: _normalizeLanguage(language),

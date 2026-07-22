@@ -100,7 +100,7 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
           border: Border.all(
             color: widget.state.isFocused
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
-                : Colors.transparent,
+                : EditorTokens.borderDefault,
           ),
         ),
         child: _buildMermaidContent(),
@@ -150,6 +150,8 @@ class _MermaidBlockState extends BaseBlockState<MermaidBlock> {
           ),
           child: Text(
             widget.element.code,
+            maxLines: 8,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontFamily: 'monospace',
               fontSize: EditorTokens.codeFontSize,
