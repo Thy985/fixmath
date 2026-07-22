@@ -4,13 +4,19 @@
 /// 落地 Phase 3.1-A Task Contract §3.1.A.2（R4 评审反馈）：
 /// - `_CodeBlockState` 改为 `extends BaseBlockState<CodeBlock>` 共享样板
 /// - 消除约 40 行 controller / focus / commit 重复代码
+/// 落地 Phase 3.2 Task Contract §3.0 方案 A（基类统一调度）：
+/// - 移除 `build()` 重写（基类统一分发）
+/// - 移除 `_buildEditing()` / `_buildRendered()`
+/// - `buildRenderContent` 仅实现 render 态差异
+/// - `editFieldStyle` 配置为 monospace / 14sp
+/// - `editFieldInputAction = newline`（代码块允许多行）
 ///
 /// **双态切换**：
 /// - [RenderMode.rendered]：显示代码 + 顶部 language 标签（灰色 chip）
-/// - [RenderMode.editing]：显示 Markdown source（含 ```lang ... ``` 围栏）
+/// - [RenderMode.editing]：由基类 `buildEditField` 提供 [TextField]（monospace）
 ///
 /// **Phase 3.0 限制**：
-/// - 不实现语法高亮（Phase 3.2+ 引入 flutter_highlight 或类似库）
+/// - 不实现语法高亮（Phase 3.2.10 引入 flutter_highlight）
 /// - 不实现代码折叠 / 行号（Phase 3.5+）
 /// - 仅显示纯文本（monospace + 浅灰背景）
 ///
@@ -19,11 +25,11 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/editing/block_types.dart';
-import '../../data/models/document.dart';
-import '../editor/editor_coordinator.dart';
-import '../states/block_view_state.dart';
-import 'base_block_state.dart';
+import '../../../core/editing/block_types.dart';
+import '../../../data/models/document.dart';
+import '../../editor/editor_coordinator.dart';
+import '../../states/block_view_state.dart';
+import '../base_block_state.dart';
 
 /// 代码块（render + edit 双态，显示 language 标签 + monospace）。
 class CodeBlock extends StatefulWidget {
@@ -49,8 +55,10 @@ class CodeBlock extends StatefulWidget {
 
 /// 代码块 State：extends [BaseBlockState] 共享 controller / focus / commit 样板。
 ///
-/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<CodeBlock>`，
+/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<CodeBlock>`,
 /// 消除约 40 行 controller / focus / commit 样板。
+/// **Phase 3.2 §3.0 方案 A 修订**：移除 build() / _buildEditing() / _buildRendered(),
+/// 仅保留 buildRenderContent + edit 态配置（monospace / newline）。
 class _CodeBlockState extends BaseBlockState<CodeBlock> {
   @override
   BlockId get blockId => widget.state.id;
@@ -61,37 +69,17 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
   @override
   RenderMode previousMode(CodeBlock oldWidget) => oldWidget.state.mode;
 
+  /// edit 态 monospace / 14sp。
   @override
-  Widget build(BuildContext context) {
-    if (currentMode == RenderMode.editing) {
-      return _buildEditing();
-    }
-    return _buildRendered();
-  }
+  TextStyle? get editFieldStyle =>
+      const TextStyle(fontFamily: 'monospace', fontSize: 14);
+
+  /// edit 态允许多行 + newline action（代码块习惯）。
+  @override
+  TextInputAction get editFieldInputAction => TextInputAction.newline;
 
   @override
   Widget buildRenderContent(BuildContext context) {
-    // 当前实现直接在 build() 中按 mode 分发，保留 buildRenderContent 为兼容空实现
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildEditing() {
-    return TextField(
-      controller: textController,
-      focusNode: focusNode,
-      maxLines: null,
-      textInputAction: TextInputAction.newline,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      onSubmitted: (_) => focusNode.unfocus(),
-    );
-  }
-
-  Widget _buildRendered() {
     final language = widget.element.language;
     return GestureDetector(
       onTap: onBlockTap,

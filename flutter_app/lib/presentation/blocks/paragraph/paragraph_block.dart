@@ -4,10 +4,14 @@
 /// 落地 Phase 3.1-A Task Contract §3.1.A.2（R4 评审反馈）：
 /// - `_ParagraphBlockState` 改为 `extends BaseBlockState<ParagraphBlock>` 共享样板
 /// - 消除约 40 行 controller / focus / commit 重复代码
+/// 落地 Phase 3.2 Task Contract §3.0 方案 A（基类统一调度）：
+/// - 移除 `build()` 重写（基类统一分发）
+/// - 移除 `_buildEditing()` / `_buildRendered()`
+/// - `buildRenderContent` 仅实现 render 态差异
 ///
 /// **双态切换**（参考 Phase 2.9 Prototype Demo 1）：
 /// - [RenderMode.rendered]：渲染最终样式（[ParagraphElement.children] → [Text.rich]）
-/// - [RenderMode.editing]：显示 Markdown source（[TextField] + [TextEditingController]）
+/// - [RenderMode.editing]：由基类 `buildEditField` 提供 [TextField]
 ///
 /// **用户事件流**（Hard Rule 2：Command Layer 强制）：
 /// 1. 点击块 → `coordinator.setFocus(id)` 切到 editing mode
@@ -18,11 +22,11 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/editing/block_types.dart';
-import '../../data/models/document.dart';
-import '../editor/editor_coordinator.dart';
-import '../states/block_view_state.dart';
-import 'base_block_state.dart';
+import '../../../core/editing/block_types.dart';
+import '../../../data/models/document.dart';
+import '../../editor/editor_coordinator.dart';
+import '../../states/block_view_state.dart';
+import '../base_block_state.dart';
 
 /// 段落块 Widget（Stateless，仅持有 props）。
 class ParagraphBlock extends StatefulWidget {
@@ -48,8 +52,10 @@ class ParagraphBlock extends StatefulWidget {
 
 /// 段落块 State：extends [BaseBlockState] 共享 controller / focus / commit 样板。
 ///
-/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<ParagraphBlock>`，
+/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<ParagraphBlock>`,
 /// 消除约 40 行 controller / focus / commit 样板。
+/// **Phase 3.2 §3.0 方案 A 修订**：移除 build() / _buildEditing() / _buildRendered(),
+/// 仅保留 buildRenderContent + edit 态配置。
 class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   @override
   BlockId get blockId => widget.state.id;
@@ -60,36 +66,12 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
   @override
   RenderMode previousMode(ParagraphBlock oldWidget) => oldWidget.state.mode;
 
+  /// edit 态多行（段落可能含换行）。
   @override
-  Widget build(BuildContext context) {
-    if (currentMode == RenderMode.editing) {
-      return _buildEditing();
-    }
-    return _buildRendered();
-  }
+  int? get editFieldMaxLines => null;
 
   @override
   Widget buildRenderContent(BuildContext context) {
-    // 当前实现直接在 build() 中按 mode 分发，保留 buildRenderContent 为兼容空实现
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildEditing() {
-    return TextField(
-      controller: textController,
-      focusNode: focusNode,
-      maxLines: null,
-      textInputAction: TextInputAction.done,
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      onSubmitted: (_) => focusNode.unfocus(),
-    );
-  }
-
-  Widget _buildRendered() {
     return GestureDetector(
       onTap: onBlockTap,
       child: Container(
