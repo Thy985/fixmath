@@ -1,11 +1,12 @@
 # Phase 3.2 Task Contract: Block Runtime Expansion
 
-> **版本**：v1.2（小型修订,消除 PR 划分依赖矛盾 + AST 类型命名错误）
+> **版本**：v1.3（Closure：记录 MathBlock + shared/ 延期决议,Phase 3.2 正式关闭）
 > **起草日期**：2026-07-21
 > **v1.1 修订日期**：2026-07-21（记录 §9 决策事项结果）
 > **v1.2 修订日期**：2026-07-22（§3.6 / §3.7 改为 inline rendering；§8.1 PR 划分调整；§6.1 Exit Gate 拆分；ui-spec.md §7 同步）
+> **v1.3 修订日期**：2026-07-22（§10 Closure Decisions：MathBlock + shared/ 正式延期至 Phase 3.5+）
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Accepted（v1.1 Human Owner 审批通过 2026-07-21；v1.2 为小型修订,无架构决策变化）
+> **状态**：Closed（v1.1 Human Owner 审批通过 2026-07-21；v1.3 Closure PR 待 Human Owner 审批）
 > **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项,不阻塞 Phase 3.2）
 > **后继阶段**：Phase 3.3 Immersive Experience（体验层沉浸式：焦点模式 / 打字机模式 / 字号缩放等）
 >
@@ -616,5 +617,56 @@ Phase 3.2 任务量大（10 个子任务），分 3 个 PR：
 
 ---
 
-**本文件由 AI Agent 起草,版本 v1.1（Human Owner 已审批 §9 决策事项）,生效日期 2026-07-21。**
-**已进入执行阶段。**
+## 10. Closure Decisions（v1.3,2026-07-22）
+
+Phase 3.2 实施完成后的收尾决议。3 个 PR（#1 / #2 / #3）已全部合并到 main,8/10 任务交付,2 项正式延期至 Phase 3.5+。
+
+### 10.1 MathBlock（§3.2.1）延期至 Phase 3.5
+
+**决议**：✅ Human Owner 授权延期 — 2026-07-22
+
+**理由**：
+
+1. 公式渲染不应直接走 Mermaid 路径,需独立 `FormulaSvgService`
+2. `FormulaSvgService` 尚未实现,无法复用
+3. AST 表达方式（`FormulaElement` vs 新增独立类型）需架构评审
+4. 避免在上述三项未明确前实现导致返工
+
+**去向**：Phase 3.5 §3.5.1 "MathBlock（行内 + 块级公式）"
+
+**影响**：用户在 Phase 3.2 阶段打开含 `$$...$$` 块级公式的 .md 文档会抛 UnimplementedError。行内公式 `$...$` 由 `flutter_math_fork` 处理,不受影响。
+
+### 10.2 blocks/shared/ 3 个组件延期至 Phase 3.5+
+
+**决议**：✅ Human Owner 授权延期 — 2026-07-22
+
+**理由**：
+
+1. 实际验证发现系统在缺少这 3 个组件时仍正常工作（原设计被高估）
+2. BlockToolbar / BlockSelection / BlockDragHandle 属于交互增强,不属于 Block Runtime 核心
+3. 避免为满足合同而写死代码（技术债）
+4. 依赖 Phase 3.3 交互设计明确后才能确定 UX 形态
+
+**去向**：Phase 3.5+ §3.5.2-4
+
+**说明**：若 Phase 3.3 推进中发现 BlockToolbar 是硬需求,可提前从 Phase 3.5 拉回 Phase 3.3 实施。
+
+### 10.3 WebView 预热机制（§3.2.8）退化实现
+
+**决议**：✅ 接受退化实现 — 2026-07-22（PR #3 实施时决策）
+
+**内容**：不新增独立 WebViewPool,复用已有 `MermaidService.awaitPageLoaded()` 预热机制。
+
+**影响**：首次渲染 Mermaid 仍有冷启动延迟,后续渲染命中缓存无延迟。Phase 3.5+ 视性能测试结果决定是否升级。
+
+### 10.4 相关文档同步
+
+本 Closure 决议同步更新到：
+
+- [ROADMAP.md Phase 3.2](../ROADMAP.md)（任务表状态 + 退出条件 + 新增 Phase 3.5 章节）
+- [design/ui-spec.md §7](../design/ui-spec.md)（Phase 3.2 任务表状态 + v1.3 修订说明）
+- [releases/phase3.2-verification-report.md](../releases/phase3.2-verification-report.md)（完整交付清单 + 延期决议 + Exit Gate 检查）
+
+---
+
+**本文件由 AI Agent 起草,版本 v1.3（Closure 决议已记录,待 Human Owner 审批 Closure PR 后正式关闭 Phase 3.2）。**
