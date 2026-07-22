@@ -395,12 +395,19 @@ Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 | 3.2.2 | MermaidBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
 | 3.2.3 | QuoteBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
 | 3.2.4 | TableBlock（含可视化编辑） | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.5 | ImageBlock（含 alt 占位） | BlockRenderer 新增 case | exhaustive switch 守门 |
-| 3.2.6 | LinkBlock | BlockRenderer 新增 case | exhaustive switch 守门 |
+| 3.2.5 | Image Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） |
+| 3.2.6 | Link Inline Rendering Enhancement | ParagraphBlock inline renderer | 不进入 BlockRenderer（违反 TC-ARCH-UI-8） |
 | 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/` | 目录重组 | 依赖方向守门（Hard Rule 8） |
 | 3.2.8 | WebView 预热机制 | 后台预热通道 | EditorCoordinator API 不变 |
 | 3.2.9 | 公式 / Mermaid 渲染缓存 | 缓存层 | AST 不污染 |
 | 3.2.10 | 代码块语法高亮 | CodeBlock 内部 | BlockViewState 不变 |
+
+> **v1.2 修订**（2026-07-22）：任务 3.2.5 / 3.2.6 扩展点从
+> "BlockRenderer 新增 case" 改为 "ParagraphBlock inline renderer"。
+> 原描述违反 AST 事实：[ImageElement](../../flutter_app/lib/data/models/document.dart)
+> 和 [LinkElement](../../flutter_app/lib/data/models/document.dart) 都是
+> `extends InlineElement`,不进入 BlockRenderer 的 exhaustive switch。
+> 详见 [Phase 3.2 Task Contract §3.6 / §3.7](../contracts/phase3.2-task-contract.md)。
 
 ### Phase 3.3 — Immersive Experience（体验层沉浸式）
 

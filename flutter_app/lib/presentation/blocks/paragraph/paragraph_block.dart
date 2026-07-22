@@ -132,19 +132,16 @@ class _ParagraphBlockState extends BaseBlockState<ParagraphBlock> {
           text: '\$$latex\$',
           style: baseStyle.copyWith(color: Colors.deepPurple),
         ),
-      LinkElement(:final text, :final url) => TextSpan(
+      // Phase 3.2 §3.7：Link inline rendering（蓝色 + 下划线,不显示多余 URL）
+      LinkElement(:final text) => TextSpan(
           text: text,
           style: baseStyle.copyWith(
             color: Colors.blue,
             decoration: TextDecoration.underline,
           ),
-          children: [
-            TextSpan(
-              text: ' ($url)',
-              style: baseStyle,
-            ),
-          ],
         ),
+      // Phase 3.2 §3.6：Image inline rendering（占位 + alt 文本）
+      // 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
       ImageElement(:final alt) => TextSpan(
           text: '[图片: $alt]',
           style: baseStyle.copyWith(
