@@ -453,4 +453,4 @@ Phase 3.0 完成时，本文件应满足以下验证：
 
 ---
 
-**本文件由 AI Agent 起草，版本 v1.2（同步 ROADMAP 阶段重新划分：3.1 WYSIWYG Migration 已完成 / 3.2 Block Runtime Expansion / 3.3 Immersive Experience / 3.4+ Advanced Capabilities），生效日期 2026-07-21。**
+**本文件由 AI Agent 起草，版本 v1.3（Closure：Phase 3.2 Conditionally Complete + §7 v1.3 延期决议），生效日期 2026-07-22。**
