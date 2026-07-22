@@ -335,7 +335,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 **前置条件**：Phase 3.1-A 完成（已满足）。
 
-**状态**：⚠️ Conditionally Complete（核心能力已交付,2 项延期至 Phase 3.5+。详见 [Phase 3.2 Verification Report](file:///d:/Projects/Active/math/docs/releases/phase3.2-verification-report.md)）
+**状态**：⚠️ Conditionally Complete（核心能力已交付,2 项延期至 Phase 3.5+。详见 [Phase 3.2 Verification Report](./releases/phase3.2-verification-report.md)）
 
 **核心理念**：Phase 3.0 只验证了 3 种 BlockType 的 BlockRenderer exhaustive switch 通路。Phase 3.2 解决"从最小可编辑系统 → 完整 Markdown Block Runtime"。Block 数量增加后，真正的问题会出现（Block 间共享逻辑、Block 工具栏、Block 选中、Block 拖拽），所以 Phase 3.2 必须同时建立 `blocks/<type>/` 目录结构 + `blocks/shared/` 共享组件，避免 Phase 3.5+ 再次重构。
 
@@ -368,7 +368,7 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
    - 原设计被高估,3 个组件并非 Phase 3.2 核心能力
    - 为避免"为满足合同而写死代码"（技术债）,正式延期
 
-详见 [Phase 3.2 Task Contract v1.3](file:///d:/Projects/Active/math/docs/contracts/phase3.2-task-contract.md) §10 Closure Decisions 与 [Phase 3.2 Verification Report](file:///d:/Projects/Active/math/docs/releases/phase3.2-verification-report.md)。
+详见 [Phase 3.2 Task Contract v1.3](./contracts/phase3.2-task-contract.md) §10 Closure Decisions 与 [Phase 3.2 Verification Report](./releases/phase3.2-verification-report.md)。
 
 ### Phase 3.3 — Immersive Experience
 
