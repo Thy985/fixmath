@@ -30,6 +30,9 @@ dependencies:
   flutter_svg: ^2.0.9
   flutter_inappwebview: ^6.0.0
 
+  # 代码语法高亮（Phase 3.2 §3.2.10）
+  flutter_highlight: ^0.7.0
+
   # 导出
   pdf: 3.10.7
   archive: ^3.4.9
