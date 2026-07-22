@@ -29,12 +29,18 @@ void main() {
   //   正确做法：经 providers/ 中间层注入服务，但需先抽出 Provider。
   //   Phase 1 仅清理存储 / Provider 重复；服务注入下沉推到 Phase 2-3。
   // 与 AGENTS.md §10 一致：历史问题先记账，新增代码不得延续。
+  //
+  // Phase 3.2 PR #3 新增登记（Task Contract v1.2 §3.2.8 已批准）：
+  //   - mermaid_block.dart：MermaidBlock 通过 MermaidService 共享 WebView 实例
+  //     （复用现有 LRU 缓存 + 并发控制），与 widgets/mermaid_host.dart 同源。
+  //     Phase 3.9+ 主题切换时统一改为 MermaidServiceProvider 注入。
   const knownPresentationServiceOffenders = <String>[
     'lib/presentation/screens/document_list_screen.dart',
     'lib/presentation/screens/editor_screen.dart',
     'lib/presentation/screens/file_manager_screen.dart',
     'lib/presentation/widgets/mermaid_host.dart',
     'lib/presentation/widgets/preview_content.dart',
+    'lib/presentation/blocks/mermaid/mermaid_block.dart',
   ];
 
   group('TC-ARCH-3 分层依赖方向', () {
@@ -135,7 +141,7 @@ void main() {
       );
       expect(
         knownPresentationServiceOffenders.length,
-        lessThanOrEqualTo(5),
+        lessThanOrEqualTo(6),
         reason: 'presentation 层历史违法规避数量不应继续增长。'
             '若必须新增，请同步更新 AGENTS.md §10 并说明 Phase。',
       );

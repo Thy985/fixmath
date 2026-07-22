@@ -1,4 +1,4 @@
-/// CodeBlock：代码块（render + edit 双态，显示 language 标签 + monospace）。
+/// CodeBlock：代码块（render + edit 双态，显示 language 标签 + 语法高亮）。
 ///
 /// 落地 Phase 3.0 Task Contract §3.3（3 种 BlockType 之一）+ ADR-0009 §3.3。
 /// 落地 Phase 3.1-A Task Contract §3.1.A.2（R4 评审反馈）：
@@ -10,25 +10,29 @@
 /// - `buildRenderContent` 仅实现 render 态差异
 /// - `editFieldStyle` 配置为 monospace / 14sp
 /// - `editFieldInputAction = newline`（代码块允许多行）
+/// 落地 Phase 3.2 Task Contract §3.11（任务 3.2.10,PR #3）：
+/// - render 态接入 [HighlightView]（flutter_highlight 纯 Dart 语法高亮）
+/// - 主题：githubTheme（light,Phase 3.9+ 接入主题切换时改为 Theme 驱动）
+/// - 未知 language fallback 到 'plaintext'（不崩溃）
 ///
 /// **双态切换**：
-/// - [RenderMode.rendered]：显示代码 + 顶部 language 标签（灰色 chip）
+/// - [RenderMode.rendered]：[HighlightView] 显示语法高亮代码 + 顶部 language 标签
 /// - [RenderMode.editing]：由基类 `buildEditField` 提供 [TextField]（monospace）
 ///
-/// **Phase 3.0 限制**：
-/// - 不实现语法高亮（Phase 3.2.10 引入 flutter_highlight）
-/// - 不实现代码折叠 / 行号（Phase 3.5+）
-/// - 仅显示纯文本（monospace + 浅灰背景）
+/// **依赖**：`flutter_highlight`（Phase 3.2 §3.11 选项 A,Human Owner 已审批）
 ///
 /// **依赖方向**（Hard Rule 8）：blocks/ → editor/ → core/editing/。
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/github.dart';
 
 import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
 /// 代码块（render + edit 双态，显示 language 标签 + monospace）。
@@ -71,8 +75,10 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
 
   /// edit 态 monospace / 14sp。
   @override
-  TextStyle? get editFieldStyle =>
-      const TextStyle(fontFamily: 'monospace', fontSize: 14);
+  TextStyle? get editFieldStyle => const TextStyle(
+        fontFamily: 'monospace',
+        fontSize: EditorTokens.codeFontSize,
+      );
 
   /// edit 态允许多行 + newline action（代码块习惯）。
   ///
@@ -92,12 +98,12 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(4),
+          color: EditorTokens.codeBackground,
+          borderRadius: BorderRadius.circular(EditorTokens.blockRadius),
           border: Border.all(
             color: widget.state.isFocused
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.4)
-                : Colors.grey.shade300,
+                : EditorTokens.borderDefault,
           ),
         ),
         child: Column(
@@ -107,9 +113,15 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
               _buildLanguageChip(language),
             if (language != null && language.isNotEmpty)
               const SizedBox(height: 6),
-            Text(
+            HighlightView(
               widget.element.code,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+              language: _normalizeLanguage(language),
+              theme: githubTheme,
+              padding: EdgeInsets.zero,
+              textStyle: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: EditorTokens.codeFontSize,
+              ),
             ),
           ],
         ),
@@ -117,19 +129,43 @@ class _CodeBlockState extends BaseBlockState<CodeBlock> {
     );
   }
 
+  /// 归一化 language 标签：空或未知时返回 'plaintext'（不崩溃）。
+  ///
+  /// flutter_highlight 的 highlight 包内置支持常见语言（dart / python /
+  /// javascript / java / go / rust / sql / json / yaml / bash 等）。
+  /// 未知 language 会让 highlight 包抛 StateError,因此 fallback 到 plaintext。
+  String _normalizeLanguage(String? language) {
+    if (language == null || language.isEmpty) return 'plaintext';
+    // 常见 language 别名归一化（与 highlight 包的注册名对齐）
+    const aliases = {
+      'js': 'javascript',
+      'ts': 'typescript',
+      'py': 'python',
+      'rb': 'ruby',
+      'sh': 'bash',
+      'shell': 'bash',
+      'yml': 'yaml',
+      'golang': 'go',
+      'kt': 'kotlin',
+      'rs': 'rust',
+    };
+    final normalized = language.toLowerCase();
+    return aliases[normalized] ?? normalized;
+  }
+
   Widget _buildLanguageChip(String language) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(3),
+        color: EditorTokens.codeLanguageChip,
+        borderRadius: BorderRadius.circular(EditorTokens.chipRadius),
       ),
       child: Text(
         language,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: EditorTokens.statusBarFontSize,
           fontFamily: 'monospace',
-          color: Colors.black54,
+          color: EditorTokens.textSecondary,
         ),
       ),
     );
