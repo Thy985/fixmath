@@ -26,9 +26,9 @@ import 'package:flutter/material.dart';
 import '../../data/models/document.dart';
 import '../editor/editor_coordinator.dart';
 import '../states/block_view_state.dart';
-import 'code_block.dart';
-import 'heading_block.dart';
-import 'paragraph_block.dart';
+import 'code/code_block.dart';
+import 'heading/heading_block.dart';
+import 'paragraph/paragraph_block.dart';
 
 /// Block 渲染分发器（StatelessWidget）。
 ///
