@@ -465,6 +465,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 3.2 — Block Runtime Expansion（roadmap drift 修正后）
-**最近更新**：2026-07-22（Phase 3.2 Closure Conditionally Complete + ROADMAP 新增 Phase 3.5 章节）
+**当前阶段**：Phase 3.2 — Block Runtime Expansion（Conditionally Complete,Closure 待审批）
+**最近更新**：2026-07-22（Phase 3.2 Closure Conditionally Complete + ROADMAP 新增 Phase 3.5 Deferred Block Runtime Items 章节 + MathBlock/shared 延期决议）
 **维护人**：首席架构工程师
