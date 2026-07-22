@@ -22,6 +22,7 @@ import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
 /// 引用块 Widget（Stateless，仅持有 props）。
@@ -68,7 +69,7 @@ class _QuoteBlockState extends BaseBlockState<QuoteBlock> {
   @override
   TextStyle? get editFieldStyle => const TextStyle(
         fontFamily: 'serif',
-        fontSize: 16,
+        fontSize: EditorTokens.paragraphFontSize,
       );
 
   @override
@@ -81,7 +82,7 @@ class _QuoteBlockState extends BaseBlockState<QuoteBlock> {
         decoration: const BoxDecoration(
           border: Border(
             left: BorderSide(
-              color: Color(0xFFC0C0C0),
+              color: EditorTokens.quoteBorderColor,
               width: 3,
             ),
           ),
@@ -90,7 +91,7 @@ class _QuoteBlockState extends BaseBlockState<QuoteBlock> {
           widget.element.text,
           style: TextStyle(
             fontFamily: 'serif',
-            fontSize: 16,
+            fontSize: EditorTokens.paragraphFontSize,
             color: Theme.of(context).colorScheme.onSurface,
           ),
         ),

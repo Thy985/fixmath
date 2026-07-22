@@ -23,6 +23,7 @@ import '../../../core/editing/block_types.dart';
 import '../../../data/models/document.dart';
 import '../../editor/editor_coordinator.dart';
 import '../../states/block_view_state.dart';
+import '../../themes/editor_tokens.dart';
 import '../base_block_state.dart';
 
 /// 表格块 Widget（StatefulWidget,依赖 BaseBlockState 共享样板）。
@@ -69,7 +70,7 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
   @override
   TextStyle? get editFieldStyle => const TextStyle(
         fontFamily: 'monospace',
-        fontSize: 14,
+        fontSize: EditorTokens.tableCellFontSize,
       );
 
   @override
@@ -77,6 +78,8 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
     final headers = widget.element.headers;
     final rows = widget.element.rows;
 
+    // 边缘情况：空表（无 headers 且无 rows）
+    // 注：headers 空但 rows 非空时仍渲染数据行（无表头行）
     if (headers.isEmpty && rows.isEmpty) {
       return GestureDetector(
         onTap: onBlockTap,
@@ -96,16 +99,15 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
           child: Table(
             defaultColumnWidth: const IntrinsicColumnWidth(),
             border: TableBorder.all(
-              color: Colors.grey.shade300,
+              color: EditorTokens.tableBorderColor,
               width: 1,
             ),
-            columnWidths: const {},
             children: [
               // 表头行
               if (headers.isNotEmpty)
                 TableRow(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                  decoration: const BoxDecoration(
+                    color: EditorTokens.tableHeaderBackground,
                   ),
                   children: headers
                       .map(
@@ -118,7 +120,7 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
                             h,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: EditorTokens.tableCellFontSize,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
@@ -139,7 +141,7 @@ class _TableBlockState extends BaseBlockState<TableBlock> {
                           child: Text(
                             cell,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: EditorTokens.tableCellFontSize,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
