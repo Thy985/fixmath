@@ -1,10 +1,11 @@
 # Phase 3.2 Task Contract: Block Runtime Expansion
 
-> **版本**：v1.0（草案，待 Human Owner 审批）
+> **版本**：v1.1（Human Owner 已审批,进入执行阶段）
 > **起草日期**：2026-07-21
+> **v1.1 修订日期**：2026-07-21（记录 §9 决策事项结果）
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Proposed
-> **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项，不阻塞 Phase 3.2）
+> **状态**：Accepted（Human Owner 审批通过 2026-07-21）
+> **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项,不阻塞 Phase 3.2）
 > **后继阶段**：Phase 3.3 Immersive Experience（体验层沉浸式：焦点模式 / 打字机模式 / 字号缩放等）
 >
 > **关联文档**：
@@ -555,15 +556,32 @@ Phase 3.2 任务量大（10 个子任务），建议分 3 个 PR：
 
 ---
 
-## 9. 待 Human Owner 决策事项
+## 9. Human Owner 决策事项（v1.1 已全部决策）
 
 1. **§3.0 方案 A vs 方案 B**：BaseBlockState.buildRenderContent 死代码处理方案
-2. **§3.11 任务 3.2.10 选项 A vs B**：代码块语法高亮用 flutter_highlight 还是 highlight.js via WebView
-3. **新增依赖审批**：`flutter_highlight` 是否允许加入 `pubspec.yaml`
-4. **§8 PR 策略**：分 3 个 PR 还是单 PR
-5. **任务优先级**：是否按 1→10 顺序执行，还是允许并行（如 3.2.8 WebView 预热优先于 3.2.1 MathBlock）
+   - **决策**：✅ 方案 A（基类统一调度）— Human Owner 审批 2026-07-21
+   - 实施要点：`BaseBlockState.build()` 按 `currentMode` 分发到 `buildRenderContent` / `buildEditField`,子类只实现 `buildRenderContent` + 提供 `editStyle`,不再重写 `build()`
+   - 影响：需重构现有 3 个 Block（paragraph / heading / code）
+
+2. **§3.11 任务 3.2.10 选项 A vs B**：代码块语法高亮方案
+   - **决策**：✅ 选项 A（`flutter_highlight` 纯 Dart）— Human Owner 审批 2026-07-21
+   - 理由：性能更好,避免 WebView 滥用,不与 MathBlock/MermaidBlock 共享 pool
+
+3. **新增依赖审批**：`flutter_highlight`
+   - **决策**：✅ 批准加入 `pubspec.yaml` — Human Owner 审批 2026-07-21
+   - 实施要点：用 `dependency_overrides` 锁定版本（若与 `flutter_inappwebview` 全家桶冲突）
+
+4. **§8 PR 策略**
+   - **决策**：✅ 分 3 个 PR — Human Owner 审批 2026-07-21
+   - PR #1: §3.0 + §3.2.7 目录重组（`feat/phase3.2-block-runtime-base`）
+   - PR #2: §3.2.1-3.2.6（6 个新 Block）（`feat/phase3.2-block-types`）
+   - PR #3: §3.2.8-3.2.10（性能 + 高亮）（`feat/phase3.2-perf-highlight`）
+
+5. **任务优先级**
+   - **决策**：✅ 顺序执行（1→10）— Human Owner 审批 2026-07-21
+   - 理由：简单清晰,避免并行引入冲突
 
 ---
 
-**本文件由 AI Agent 起草，版本 v1.0，生效日期 2026-07-21。**
-**待 Human Owner 审批后进入执行阶段。**
+**本文件由 AI Agent 起草,版本 v1.1（Human Owner 已审批 §9 决策事项）,生效日期 2026-07-21。**
+**已进入执行阶段。**
