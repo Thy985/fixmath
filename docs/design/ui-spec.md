@@ -476,6 +476,22 @@ Phase 3.0 完成时，本文件应满足以下验证：
 - [x] 依赖方向符合 §6 描述（守门测试全 PASS）
 - [x] Phase 3.1+ 扩展点已在代码中预留（SidePanelHost 占位、EditorAppBar actions 占位）
 
+### Phase 3.3 验证清单（R4 新增,待 PR #5 Closure 时勾选）
+
+> **说明**：以下验证点在 Phase 3.3 实施过程中逐步勾选,Phase 3.3 Closure PR（PR #5）统一审核。
+
+- [ ] §3.3.1 AppBar 显示文档标题 + 修改状态 `•`
+- [ ] §3.3.2 字号缩放（双指 + 按钮 + 重置）,Text Widget 生效（TextSpan 不缩放是已知边界,见 [Task Contract §9.1](../contracts/phase3.3-task-contract.md#91-editortokens-字号缩放方案)）
+- [ ] §3.3.3 焦点模式（隐藏 chrome,双击退出）
+- [ ] §3.3.4 状态栏字数统计
+- [ ] §3.3.5 Undo/Redo 按钮可点击,功能正常
+- [ ] §3.3.6 自动配对 4 种配对符（`(`/`[`/`{`/`` ` ``）,经 PairInsertCommand 路径
+- [ ] §3.3.7 Markdown 工具栏 A+B 混合（位置 A + 内部布局 B 横向滚动）
+- [ ] §3.3.7 选区包裹模式（选中文字后工具栏切换为包裹模式）
+- [ ] §3.3.8 自动续列表 5 种前缀 + 退出规则 + CodeBlock 例外 + 平级单层范围（嵌套留 Phase 3.4）
+- [ ] §3.3.10 模板插入菜单 8 种模板（表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
+- [ ] **Toolbar 状态来源**：只读 CoordinatorState,不直接访问 TextEditingController（[ADR-0011 §5](../ADR/0011-phase3.3-architecture-decisions.md)）
+
 ---
 
 **本文件由 AI Agent 起草，版本 v1.4（Phase 3.3 Task Contract v1.4 Accepted：6P0+3P1 优先级统计修正 + R4 PR 拆分调整 Toolbar → Template Menu），生效日期 2026-07-22。**
