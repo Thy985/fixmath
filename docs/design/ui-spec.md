@@ -1,6 +1,6 @@
 # FormulaFix Editor Shell — UI Design Reference
 
-> **版本**：v1.1（同步 Typora 化演进方向）
+> **版本**：v1.4（同步 Phase 3.3 Task Contract v1.4 R4 PR 拆分 + 优先级统计 6P0+3P1）
 > **起草日期**：2026-07-21
 > **起草人**：AI Agent（GLM-5.2）
 > **状态**：Phase 3.0 Reference（落地 [Phase 3.0 Task Contract §3.5](../contracts/phase3.0-task-contract.md)）
@@ -417,17 +417,36 @@ Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 > 正式延期至 Phase 3.5+（实际验证发现非 Phase 3.2 核心能力,避免技术债）。
 > 详见 [Phase 3.2 Verification Report §3 延期决议](../releases/phase3.2-verification-report.md)。
 
-### Phase 3.3 — Immersive Experience（体验层沉浸式）
+### Phase 3.3 — Mobile Markdown Editing Experience（移动端 Markdown 输入体验）
 
-| # | 任务 | 扩展点 | 不破坏的契约 |
-|---|------|--------|-------------|
-| 3.3.1 | AppBar 显示文档标题 + 修改状态 | EditorAppBar 内部 | EditorShell 布局不变 |
-| 3.3.2 | 字号缩放（Ctrl +/- / 双指缩放） | EditorTokens 新增 scale 参数 | 所有 token 引用不变 |
-| 3.3.3 | 焦点模式 / 打字机模式 | EditorAppBar 隐藏 + SidePanel 隐藏 | EditorShell 布局不变 |
-| 3.3.4 | 实时字数统计 | EditorStatusBar 内部 | EditorShell 布局不变 |
-| 3.3.5 | 撤销 / 重做按钮接入 UI | EditorAppBar action | EditorCoordinator 不变 |
-| 3.3.6 | 自动配对 | EditorCommand 新增 | CommandHandler 路径不变 |
-| 3.3.7 | 快捷键支持 | EditorCommand 新增 | CommandHandler 路径不变 |
+> **v1.4 修订（2026-07-22,架构评审 R3,9.0/10 评分后 Accepted）**：三点修改后进入 Accepted：
+> 1. 字号缩放（§3.3.2）P1 确认（v1.3 已降级,R3 确认）
+> 2. **§3.3.9 选区格式化菜单整体延期至 Phase 3.4 §3.4.10**（v1.4 新增,选区包裹能力作为 §3.3.7 工具栏内置模式保留）
+> 3. **新增 §3.3.10 Markdown 模板插入菜单（P1）**：释放 Phase 3.2 TableBlock/MermaidBlock 成果
+>
+> **v1.4 R4 PR 拆分调整（2026-07-22,Human Owner）**：优先级统计修正为 **9 个任务,6 项 P0 + 3 项 P1**;§3.3.10 模板插入菜单从 PR #4 移至 PR #2 扩展（架构耦合：Toolbar → Template Menu,模板菜单与工具栏同 PR 交付）;PR #4 仅保留 §3.3.2 + §3.3.3（字号缩放 + 焦点模式,与工具栏解耦,延期不影响模板菜单）。详见 [Phase 3.3 Task Contract §8.1](../contracts/phase3.3-task-contract.md#81-分-pr-建议4-个-prv14-调整--r4-pr-拆分)。
+
+| # | 任务 | 优先级 | 扩展点 | 不破坏的契约 |
+|---|------|--------|--------|-------------|
+| 3.3.1 | AppBar 显示文档标题 + 修改状态 | P0 | EditorAppBar 内部 + CoordinatorState.isDirty | EditorShell 布局不变 |
+| 3.3.2 | 字号缩放（双指缩放 + 按钮 + 重置） | **P1**（v1.3 降级,R3 确认） | MediaQuery.textScaler + EditorViewport GestureDetector | EditorTokens 常量不变（向后兼容） |
+| 3.3.3 | 焦点模式（隐藏 chrome） | P1 | EditorShell → StatefulWidget | EditorShell 对外 API 不变 |
+| 3.3.4 | 实时字数统计 | P0 | EditorStatusBar 内部 + EditorCoordinator.wordCount | EditorShell 布局不变 |
+| 3.3.5 | 撤销 / 重做按钮接入 UI | P0 | EditorAppBar action | EditorCoordinator API 不变 |
+| 3.3.6 | 自动配对（**仅 `(`/`[`/`{`/`` ` ``,v1.3 缩减范围**） | P0 | BaseBlockState onChanged 拦截 | CommandHandler 路径不变 |
+| 3.3.7 | **Markdown 工具栏（核心任务）**：11 按钮 + 选区包裹模式（内置,替代独立 §3.3.9） | **P0 核心** | 新增 chrome/markdown_toolbar.dart,底部固定栏 | EditorShell 三层结构不变（仅扩展 BottomBar slot） |
+| 3.3.8 | 自动续列表 / 引用 / 代码块 | P0 | BaseBlockState onSubmitted 回调 | CommandHandler 路径不变 |
+| 3.3.10 | **Markdown 模板插入菜单（v1.4 新增 P1）**：`+` 按钮,表格/Mermaid/代码块/任务列表模板 | P1 | chrome/markdown_toolbar.dart 扩展（同 §3.3.7） | CommandHandler 路径不变 |
+
+**CodeBlock 例外**（v1.3 Hard Rule）：CodeBlock 不应用 3.3.6 / 3.3.8 / 3.3.10（代码内容原样保留,不被 Markdown 语法干扰）。CodeBlock 仅支持 3.3.7 的「代码块」按钮插入语法。
+
+### 已延期至 Phase 3.4 Desktop Enhancement（v1.4 调整）
+
+| 原任务 | 去向 | 理由 |
+|--------|------|------|
+| 3.3.7 快捷键支持（v1.0） | Phase 3.4 §3.4.5 | 手机端无 Ctrl 键,ROI 极低 |
+| 3.3.3 打字机模式（v1.0） | Phase 3.4 §3.4.6 | 手机端软键盘已占半屏 |
+| 3.3.9 选区格式化菜单（v1.2,v1.4 整体延期） | Phase 3.4 §3.4.10 | Flutter Overlay + TextSelection + 光标坐标 + 滚动同步复杂度高,Phase 3.3 风险敏感。选区包裹能力已作为 §3.3.7 工具栏内置模式保留 |
 
 ### Phase 3.4+ — Advanced Capabilities
 
@@ -437,6 +456,12 @@ Phase 3.0 建立的 EditorShell 为后续阶段提供以下插槽。
 | 3.4.2 | 文件树面板 | SidePanelHost 显示 | EditorShell 布局不变 |
 | 3.4.3 | 主题切换 | EditorTokens 升级为 ThemeExtension | 所有 token 引用不变 |
 | 3.4.4 | 导出集成 | EditorAppBar action | EditorCoordinator 不变 |
+| 3.4.5 | 快捷键支持（Phase 3.3 v1.0 延期项） | Shortcuts + Actions widget | CommandHandler 路径不变 |
+| 3.4.6 | 打字机模式（Phase 3.3 v1.0 延期项） | EditorViewport ScrollController | EditorShell 布局不变 |
+| 3.4.7 | 自动保存 | EditorCoordinator 定时器 | CoordinatorState 不变 |
+| 3.4.8 | 页面宽度控制 | ConstrainedBox(maxWidth: 720) | EditorViewport 布局不变 |
+| 3.4.9 | Markdown 图片插入 | file_picker + ImageElement | BlockRenderer 不变 |
+| 3.4.10 | 选区格式化菜单（Overlay 浮动菜单,Phase 3.3 v1.4 延期项） | Overlay + TextSelection 定位 | BlockViewState 不变 |
 
 ---
 
@@ -451,6 +476,22 @@ Phase 3.0 完成时，本文件应满足以下验证：
 - [x] 依赖方向符合 §6 描述（守门测试全 PASS）
 - [x] Phase 3.1+ 扩展点已在代码中预留（SidePanelHost 占位、EditorAppBar actions 占位）
 
+### Phase 3.3 验证清单（R4 新增,待 PR #5 Closure 时勾选）
+
+> **说明**：以下验证点在 Phase 3.3 实施过程中逐步勾选,Phase 3.3 Closure PR（PR #5）统一审核。
+
+- [ ] §3.3.1 AppBar 显示文档标题 + 修改状态 `•`
+- [ ] §3.3.2 字号缩放（双指 + 按钮 + 重置）,Text Widget 生效（TextSpan 不缩放是已知边界,见 [Task Contract §9.1](../contracts/phase3.3-task-contract.md#91-editortokens-字号缩放方案)）
+- [ ] §3.3.3 焦点模式（隐藏 chrome,双击退出）
+- [ ] §3.3.4 状态栏字数统计
+- [ ] §3.3.5 Undo/Redo 按钮可点击,功能正常
+- [ ] §3.3.6 自动配对 4 种配对符（`(`/`[`/`{`/`` ` ``）,经 PairInsertCommand 路径
+- [ ] §3.3.7 Markdown 工具栏 A+B 混合（位置 A + 内部布局 B 横向滚动）
+- [ ] §3.3.7 选区包裹模式（选中文字后工具栏切换为包裹模式）
+- [ ] §3.3.8 自动续列表 5 种前缀 + 退出规则 + CodeBlock 例外 + 平级单层范围（嵌套留 Phase 3.4）
+- [ ] §3.3.10 模板插入菜单 8 种模板（表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
+- [ ] **Toolbar 状态来源**：只读 CoordinatorState,不直接访问 TextEditingController（[ADR-0011 §5](../ADR/0011-phase3.3-architecture-decisions.md)）
+
 ---
 
-**本文件由 AI Agent 起草，版本 v1.3（Closure：Phase 3.2 Conditionally Complete,MathBlock + shared/ 延期至 Phase 3.5+），生效日期 2026-07-22。**
+**本文件由 AI Agent 起草，版本 v1.4（Phase 3.3 Task Contract v1.4 Accepted：6P0+3P1 优先级统计修正 + R4 PR 拆分调整 Toolbar → Template Menu），生效日期 2026-07-22。**
