@@ -2,15 +2,16 @@
 ///
 /// 落地 Phase 3.0 Task Contract §3.1（v1.1 新增 chrome/ 目录）+ ADR-0009 §3。
 /// Phase 3.1-A PR #2：新增"切换到旧版"隐藏入口（§3.4）。
+/// **Phase 3.3 PR #1**：接入 dirty tracking（§3.3.1）+ Undo/Redo 按钮（§3.3.5）。
 ///
 /// **职责**：
-/// - 显示当前文档标题（Phase 3.0 用种子文档名）
-/// - 显示修改状态指示器（Phase 3.0 占位：恒为"未修改"）
+/// - 显示当前文档标题（Phase 3.3：从 coordinator.title 透传）
+/// - 显示修改状态指示器（Phase 3.3：从 coordinator.isDirty 透传）
 /// - 提供返回按钮（返回到文件管理页）
+/// - **Phase 3.3**：提供 Undo / Redo IconButton（基于 coordinator.canUndo / canRedo）
 /// - **Phase 3.1-A PR #2**：more_vert 菜单含"切换到旧版编辑器"入口（跳 `/editor-legacy`）
 ///
-/// **不实现**（Phase 3.2+）：
-/// - 真实修改状态接入（需要 dirty tracking）
+/// **不实现**（Phase 3.4+）：
 /// - 自动保存指示
 /// - 字号缩放控件
 ///
@@ -28,16 +29,16 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// 当前页面绑定的 [EditorCoordinator]。
   final EditorCoordinator coordinator;
 
-  /// AppBar 标题（Phase 3.0：种子文档名）。
+  /// AppBar 标题（Phase 3.3：从 coordinator.title 透传）。
   final String title;
 
-  /// 是否有未保存修改（Phase 3.0 占位：恒为 false）。
+  /// 是否有未保存修改（Phase 3.3：从 coordinator.isDirty 透传）。
   final bool isModified;
 
   const EditorAppBar({
     super.key,
     required this.coordinator,
-    this.title = 'Phase 3.0 Demo',
+    this.title = '未命名',
     this.isModified = false,
   });
 
@@ -49,7 +50,13 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       title: Row(
         children: [
-          Text(title),
+          Flexible(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
           if (isModified) ...[
             const SizedBox(width: 4),
             const Text(
@@ -65,6 +72,18 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         onPressed: () => _onBack(context),
       ),
       actions: [
+        // Phase 3.3 §3.3.5：Undo 按钮（基于 coordinator.canUndo 启用/禁用）
+        IconButton(
+          icon: const Icon(Icons.undo),
+          tooltip: '撤销',
+          onPressed: coordinator.canUndo ? () => coordinator.undo() : null,
+        ),
+        // Phase 3.3 §3.3.5：Redo 按钮（基于 coordinator.canRedo 启用/禁用）
+        IconButton(
+          icon: const Icon(Icons.redo),
+          tooltip: '重做',
+          onPressed: coordinator.canRedo ? () => coordinator.redo() : null,
+        ),
         // Phase 3.1-A PR #2：more_vert 菜单含"切换到旧版编辑器"隐藏入口。
         // 入口不直接暴露在 AppBar 主操作区，需要点开 more_vert 才能看到，
         // 满足"普通用户不会发现，方便需要回退的用户找到"的产品要求。
@@ -113,7 +132,7 @@ class EditorAppBar extends StatelessWidget implements PreferredSizeWidget {
         showAboutDialog(
           context: context,
           applicationName: 'FormulaFix',
-          applicationVersion: 'Phase 3.1-A',
+          applicationVersion: 'Phase 3.3',
           applicationLegalese: 'WYSIWYG 编辑器 · Phase 3.0+',
         );
         break;

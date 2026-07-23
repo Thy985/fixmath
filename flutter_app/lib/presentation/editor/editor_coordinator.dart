@@ -70,6 +70,10 @@ class EditorCoordinator extends ChangeNotifier {
   // ============ Command 入口 ============
 
   /// 处理 [EditorCommand]，成功时触发 [notifyListeners] 重建 UI。
+  ///
+  /// **Dirty tracking（ADR-0011 §4）**：handle 成功后 dirty 由 editor 的
+  /// mutating 方法自动标记（insert/remove/replace/update 都会置 _isDirty = true）。
+  /// undo/redo 不直接修改 dirty 标记（由调用方根据 history 状态推导）。
   bool handle(EditorCommand command) {
     final ok = handler.handle(command);
     if (ok) notifyListeners();
@@ -82,6 +86,30 @@ class EditorCoordinator extends ChangeNotifier {
   List<BlockId> get allIds => editor.allIds;
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
+
+  // ============ Phase 3.3 chrome 接线（§3.3.1 + §3.3.4） ============
+
+  /// 文档标题（Phase 3.3：透传 editor.title）。
+  ///
+  /// 用于 EditorAppBar 显示。
+  String get title => editor.title;
+
+  /// 实时字数统计（Phase 3.3：透传 editor.wordCount）。
+  ///
+  /// 用于 EditorStatusBar 显示。
+  int get wordCount => editor.wordCount;
+
+  /// 是否有未保存修改（ADR-0011 §4：Dirty 归属 Document State）。
+  ///
+  /// 用于 EditorAppBar 显示 `•` 标记。
+  /// - handle() 成功后 editor 自动置 true
+  /// - markSaved() 后置 false
+  bool get isDirty => editor.isDirty;
+
+  /// 标记文档已保存（重置 isDirty）。
+  ///
+  /// Phase 3.4+ 接入真实 .md 文件持久化时由保存逻辑调用。
+  void markSaved() => editor.markSaved();
 
   // ============ UI 视图状态（Hard Rule 1：AST 零污染）============
 
