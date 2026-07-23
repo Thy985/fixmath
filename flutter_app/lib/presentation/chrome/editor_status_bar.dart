@@ -1,19 +1,19 @@
 /// EditorStatusBar：编辑器底部状态栏（chrome 组件）。
 ///
 /// 落地 Phase 3.0 Task Contract §3.1（v1.1 新增 chrome/ 目录）+ §3.2 布局图。
+/// **Phase 3.3 PR #1**：接入字数统计（§3.3.4）+ 移除 Undo/Redo 文字（已由 AppBar 按钮接管）。
 ///
 /// **职责**：
 /// - 显示当前块数
-/// - 显示 Undo / Redo 状态（Phase 3.0 占位：仅文字，不接入按钮）
-/// - 显示聚焦块 ID（调试用，Phase 3.1+ 移除）
+/// - **Phase 3.3**：显示字数统计（coordinator.wordCount）
+/// - 显示聚焦块 ID（调试用,Phase 3.4+ 移除）
 ///
-/// **不实现**（Phase 3.1+）：
-/// - 字数 / 字符数统计
+/// **不实现**（Phase 3.4+）：
 /// - 光标位置（行 : 列）
 /// - 主题切换控件
 /// - 字号缩放控件
 ///
-/// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据，
+/// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,
 /// 不 import blocks/ / panels/。
 library;
 
@@ -41,9 +41,13 @@ class EditorStatusBar extends StatelessWidget {
         children: [
           _buildItem('块数: ${coordinator.blockCount}'),
           const SizedBox(width: 16),
-          _buildItem(coordinator.canUndo ? '可撤销' : '不可撤销'),
+          // Phase 3.3 §3.3.4：字数统计
+          _buildItem('字数: ${coordinator.wordCount}'),
           const SizedBox(width: 16),
-          _buildItem(coordinator.canRedo ? '可重做' : '不可重做'),
+          // Phase 3.3 §3.3.5：Undo/Redo 状态（简短文字提示,按钮在 AppBar）
+          _buildItem(coordinator.canUndo ? '可撤销' : '—'),
+          const SizedBox(width: 8),
+          _buildItem(coordinator.canRedo ? '可重做' : '—'),
           const Spacer(),
           _buildItem('聚焦: ${coordinator.focusedId ?? '—'}'),
         ],

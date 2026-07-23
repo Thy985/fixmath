@@ -24,10 +24,12 @@ class SeedDocuments {
   ///
   /// 来源：Phase 2.9 Demo 1（单 Block 双态切换）+ Demo 4（复杂 Block 共存）。
   static InMemoryDocumentEditor createDemo1() {
-    final editor = InMemoryDocumentEditor();
+    final editor = InMemoryDocumentEditor(title: 'FormulaFix Demo');
     editor.addBlock('# FormulaFix Demo', BlockType.heading);
     editor.addParagraph('Hello, Block Editor!');
     editor.addBlock('```dart\nvoid main() { debugPrint("hi"); }\n```', BlockType.code);
+    // 种子文档初始化不应标记为 dirty（视为已保存的初始状态）
+    editor.markSaved();
     return editor;
   }
 
@@ -35,11 +37,12 @@ class SeedDocuments {
   ///
   /// 来源：Phase 2.9 Demo 4（复杂 Block 共存）。
   static InMemoryDocumentEditor createDemo2() {
-    final editor = InMemoryDocumentEditor();
+    final editor = InMemoryDocumentEditor(title: '标题层级示例');
     editor.addBlock('# 标题一', BlockType.heading);
     editor.addBlock('## 标题二', BlockType.heading);
     editor.addBlock('### 标题三', BlockType.heading);
     editor.addParagraph('正文内容');
+    editor.markSaved();
     return editor;
   }
 
@@ -47,10 +50,11 @@ class SeedDocuments {
   ///
   /// 来源：Phase 2.9 Demo 4（复杂 Block 共存）。
   static InMemoryDocumentEditor createDemo3() {
-    final editor = InMemoryDocumentEditor();
+    final editor = InMemoryDocumentEditor(title: '代码示例');
     editor.addParagraph('代码示例：');
     editor.addBlock('```python\ndef greet():\n    return "hi"\n```',
         BlockType.code);
+    editor.markSaved();
     return editor;
   }
 }

@@ -44,7 +44,11 @@ class EditorShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: EditorAppBar(coordinator: coordinator),
+      appBar: EditorAppBar(
+        coordinator: coordinator,
+        title: coordinator.title,
+        isModified: coordinator.isDirty,
+      ),
       body: Workspace(coordinator: coordinator),
       bottomNavigationBar: EditorStatusBar(coordinator: coordinator),
     );
