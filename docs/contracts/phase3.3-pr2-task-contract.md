@@ -1,9 +1,9 @@
 # Phase 3.3 PR #2 Task Contract: Markdown Toolbar + Template Menu
 
-> **版本**：v2.0（拆分版,落地 Human Owner 评审 P0 修改 + P1 PR 拆分建议）
+> **版本**：v2.1（落地 Human Owner v2.0 审批 5 条补充约束）
 > **起草日期**：2026-07-24
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Proposed（待 Human Owner 审批后实施）
+> **状态**：Accepted（v2.0 Human Owner 审批,带 5 条 Minor Conditions,v2.1 落地后启动 PR #1.5 实施）
 > **关联文档**：
 > - [Phase 3.3 Task Contract v1.4](./phase3.3-task-contract.md) §3.3.7 + §3.3.10 + §9.3 + §9.5
 > - [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §3 + §5
@@ -12,7 +12,9 @@
 
 ---
 
-## 0. v2.0 修订记录（vs v1.0）
+## 0. v2.1 修订记录
+
+### v2.0 修订（vs v1.0）
 
 | # | 修订点 | 来源 | 章节 |
 |---|--------|------|------|
@@ -21,6 +23,16 @@
 | 3 | 降低 selection sync 频率：仅 focused 时同步 + 帧内节流 | Human P0-3 | §2.7 |
 | 4 | PR 拆分为 4 个子 PR：PR #1.5（E2E 框架）+ PR #2A/B/C | Human P1-4 | §1.2 |
 | 5 | 新增 integration_test 端到端验证 | Human P1-5 | §3 + §7.2 |
+
+### v2.1 修订（落地 v2.0 审批 5 条 Minor Conditions）
+
+| # | 修订点 | 来源 | 章节 |
+|---|--------|------|------|
+| 1 | Hard Rule：禁止业务逻辑用字符串判断模板类型（`if (template.contains("mermaid"))`） | Human 审批 #1 | §2.5.1 |
+| 2 | Command 创建时重新读取最新 selection（UI 最终一致,Command 强一致） | Human 审批 #2 | §2.7.1 |
+| 3 | CodeBlock 禁用提示抽离 `EditorStrings.codeBlockToolbarDisabled`（国际化预备） | Human 审批 #3 | §2.8.1 |
+| 4 | integration_test 使用 `TestFixture` + `FakeRepository`,禁止依赖真实存储 | Human 审批 #4 | §3.3.1 |
+| 5 | Toolbar 测试必须验证 `selection.baseOffset` + `extentOffset`,不仅文本 | Human 审批 #5 | §5.4.1 + §6.4.1 |
 
 ---
 
@@ -145,6 +157,33 @@ InsertTemplateCommand(blockId: id, template: MarkdownTemplate.table, mode: newBl
 
 **技术债务记录**：PR #2C 的 commit message 须注明"当前字符串方案为过渡,Phase 3.4 演进到 enum + TemplateRegistry",并在 [ADR-0011](../ADR/0011-phase3.3-architecture-decisions.md) §5 补充演进路径。
 
+#### 2.5.1 Hard Rule：禁止字符串业务判断（v2.1 审批 #1）
+
+**禁止**（违反则 PR 拒绝）：
+```dart
+// ❌ 业务逻辑用字符串判断模板类型
+if (template.contains('mermaid')) { ... }
+if (template.startsWith('| ')) { ... }
+if (template.contains('graph TD')) { ... }
+```
+
+**允许**：
+```dart
+// ✅ 模板内容作为常量管理,业务逻辑不解析字符串
+class Templates {
+  static const String mermaidDefault = '```mermaid\ngraph TD\nA-->B\n```';
+  static const String tableDefault = '| 列1 | 列2 |\n|---|---|\n| 内容 | 内容 |';
+}
+
+// ✅ Command 构造时传入常量,不依赖字符串判断
+InsertTemplateCommand(blockId: id, template: Templates.mermaidDefault, mode: newBlock)
+```
+
+**实施约束**：
+- `chrome/markdown_toolbar.dart` 的模板清单必须定义为 `static const`（PR #2C）
+- 任何业务分支不得依赖 `template` 字符串内容
+- Phase 3.4 演进到 `enum MarkdownTemplate` 时,所有模板判断改为 enum match
+
 ### 2.6 CoordinatorState 扩展（便捷 getter,不改结构）
 
 在 `CoordinatorState` 添加便捷方法（`EditorCoordinator` 仅透传,避免超 200 行守门）：
@@ -206,6 +245,57 @@ void _onSelectionChanged() {
 
 **Phase 3.4 演进方向**：建立独立的 `EditorInteractionState`（Notifer）专门保存 selection / cursor / composing region,不污染 `CoordinatorState`。Toolbar 订阅 `EditorInteractionState` 而非 `CoordinatorState`。触发条件：实测 selection 同步导致光标卡顿（< 60fps）。
 
+#### 2.7.1 Command 创建时强一致读取（v2.1 审批 #2）
+
+**问题**：PostFrameCallback 节流可能导致 Toolbar 显示的 `hasSelection` 滞后一帧。用户「选择文本 → 立即点击 B」时,Command 构造瞬间读取的 selection 可能是旧值。
+
+**设计原则**：
+> UI state eventually consistent（最终一致）
+> Command state strongly consistent（强一致）
+
+**实施**：Toolbar 按钮 `onPressed` 回调中,Command 构造前**必须重新读取最新 selection**：
+
+```dart
+// ❌ 错误：依赖可能过期的缓存状态
+onPressed: () {
+  if (cachedSelection != null) {
+    coordinator.handle(WrapSelectionCommand(
+      blockId: blockId,
+      prefix: '**',
+      suffix: '**',
+      selection: cachedSelection!,  // ❌ 可能过期
+    ));
+  }
+}
+
+// ✅ 正确：Command 创建瞬间强一致读取
+onPressed: () {
+  final selection = coordinator.focusedSelection;  // 强一致读取
+  if (selection == null) {
+    // 无选区走 InsertText 路径
+    coordinator.handle(InsertTextCommand(
+      blockId: blockId,
+      text: '**|**',
+      cursorOffset: -2,
+      selection: null,
+    ));
+  } else {
+    // 有选区走 WrapSelection 路径
+    coordinator.handle(WrapSelectionCommand(
+      blockId: blockId,
+      prefix: '**',
+      suffix: '**',
+      selection: selection,  // 强一致
+    ));
+  }
+}
+```
+
+**关键点**：
+- Toolbar 的「视觉态」（按钮高亮、背景色）可基于节流后的 `hasSelection`
+- Toolbar 的「命令执行」必须基于 `coordinator.focusedSelection` 实时读取
+- 测试需覆盖「选择后立即点击」场景（§5.4.1）
+
 ### 2.8 CodeBlock 工具栏行为（P0-2 修订）
 
 **v1.0 方案（已废弃）**：CodeBlock 内仅 CodeBlock + `+` 启用。
@@ -223,6 +313,35 @@ void _onSelectionChanged() {
 
 **实现**：`MarkdownToolbar` 根据 `coordinator.focusedBlockType == BlockType.code` 切换为禁用态。
 
+#### 2.8.1 EditorStrings 抽离（v2.1 审批 #3）
+
+**禁止硬编码字符串**：
+
+```dart
+// ❌ PR #2B 禁止
+Text('代码块内工具栏不可用')
+```
+
+**必须抽离到 EditorStrings**：
+
+```dart
+// lib/presentation/chrome/editor_strings.dart（PR #2B 新建）
+abstract final class EditorStrings {
+  static const String codeBlockToolbarDisabled = '代码块内工具栏不可用';
+  static const String templateMenuTable = '表格';
+  static const String templateMenuMermaid = 'Mermaid 图';
+  // ...
+}
+
+// chrome/markdown_toolbar.dart
+Text(EditorStrings.codeBlockToolbarDisabled)
+```
+
+**演进方向**：
+- Phase 3.3：`EditorStrings` 作为静态常量类,集中管理 UI 字符串
+- Phase 4+：接入 `flutter_localizations`,实现中英文切换
+- 抽离工作在 PR #2B 完成（CodeBlock hint）+ PR #2C 扩展（模板菜单标签）
+
 ---
 
 ## 3. PR #1.5: integration_test 框架
@@ -237,36 +356,113 @@ void _onSelectionChanged() {
 |---|------|------|
 | 1 | 建立 `integration_test/` 目录 | `flutter_app/integration_test/` |
 | 2 | 添加 `integration_test` dev_dependency | `flutter_app/pubspec.yaml` |
-| 3 | 建立 helper：启动 app + 创建文档 + 查找 widget | `integration_test/helpers/test_app.dart` |
+| 3 | 建立 `TestFixture` + `FakeDocumentRepository` + `FakeSharedPreferences` | `integration_test/helpers/test_fixture.dart` + `fake_document_repository.dart` + `fake_shared_preferences.dart` |
 | 4 | 基础 E2E 用例：app 启动 + SeedDocuments 显示 | `integration_test/app_startup_test.dart` |
 | 5 | 基础 E2E 用例：EditorShell 布局验证（AppBar + Viewport + StatusBar） | `integration_test/editor_shell_layout_test.dart` |
 
 ### 3.3 实施详细
 
-**pubspec.yaml**：
+#### 3.3.1 TestFixture + FakeRepository（v2.1 审批 #4）
+
+**Hard Rule**：integration_test 不得依赖真实存储（`SharedPreferences` / `formula_fix_documents.json` / 文件系统）,否则 CI 脆弱。
+
+**实施**：
+```dart
+// integration_test/helpers/test_fixture.dart
+class TestFixture {
+  /// 注入 FakeRepository,覆盖 SharedPreferencesProvider / DocumentService
+  static ProviderScope create({List<Override> overrides = const []}) {
+    return ProviderScope(
+      overrides: [
+        documentServiceProvider.overrideWithValue(FakeDocumentRepository()),
+        sharedPreferencesProvider.overrideWithValue(FakeSharedPreferences()),
+        ...overrides,
+      ],
+      child: const FormulaFixApp(),
+    );
+  }
+}
+
+// integration_test/helpers/fake_document_repository.dart
+class FakeDocumentRepository implements DocumentService {
+  final Map<String, String> _store = {};
+
+  @override
+  Future<Document> load(String id) async {
+    if (!_store.containsKey(id)) {
+      throw FileImportException('not found');
+    }
+    return Document.fromMarkdown(_store[id]!);
+  }
+
+  @override
+  Future<void> save(Document doc) async {
+    _store[doc.id] = doc.toMarkdown();
+  }
+}
+
+// integration_test/helpers/fake_shared_preferences.dart
+class FakeSharedPreferences implements SharedPreferences {
+  final Map<String, dynamic> _store = {};
+  @override
+  dynamic get(String key) => _store[key];
+  @override
+  Future<void> setString(String key, String value) async {
+    _store[key] = value;
+  }
+  // ... 其他方法 throw UnimplementedError
+}
+```
+
+**使用**：
+```dart
+testWidgets('app 启动后显示 SeedDocuments', (tester) async {
+  await tester.pumpWidget(TestFixture.create());
+  await tester.pumpAndSettle();
+  expect(find.text('FormulaFix Demo'), findsOneWidget);
+});
+```
+
+**关键点**：
+- `TestFixture.create()` 是唯一入口,所有 E2E 用例必须通过它启动 app
+- 禁止直接 `pumpWidget(ProviderScope(child: FormulaFixApp()))`（会走真实存储）
+- Fake 类仅实现 E2E 需要的方法,未实现的方法抛 `UnimplementedError`
+
+#### 3.3.2 pubspec.yaml
+
 ```yaml
 dev_dependencies:
   integration_test:
     sdk: flutter
 ```
 
-**helper/test_app.dart**：
-```dart
-Future<Widget> pumpTestApp(WidgetTester tester) async {
-  await tester.pumpWidget(const ProviderScope(child: FormulaFixApp()));
-  await tester.pumpAndSettle();
-  return tester.widget(find.byType(FormulaFixApp));
-}
+#### 3.3.3 helper 目录结构
+
 ```
+integration_test/
+├── helpers/
+│   ├── test_fixture.dart         # TestFixture.create() 入口
+│   ├── fake_document_repository.dart
+│   └── fake_shared_preferences.dart
+├── app_startup_test.dart
+└── editor_shell_layout_test.dart
+```
+
+**PR #1.5 不包含 Toolbar / Template 相关 helper**（`tapToolbarButton()` / `insertTemplate()` 属于 PR #2B/#2C,避免基础设施与业务耦合）。
+
+#### 3.3.4 基础 E2E 用例
 
 **app_startup_test.dart**：
 ```dart
 testWidgets('app 启动后显示 SeedDocuments', (tester) async {
-  await pumpTestApp(tester);
+  await tester.pumpWidget(TestFixture.create());
+  await tester.pumpAndSettle();
   expect(find.text('FormulaFix Demo'), findsOneWidget);
   expect(find.byType(EditorShell), findsOneWidget);
 });
 ```
+
+**editor_shell_layout_test.dart**：验证 AppBar + Viewport + StatusBar 三层布局存在
 
 ### 3.4 验证
 
@@ -459,6 +655,60 @@ Widget build(BuildContext context) {
 - 架构守门：`markdown_toolbar.dart` ≤ 400 行 + 不 import `core/editing/`
 - E2E（PR #1.5 框架）：`integration_test/toolbar_buttons_test.dart` 覆盖 11 按钮插入
 
+#### 5.4.1 selection offset 必须验证（v2.1 审批 #5）
+
+**Hard Rule**：Toolbar 测试不得仅验证最终文本,必须同时验证 `selection.baseOffset` + `selection.extentOffset`。
+
+**示例测试**：
+```dart
+test('B 按钮无选区插入后光标在 ** 中间', () {
+  // 初始 source = 'hello',光标在 offset 5
+  coordinator.handle(InsertTextCommand(
+    blockId: id,
+    text: '**|**',  // 注意：实际应插入 ****,| 是光标占位符（仅文档示意）
+    cursorOffset: -2,
+  ));
+  // 验证文本
+  expect(source, equals('hello****'));
+  // ✅ 必须验证光标位置
+  final sel = coordinator.focusedSelection;
+  expect(sel, isNotNull);
+  expect(sel!.baseOffset, equals(7), reason: '光标应在 ** 后');
+  expect(sel.extentOffset, equals(7));
+});
+
+test('B 按钮有选区包裹后光标在末尾', () {
+  // 初始 source = 'hello',选中 [0, 5)
+  coordinator.handle(WrapSelectionCommand(
+    blockId: id,
+    prefix: '**',
+    suffix: '**',
+    selection: const TextSelection(baseOffset: 0, extentOffset: 5),
+  ));
+  expect(source, equals('**hello**'));
+  // ✅ 光标在末尾
+  final sel = coordinator.focusedSelection;
+  expect(sel!.baseOffset, equals(9));
+  expect(sel.extentOffset, equals(9));
+});
+
+test('Link 按钮光标在 | 处（cursorOffset=-4）', () {
+  // 插入 [|](url),cursorOffset=-4 → 光标在 [ 后
+  coordinator.handle(InsertTextCommand(
+    blockId: id,
+    text: '[](url)',
+    cursorOffset: -4,  // url 长度 7,光标 offset = 7-4 = 3 → 在 []( 的 | 处
+  ));
+  final sel = coordinator.focusedSelection;
+  expect(sel!.baseOffset, equals(1), reason: '光标在 [ 后');
+});
+```
+
+**关键点**：
+- Toolbar 看似正常但体验错误,通常因为光标位置错（不是文本错）
+- `cursorOffset` 的计算必须通过测试验证,不能依赖肉眼检查
+- E2E（`integration_test/toolbar_buttons_test.dart`）同样需验证光标位置
+
 ---
 
 ## 6. PR #2C: Template Menu
@@ -500,6 +750,42 @@ PR #2C commit message 须注明：
 - `flutter analyze` 0 error
 - `flutter test` 通过
 - E2E：8 模板插入正确
+
+#### 6.4.1 Template 插入后光标位置验证（v2.1 审批 #5）
+
+与 §5.4.1 同样要求：Template 测试必须验证 `selection.baseOffset` + `extentOffset`。
+
+**示例**：
+```dart
+test('代码块模板插入后光标在代码区中间', () {
+  // 插入 ```dart\n|\n```（| 为光标）
+  coordinator.handle(InsertTemplateCommand(
+    blockId: id,
+    template: '```dart\n\n```',
+    mode: TemplateInsertMode.insert,
+    selection: null,
+  ));
+  // ✅ 验证光标在 ```dart\n 后（即代码区第一行）
+  final sel = coordinator.focusedSelection;
+  expect(sel!.baseOffset, equals(8));  // '```dart\n'.length = 8
+});
+
+test('表格模板 newBlock 模式：新块聚焦,光标在块首', () {
+  coordinator.handle(InsertTemplateCommand(
+    blockId: id,
+    template: Templates.tableDefault,
+    mode: TemplateInsertMode.newBlock,
+    selection: null,
+  ));
+  // ✅ 验证焦点转移到新块
+  expect(coordinator.focusedId, isNot(equals(originalId)));
+  // ✅ 验证光标在新块首
+  final sel = coordinator.focusedSelection;
+  expect(sel!.baseOffset, equals(0));
+});
+```
+
+**关键点**：模板插入后的光标位置直接影响用户体验（能否立即开始编辑）,必须通过测试固化。
 
 ---
 
