@@ -25,3 +25,9 @@ export 'editor_command.dart' show MoveBlockUpCommand;
 export 'editor_command.dart' show MoveBlockDownCommand;
 export 'editor_command.dart' show UpdateBlockSourceCommand;
 export 'editor_command.dart' show TransformBlockCommand;
+
+// Phase 3.3 PR #2A 新增 3 个 Command 子类（Markdown 工具栏 + 模板菜单）
+export 'editor_command.dart' show InsertTextCommand;
+export 'editor_command.dart' show WrapSelectionCommand;
+export 'editor_command.dart' show InsertTemplateCommand;
+export 'editor_command.dart' show TemplateInsertMode;

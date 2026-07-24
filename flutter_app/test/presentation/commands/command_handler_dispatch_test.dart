@@ -144,6 +144,10 @@ void main() {
     });
   });
 
+  // Phase 3.3 PR #2A 新增的 4 个测试组（InsertTextCommand / WrapSelectionCommand /
+  // InsertTemplateCommand / Undo-Redo 集成）已拆分到
+  // test/presentation/commands/command_handler_pr2a_test.dart（AGENTS.md §1.2）。
+
   group('R4 守卫测试：_handle* 方法的边界守卫', () {
     late InMemoryDocumentEditor editor;
     late EditorHistory history;

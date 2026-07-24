@@ -19,10 +19,12 @@
 library;
 
 import '../../core/editing/block_operations.dart';
+import '../../core/editing/block_serializer.dart';
 import '../../core/editing/document_editor.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
+import '../../data/models/document.dart';
 import 'commands.dart';
 import 'editor_command.dart';
 
@@ -89,6 +91,10 @@ class CommandHandler {
       MoveBlockDownCommand c => _handleMoveDown(c, operations),
       UpdateBlockSourceCommand c => _handleUpdateSource(c, operations),
       TransformBlockCommand c => _handleTransform(c, operations),
+      // Phase 3.3 PR #2A 新增 3 个分支（Markdown 工具栏 + 模板菜单）
+      InsertTextCommand c => _handleInsertText(c, operations),
+      WrapSelectionCommand c => _handleWrapSelection(c, operations),
+      InsertTemplateCommand c => _handleInsertTemplate(c, operations),
     };
   }
 
@@ -150,5 +156,96 @@ class CommandHandler {
 
   bool _handleTransform(TransformBlockCommand c, BlockOperations ops) {
     return ops.tryTransform(c.blockId);
+  }
+
+  // ============ Phase 3.3 PR #2A 新增 _handle* 方法 ============
+  //
+  // 落地 Task Contract v2.1 §4.3.2 + ADR-0011 §5。
+  //
+  // 设计要点：
+  // - 复用 [BlockOperations.updateSource]（通过完整 source 替换）
+  // - selection 由 Command 字段携带（方案 A，见 v2.1 §2.4）
+  // - newBlock 模式复用 [BlockOperations.insertAfter] + ParagraphElement
+
+  /// 处理 [InsertTextCommand]：在光标位置插入文本。
+  ///
+  /// 计算逻辑：
+  /// 1. 读取当前 source + selection
+  /// 2. 在 selection.baseOffset（或末尾）处插入 [text]
+  /// 3. 调用 [BlockOperations.updateSource] 替换完整 source
+  ///
+  /// **光标位置不在此方法处理**：光标位置由 Toolbar / EditorCoordinator
+  /// 在 Command 执行后根据 [InsertTextCommand.cursorOffset] 调整
+  /// （CommandHandler 仅修改数据，不操作 UI 焦点）。
+  bool _handleInsertText(InsertTextCommand c, BlockOperations ops) {
+    final element = editor.getBlock(c.blockId);
+    if (element == null) return false;
+
+    final source = fromElement(element);
+    final insertOffset = c.selection?.baseOffset ?? source.length;
+
+    // 越界保护
+    if (insertOffset < 0 || insertOffset > source.length) return false;
+
+    final newSource =
+        source.substring(0, insertOffset) + c.text + source.substring(insertOffset);
+    return ops.updateSource(c.blockId, newSource);
+  }
+
+  /// 处理 [WrapSelectionCommand]：选区包裹为 `prefix + selection + suffix`。
+  ///
+  /// 计算逻辑：
+  /// 1. 读取当前 source + selection
+  /// 2. 选区文本 = source[selection.start..selection.end]
+  /// 3. newSource = source[..start] + prefix + selected + suffix + source[end..]
+  /// 4. 调用 [BlockOperations.updateSource] 替换完整 source
+  bool _handleWrapSelection(WrapSelectionCommand c, BlockOperations ops) {
+    final element = editor.getBlock(c.blockId);
+    if (element == null) return false;
+
+    final source = fromElement(element);
+    final start = c.selection.start;
+    final end = c.selection.end;
+
+    // 越界保护
+    if (start < 0 || end > source.length || start > end) return false;
+
+    final selected = source.substring(start, end);
+    final newSource = source.substring(0, start) +
+        c.prefix +
+        selected +
+        c.suffix +
+        source.substring(end);
+    return ops.updateSource(c.blockId, newSource);
+  }
+
+  /// 处理 [InsertTemplateCommand]：插入模板（表格 / Mermaid / 代码块等）。
+  ///
+  /// - [TemplateInsertMode.insert]：在光标位置插入模板文本（复用 [_handleInsertText]）
+  /// - [TemplateInsertMode.newBlock]：在当前块后插入新 ParagraphElement
+  ///
+  /// **newBlock 模式**：模板作为单一 ParagraphElement 插入，由
+  /// [BlockOperations.updateSource] 的 transform 机制（Phase 2.7）自动
+  /// 转换为对应 BlockType（如表格模板 → TableBlock）。
+  bool _handleInsertTemplate(InsertTemplateCommand c, BlockOperations ops) {
+    switch (c.mode) {
+      case TemplateInsertMode.insert:
+        // 复用 InsertText 逻辑：在光标位置插入模板文本
+        return _handleInsertText(
+          InsertTextCommand(
+            blockId: c.blockId,
+            text: c.template,
+            selection: c.selection,
+          ),
+          ops,
+        );
+      case TemplateInsertMode.newBlock:
+        // 新建块：模板作为 ParagraphElement 插入，由 tryTransform 自动转换 BlockType
+        final newId = ops.insertAfter(
+          c.blockId,
+          ParagraphElement(children: [TextElement(c.template)]),
+        );
+        return newId != null;
+    }
   }
 }
