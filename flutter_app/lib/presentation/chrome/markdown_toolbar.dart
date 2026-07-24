@@ -6,26 +6,7 @@
 /// - §2.3 Command Layer 强制（所有修改通过 EditorCommand）
 /// - §2.7.1 selection 强一致读取（onPressed 中重新读取）
 /// - §2.8 CodeBlock 工具栏行为（全部禁用 + 提示）
-///
-/// **布局**（§2.1）：
-/// ```
-/// ┌──────────────────────────────────────────────┐
-/// │ [B][I][H1][H2][H3][Code][Link][Quote][OL][UL][Task] │ ← 横向滚动
-/// └──────────────────────────────────────────────┘
-/// ```
-///
-/// **11 按钮**（PR #2C 将追加 `+` 模板菜单按钮）：
-/// 1. B  - 加粗（WrapSelection `**` / InsertText `****` cursorOffset=-2）
-/// 2. I  - 斜体（WrapSelection `*` / InsertText `**` cursorOffset=-1）
-/// 3. H1 - 一级标题（InsertText `# `）
-/// 4. H2 - 二级标题（InsertText `## `）
-/// 5. H3 - 三级标题（InsertText `### `）
-/// 6. Code - 行内代码（WrapSelection `` ` `` / InsertText `` `` `` cursorOffset=-1）
-/// 7. Link - 链接（WrapSelection `[` + `]()` / InsertText `[]()` cursorOffset=-3）
-/// 8. Quote - 引用（InsertText `> `）
-/// 9. OL - 有序列表（InsertText `1. `）
-/// 10. UL - 无序列表（InsertText `- `）
-/// 11. Task - 任务列表（InsertText `- [ ] `）
+/// - §6.3 `+` 模板菜单按钮（8 模板：表格/Mermaid/代码块/任务列表/引用/分隔线/图片/链接）
 ///
 /// **依赖方向**（Hard Rule 8）：chrome/ 通过 [EditorCoordinator] 接收数据,
 /// 不 import blocks/ / panels/。
@@ -36,6 +17,40 @@ import 'package:flutter/material.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import 'editor_strings.dart';
+import 'templates.dart';
+
+/// 模板菜单项标识（UI 菜单分发用,非业务字符串判断,§2.5.1 Hard Rule）。
+enum _TemplateMenuItem {
+  table,
+  mermaid,
+  codeBlock,
+  taskList,
+  quote,
+  horizontalRule,
+  image,
+  link,
+}
+
+/// 模板配置（label + template + mode + cursorOffset 聚合,消除冗余 switch）。
+typedef _TemplateConfig = ({
+  _TemplateMenuItem item,
+  String label,
+  String template,
+  TemplateInsertMode mode,
+  int cursorOffset,
+});
+
+/// 8 种模板的配置清单（§6.3）。
+const List<_TemplateConfig> _kTemplateConfigs = [
+  (item: _TemplateMenuItem.table, label: EditorStrings.templateMenuTable, template: Templates.tableDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
+  (item: _TemplateMenuItem.mermaid, label: EditorStrings.templateMenuMermaid, template: Templates.mermaidDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
+  (item: _TemplateMenuItem.codeBlock, label: EditorStrings.templateMenuCodeBlock, template: Templates.codeBlockDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
+  (item: _TemplateMenuItem.taskList, label: EditorStrings.templateMenuTaskList, template: Templates.taskListDefault, mode: TemplateInsertMode.newBlock, cursorOffset: 0),
+  (item: _TemplateMenuItem.quote, label: EditorStrings.templateMenuQuote, template: Templates.quoteDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
+  (item: _TemplateMenuItem.horizontalRule, label: EditorStrings.templateMenuHorizontalRule, template: Templates.horizontalRuleDefault, mode: TemplateInsertMode.insert, cursorOffset: 0),
+  (item: _TemplateMenuItem.image, label: EditorStrings.templateMenuImage, template: Templates.imageDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
+  (item: _TemplateMenuItem.link, label: EditorStrings.templateMenuLink, template: Templates.linkDefault, mode: TemplateInsertMode.insert, cursorOffset: -4),
+];
 
 /// Markdown 格式工具栏（chrome 组件）。
 ///
@@ -190,6 +205,11 @@ class _ToolbarButtons extends StatelessWidget {
         tooltip: EditorStrings.taskListTooltip,
         onPressed: enabled ? () => _handleInsert('- [ ] ') : null,
       ),
+      // §6.3：`+` 模板菜单按钮（PopupMenu,8 模板）
+      _TemplateMenuButton(
+        enabled: enabled,
+        onSelected: enabled ? _handleTemplateSelect : null,
+      ),
     ];
   }
 
@@ -247,6 +267,26 @@ class _ToolbarButtons extends StatelessWidget {
       text: text,
       cursorOffset: 0,
       selection: selection,
+    ));
+  }
+
+  /// 处理模板菜单选择（§6.3 + §2.5.1）。
+  ///
+  /// 从 [_kTemplateConfigs] 查找配置,构造 [InsertTemplateCommand]。
+  /// **§2.5.1 Hard Rule**：不解析模板字符串内容,直接使用常量。
+  /// **§2.7.1**：强一致读取 selection（仅 insert 模式使用）。
+  void _handleTemplateSelect(_TemplateMenuItem item) {
+    final blockId = coordinator.focusedId;
+    if (blockId == null) return;
+    final config = _kTemplateConfigs.firstWhere((c) => c.item == item);
+    // §2.7.1：强一致读取 selection（insert 模式用于计算插入位置）
+    final selection = coordinator.focusedSelection;
+    coordinator.handle(InsertTemplateCommand(
+      blockId: blockId,
+      template: config.template,
+      mode: config.mode,
+      selection: config.mode == TemplateInsertMode.insert ? selection : null,
+      cursorOffset: config.cursorOffset,
     ));
   }
 }
@@ -313,6 +353,34 @@ class _DisabledBar extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
       ),
+    );
+  }
+}
+
+/// `+` 模板菜单按钮（PopupMenu,8 模板,§6.3）。
+///
+/// 使用 [_TemplateMenuItem] enum 作为 PopupMenuItem value,
+/// 避免字符串业务判断（§2.5.1 Hard Rule）。
+class _TemplateMenuButton extends StatelessWidget {
+  final bool enabled;
+  final ValueChanged<_TemplateMenuItem>? onSelected;
+
+  const _TemplateMenuButton({
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_TemplateMenuItem>(
+      icon: const Icon(Icons.add, size: 20),
+      tooltip: EditorStrings.templateMenuTooltip,
+      enabled: enabled,
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        for (final c in _kTemplateConfigs)
+          PopupMenuItem(value: c.item, child: Text(c.label)),
+      ],
     );
   }
 }

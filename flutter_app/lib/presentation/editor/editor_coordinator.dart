@@ -1,18 +1,13 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
 ///
-/// 落地 ADR-0009 §3.5 + Phase 3.0 Task Contract §3.4 + §2.4（避免 God Object）+
-/// Phase 3.1-A Task Contract §3.1.A.3（弱化版 R1：CoordinatorState 单字段）。
-///
-/// **职责**：持有 editor / history / handler,管理 [CoordinatorState]，
-/// 提供 [handle] / [undo] / [redo]。只协调,不持有业务状态。
-/// **Hard Rule 1**：UI 状态通过 [CoordinatorState] 单独建模。
-/// **Hard Rule 4**：不持有 Theme / File / Route 等领域状态。
-/// **Hard Rule 8**：editor/ → core/editing/（单向依赖）。
+/// 落地 ADR-0009 §3.5 + Phase 3.0 §3.4 + §2.4（避免 God Object）+
+/// Phase 3.1-A §3.1.A.3（弱化版 R1：CoordinatorState 单字段）。
+/// **职责**：持有 editor / history / handler,管理 [CoordinatorState]。
+/// 只协调,不持有业务状态。Hard Rule 1/4/8（AST 零污染 / 不持领域 / 单向依赖）。
 library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show TextSelection;
-
 import '../../core/editing/block_types.dart';
 import '../../core/editing/editor_history.dart';
 import '../../core/editing/transaction.dart';
@@ -24,14 +19,10 @@ import '../states/coordinator_state.dart';
 import 'in_memory_document_editor.dart';
 
 /// UI 层对编辑内核的协调器。Widget 通过 [EditorScope] 获取实例。
-/// 调用 [handle] 处理事件、[viewStateOf] 查询状态、[setFocus] 管理焦点、
-/// [undo] / [redo] 撤销重做。
 class EditorCoordinator extends ChangeNotifier {
   final InMemoryDocumentEditor editor;
   final EditorHistory history;
   late final CommandHandler handler;
-
-  /// UI 状态聚合（不可变,Phase 3.1-A R1 弱化版）。
   CoordinatorState _state;
 
   EditorCoordinator({
@@ -39,58 +30,73 @@ class EditorCoordinator extends ChangeNotifier {
     required this.history,
   }) : _state = const CoordinatorState.empty() {
     handler = CommandHandler(editor: editor, history: history);
-    final initial = <BlockId, BlockViewState>{};
-    for (final id in editor.allIds) {
-      initial[id] = BlockViewState(id: id);
-    }
-    _state = CoordinatorState.initial(initial);
+    _state = CoordinatorState.initial({
+      for (final id in editor.allIds) id: BlockViewState(id: id),
+    });
   }
 
   // ============ Command 入口 ============
 
   /// 处理 [EditorCommand]（R1+R2：成功后同步 selection 到 [BlockViewState]）。
-  ///
-  /// **oldSource 捕获**：InsertTextCommand 的 cursorOffset 计算需要插入前
-  /// 的 source 长度,而非插入后（可能因 tryTransform 改变 source 序列化结果）。
+  /// oldSource 捕获：InsertText / InsertTemplate(insert) 的 cursorOffset 计算需要
+  /// 插入前的 source 长度（tryTransform 可能改变序列化结果）。
   bool handle(EditorCommand command) {
-    final oldSource = command is InsertTextCommand
-        ? editor.sourceOf(command.blockId)
-        : null;
+    final (oldSource, oldIds) = switch (command) {
+      InsertTextCommand c => (editor.sourceOf(c.blockId), null),
+      InsertTemplateCommand c when c.mode == TemplateInsertMode.insert =>
+        (editor.sourceOf(c.blockId), null),
+      InsertTemplateCommand c when c.mode == TemplateInsertMode.newBlock =>
+        (null, editor.allIds.toSet()),
+      _ => (null, null),
+    };
     final ok = handler.handle(command);
     if (ok) {
-      _syncSelectionAfterCommand(command, oldSource);
+      _syncSelectionAfterCommand(command, oldSource, oldIds);
       notifyListeners();
     }
     return ok;
   }
 
-  /// 命令后同步 selection（R1+R2 修复）。
-  void _syncSelectionAfterCommand(EditorCommand command, String? oldSource) {
+  /// 命令后同步 selection（R1+R2 + PR #2C 模板）。
+  void _syncSelectionAfterCommand(
+      EditorCommand command, String? oldSource, Set<BlockId>? oldIds) {
     switch (command) {
       case InsertTextCommand c:
-        final insertOffset =
-            c.selection?.baseOffset ?? (oldSource?.length ?? 0);
-        final cursorPos = insertOffset + c.text.length + c.cursorOffset;
-        _updateSelectionInternal(
-            c.blockId, TextSelection.collapsed(offset: cursorPos));
+        _setCollapsedCursor(c.blockId, c.selection, oldSource,
+            c.text.length, c.cursorOffset);
       case WrapSelectionCommand c:
         final start = c.selection.start;
         final len = c.selection.end - start;
-        _updateSelectionInternal(
-          c.blockId,
-          TextSelection(
-            baseOffset: start + c.prefix.length,
-            extentOffset: start + c.prefix.length + len,
-          ),
-        );
+        _updateSelectionInternal(c.blockId, TextSelection(
+          baseOffset: start + c.prefix.length,
+          extentOffset: start + c.prefix.length + len,
+        ));
+      case InsertTemplateCommand c when c.mode == TemplateInsertMode.insert:
+        _setCollapsedCursor(c.blockId, c.selection, oldSource,
+            c.template.length, c.cursorOffset);
+      case InsertTemplateCommand c when c.mode == TemplateInsertMode.newBlock:
+        // newBlock 模式：焦点转移到新块,光标在 offset 0
+        final newId = editor.allIds.firstWhere(
+          (id) => !(oldIds?.contains(id) ?? false),
+          orElse: () => editor.allIds.last);
+        _state = _state.focusOn(newId);
+        _updateSelectionInternal(newId, const TextSelection.collapsed(offset: 0));
       default:
         break;
     }
   }
 
+  /// 计算单光标位置并更新 viewState（InsertText / InsertTemplate(insert) 共用）。
+  void _setCollapsedCursor(BlockId id, TextSelection? sel, String? oldSource,
+      int textLen, int cursorOffset) {
+    final insertOffset = sel?.baseOffset ?? (oldSource?.length ?? 0);
+    _updateSelectionInternal(
+        id, TextSelection.collapsed(offset: insertOffset + textLen + cursorOffset));
+  }
+
   void _updateSelectionInternal(BlockId id, TextSelection selection) {
-    final current = _state.viewStateOf(id) ?? BlockViewState(id: id);
-    _state = _state.updateViewState(id, current.copyWith(selection: selection));
+    final cur = _state.viewStateOf(id) ?? BlockViewState(id: id);
+    _state = _state.updateViewState(id, cur.copyWith(selection: selection));
   }
 
   // ============ 查询接口（转发到 editor） ============
@@ -114,13 +120,11 @@ class EditorCoordinator extends ChangeNotifier {
     final id = _state.focusedId;
     if (id == null) return null;
     final element = editor.getBlock(id);
-    if (element == null) return null;
-    return BlockType.fromElement(element);
+    return element == null ? null : BlockType.fromElement(element);
   }
 
   /// 聚焦块是否为 CodeBlock（消除 Toolbar 对 core/editing/ 的依赖）。
   bool get isFocusedOnCodeBlock => focusedBlockType == BlockType.code;
-
   /// 聚焦块的 selection（§2.7.1 强一致读取,Toolbar 用此值）。
   TextSelection? get focusedSelection => _state.focusedSelection;
   bool get hasSelection => _state.hasSelection;
@@ -152,13 +156,12 @@ class EditorCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============ Undo / Redo ============
+  // ============ Undo / Redo（Prototype 限制：currentState 空 Transaction） ============
 
   bool get canUndo => history.canUndo;
   bool get canRedo => history.canRedo;
 
-  /// Undo 一步。返回被撤销的 Transaction,失败返回 null。
-  /// **Prototype 限制**（R2）：currentState 空 Transaction,Phase 3.0+ 需 snapshot。
+  /// Undo 一步。
   Transaction? undo() {
     final tx = history.undo(_emptyCurrentState(TransactionOrigin.undo));
     if (tx == null) return null;
@@ -170,8 +173,7 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
-  /// Redo 一步。返回被重做的 Transaction,失败返回 null。
-  /// **Prototype 限制**：与 [undo] 相同。
+  /// Redo 一步。**Prototype 限制**：与 [undo] 相同。
   Transaction? redo() {
     final tx = history.redo(_emptyCurrentState(TransactionOrigin.redo));
     if (tx == null) return null;
@@ -190,9 +192,7 @@ class EditorCoordinator extends ChangeNotifier {
         origin: origin,
       );
 
-  void _syncViewStates() {
-    _state = _state.syncViewStates(editor.allIds);
-  }
+  void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
 
   @override
   String toString() =>

@@ -60,14 +60,32 @@ abstract final class EditorStrings {
   /// 任务列表按钮 tooltip。
   static const String taskListTooltip = '任务列表';
 
-  // ============ 模板菜单标签（PR #2C 扩展）============
-  // PR #2C 将在此添加模板菜单的标签字符串：
-  // - templateMenuTable
-  // - templateMenuMermaid
-  // - templateMenuCodeBlock
-  // - templateMenuTaskList
-  // - templateMenuQuote
-  // - templateMenuHorizontalRule
-  // - templateMenuImage
-  // - templateMenuLink
+  // ============ 模板菜单标签（PR #2C）============
+
+  /// `+` 模板菜单按钮 tooltip。
+  static const String templateMenuTooltip = '插入模板';
+
+  /// 表格模板菜单标签。
+  static const String templateMenuTable = '表格';
+
+  /// Mermaid 图表模板菜单标签。
+  static const String templateMenuMermaid = 'Mermaid 图表';
+
+  /// 代码块模板菜单标签。
+  static const String templateMenuCodeBlock = '代码块';
+
+  /// 任务列表模板菜单标签。
+  static const String templateMenuTaskList = '任务列表';
+
+  /// 引用块模板菜单标签。
+  static const String templateMenuQuote = '引用块';
+
+  /// 分隔线模板菜单标签。
+  static const String templateMenuHorizontalRule = '分隔线';
+
+  /// 图片模板菜单标签。
+  static const String templateMenuImage = '图片';
+
+  /// 链接模板菜单标签。
+  static const String templateMenuLink = '链接';
 }

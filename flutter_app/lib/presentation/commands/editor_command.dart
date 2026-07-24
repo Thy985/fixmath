@@ -263,6 +263,11 @@ enum TemplateInsertMode {
 /// **Hard Rule（Task Contract v2.1 §2.5.1）**：禁止业务逻辑用字符串判断模板类型
 /// （如 `if (template.contains('mermaid'))`）。模板内容必须作为常量管理
 /// （如 `Templates.mermaidDefault`）。
+///
+/// **[cursorOffset] 语义**（仅 [TemplateInsertMode.insert] 模式生效）：
+/// 相对插入文本末尾的光标偏移（与 [InsertTextCommand.cursorOffset] 语义一致）。
+/// - 0 = 光标在插入文本末尾（默认）
+/// - 负数 = 从末尾前移（如代码块模板 `cursorOffset = -3` 将光标定位到代码区首行）
 @immutable
 final class InsertTemplateCommand extends EditorCommand {
   /// 目标块 ID。
@@ -279,11 +284,18 @@ final class InsertTemplateCommand extends EditorCommand {
   /// 当前选区（仅 [TemplateInsertMode.insert] 模式使用，null = 单光标点）。
   final TextSelection? selection;
 
+  /// 相对插入文本末尾的光标偏移（仅 [TemplateInsertMode.insert] 模式生效）。
+  ///
+  /// 0 = 末尾（默认），负数 = 从末尾前移。
+  /// [TemplateInsertMode.newBlock] 模式忽略此字段（光标固定在新块首）。
+  final int cursorOffset;
+
   const InsertTemplateCommand({
     required this.blockId,
     required this.template,
     this.mode = TemplateInsertMode.insert,
     this.selection,
+    this.cursorOffset = 0,
     super.origin = CommandOrigin.menu,
   }) : super(displayName: '插入模板');
 }
