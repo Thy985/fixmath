@@ -26,7 +26,6 @@ import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
 import '../../data/models/document.dart';
 import 'commands.dart';
-import 'editor_command.dart';
 
 /// CommandHandler：解释 [EditorCommand] 为 [BlockOperation] 序列。
 ///
