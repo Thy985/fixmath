@@ -4,10 +4,15 @@
 /// 落地 Phase 3.1-A Task Contract §3.1.A.2（R4 评审反馈）：
 /// - `_HeadingBlockState` 改为 `extends BaseBlockState<HeadingBlock>` 共享样板
 /// - 消除约 40 行 controller / focus / commit 重复代码
+/// 落地 Phase 3.2 Task Contract §3.0 方案 A（基类统一调度）：
+/// - 移除 `build()` 重写（基类统一分发）
+/// - 移除 `_buildEditing()` / `_buildRendered()`
+/// - `buildRenderContent` 仅实现 render 态差异
+/// - `editFieldMaxLines = 1`（标题单行）
 ///
 /// **双态切换**：
 /// - [RenderMode.rendered]：显示标题文本，按 [HeadingElement.level] 1-6 渲染不同字号
-/// - [RenderMode.editing]：显示 Markdown source（如 `## 标题`）
+/// - [RenderMode.editing]：由基类 `buildEditField` 提供 [TextField]（单行）
 ///
 /// **字号映射**（参考 Material Design type scale，简化版）：
 /// - h1: 28 / bold
@@ -22,11 +27,11 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/editing/block_types.dart';
-import '../../data/models/document.dart';
-import '../editor/editor_coordinator.dart';
-import '../states/block_view_state.dart';
-import 'base_block_state.dart';
+import '../../../core/editing/block_types.dart';
+import '../../../data/models/document.dart';
+import '../../editor/editor_coordinator.dart';
+import '../../states/block_view_state.dart';
+import '../base_block_state.dart';
 
 /// 标题块（render + edit 双态，level 1-6）。
 class HeadingBlock extends StatefulWidget {
@@ -52,8 +57,10 @@ class HeadingBlock extends StatefulWidget {
 
 /// 标题块 State：extends [BaseBlockState] 共享 controller / focus / commit 样板。
 ///
-/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<HeadingBlock>`，
+/// **Phase 3.1-A R4 修订**：从独立 State 改为 `extends BaseBlockState<HeadingBlock>`,
 /// 消除约 40 行 controller / focus / commit 样板。
+/// **Phase 3.2 §3.0 方案 A 修订**：移除 build() / _buildEditing() / _buildRendered(),
+/// 仅保留 buildRenderContent + edit 态配置。
 class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
   @override
   BlockId get blockId => widget.state.id;
@@ -64,36 +71,12 @@ class _HeadingBlockState extends BaseBlockState<HeadingBlock> {
   @override
   RenderMode previousMode(HeadingBlock oldWidget) => oldWidget.state.mode;
 
+  /// 标题单行编辑。
   @override
-  Widget build(BuildContext context) {
-    if (currentMode == RenderMode.editing) {
-      return _buildEditing();
-    }
-    return _buildRendered();
-  }
+  int? get editFieldMaxLines => 1;
 
   @override
   Widget buildRenderContent(BuildContext context) {
-    // 当前实现直接在 build() 中按 mode 分发，保留 buildRenderContent 为兼容空实现
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildEditing() {
-    return TextField(
-      controller: textController,
-      focusNode: focusNode,
-      maxLines: 1,
-      textInputAction: TextInputAction.done,
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      ),
-      onSubmitted: (_) => focusNode.unfocus(),
-    );
-  }
-
-  Widget _buildRendered() {
     return GestureDetector(
       onTap: onBlockTap,
       child: Container(

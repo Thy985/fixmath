@@ -1,13 +1,13 @@
 /// InMemoryDocumentEditor：DocumentEditor 的内存实现（Phase 3.0 production 路径）。
 ///
-/// 落地 ADR-0009 §4 + Phase 3.0 Task Contract §2.6（复用 Phase 2.9 产出）：
-/// 从 `lib/presentation/prototype/_shared/in_memory_document_editor.dart`
-/// 迁移到 `lib/presentation/editor/`（production 路径）。
+/// 落地 ADR-0009 §4 + Phase 3.0 Task Contract §2.6（复用 Phase 2.9 产出）。
+/// 落地 Phase 3.3 Task Contract §3.3.1 + §3.3.4（title / wordCount / isDirty）。
 ///
 /// **职责**：
 /// - 实现 [DocumentEditor] 接口（内核抽象）
 /// - 维护 `List<_Entry>` 保存每个 [BlockId] 对应的 [DocumentElement]
 /// - 提供 [addParagraph] / [sourceOf] / [allIds] / [allElements] 等辅助方法
+/// - **Phase 3.3 新增**：[title] / [wordCount] / [isDirty] / [markSaved]
 ///
 /// **不修改内核**（Hard Rule: Phase 3.0 不动 lib/core/editing/）。
 ///
@@ -28,7 +28,43 @@ class InMemoryDocumentEditor implements DocumentEditor {
   final List<_Entry> _blocks = [];
   int _nextIdValue = 100;
 
-  InMemoryDocumentEditor();
+  /// 文档标题（Phase 3.3：从种子文档元数据或首个 HeadingElement 提取）。
+  ///
+  /// 默认值 `'未命名'` 在 EditorPage 构造时可被覆盖。
+  String _title;
+
+  /// Dirty 标记（Phase 3.3：ADR-0011 §4 归属 Document State）。
+  ///
+  /// - 任何 mutating 操作（insert / remove / replace / update）后置 true
+  /// - [markSaved] 时置 false
+  /// - undo / redo 不直接修改此标记（由 EditorCoordinator 根据 history 状态推导）
+  bool _isDirty = false;
+
+  InMemoryDocumentEditor({String title = '未命名'}) : _title = title;
+
+  /// 文档标题。
+  String get title => _title;
+
+  /// 设置文档标题（用于 EditorPage 接入种子文档元数据）。
+  set title(String value) => _title = value;
+
+  /// 是否有未保存修改（ADR-0011 §4：Dirty 归属 Document State）。
+  bool get isDirty => _isDirty;
+
+  /// 标记文档已保存（重置 isDirty）。
+  ///
+  /// 由 EditorCoordinator.save()（Phase 3.4+ 接入）或外部保存逻辑调用。
+  void markSaved() => _isDirty = false;
+
+  /// 字数统计（Phase 3.3：基于 allSources 计算）。
+  ///
+  /// **实现**：拼接所有块 source,按 Unicode code unit 计数（含空白）。
+  /// 这是最简单的实现,足够 Phase 3.3 状态栏显示。
+  /// Phase 3.4+ 可升级为 CJK 字符感知的字数统计（排除空白 / 标点）。
+  int get wordCount => allSources.fold<int>(
+        0,
+        (sum, source) => sum + source.length,
+      );
 
   @override
   int get blockCount => _blocks.length;
@@ -56,6 +92,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     }
     final id = preserveId ?? BlockId(_nextIdValue++);
     _blocks.insert(index, _Entry(id, element));
+    _isDirty = true;
     return id;
   }
 
@@ -63,6 +100,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
   DocumentElement removeBlock(BlockId id) {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
+        _isDirty = true;
         return _blocks.removeAt(i).element;
       }
     }
@@ -86,6 +124,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
         final old = _blocks[i].element;
         // Phase 3.1-A PR #2（R5）：保持 BlockId 不变（之前是分配新 BlockId）
         _blocks[i] = _Entry(id, element);
+        _isDirty = true;
         return old;
       }
     }
@@ -121,6 +160,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
         final old = _blocks[i].element;
         final newId = BlockId(_nextIdValue++);
         _blocks[i] = _Entry(newId, element);
+        _isDirty = true;
         // 通知调用方迁移信息（若提供了回调）
         onMigrated?.call(id, newId);
         return old;
@@ -134,6 +174,7 @@ class InMemoryDocumentEditor implements DocumentEditor {
     for (var i = 0; i < _blocks.length; i++) {
       if (_blocks[i].id == id) {
         _blocks[i] = _Entry(id, newContent);
+        _isDirty = true;
         return;
       }
     }

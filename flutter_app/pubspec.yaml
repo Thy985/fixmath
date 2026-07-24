@@ -30,6 +30,9 @@ dependencies:
   flutter_svg: ^2.0.9
   flutter_inappwebview: ^6.0.0
 
+  # 代码语法高亮（Phase 3.2 §3.2.10）
+  flutter_highlight: ^0.7.0
+
   # 导出
   pdf: 3.10.7
   archive: ^3.4.9
@@ -45,6 +48,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  integration_test:
+    sdk: flutter
 
 dependency_overrides:
   # 锁定 inappwebview 全家桶到稳定版，避免 pub 选择 beta 版本

@@ -329,50 +329,92 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 - `BaseBlockState.previousMode` 改为抽象方法（强制子类实现）
 - `EditorScope` 移除 `maybeOf` 变体
 
-### Phase 3.2 — Block Runtime Expansion（当前阶段）
+### Phase 3.2 — Block Runtime Expansion（Conditionally Complete）
 
-**目标**：从最小可编辑系统（paragraph / heading / code 三种 BlockType）扩展为完整 Markdown Block Runtime，支持 6 种剩余 BlockType + 建立 `blocks/<type>/` 目录结构。
+**目标**：从最小可编辑系统（paragraph / heading / code 三种 BlockType）扩展为完整 Markdown Block Runtime，支持剩余 BlockType + 建立 `blocks/<type>/` 目录结构。
 
 **前置条件**：Phase 3.1-A 完成（已满足）。
 
+**状态**：⚠️ Conditionally Complete（核心能力已交付,2 项延期至 Phase 3.5+。详见 [Phase 3.2 Verification Report](./releases/phase3.2-verification-report.md)）
+
 **核心理念**：Phase 3.0 只验证了 3 种 BlockType 的 BlockRenderer exhaustive switch 通路。Phase 3.2 解决"从最小可编辑系统 → 完整 Markdown Block Runtime"。Block 数量增加后，真正的问题会出现（Block 间共享逻辑、Block 工具栏、Block 选中、Block 拖拽），所以 Phase 3.2 必须同时建立 `blocks/<type>/` 目录结构 + `blocks/shared/` 共享组件，避免 Phase 3.5+ 再次重构。
 
-### 任务
-
-| # | 任务 | 来源 | 状态 |
-|---|------|------|------|
-| 3.2.1 | MathBlock（行内 + 块级公式） | ui-spec.md §7 | ⏳ |
-| 3.2.2 | MermaidBlock（流程图 / 时序图） | ui-spec.md §7 | ⏳ |
-| 3.2.3 | QuoteBlock（引用块） | ui-spec.md §7 | ⏳ |
-| 3.2.4 | TableBlock（含可视化编辑） | ui-spec.md §7 | ⏳ |
-| 3.2.5 | ImageBlock（含 alt 占位） | ui-spec.md §7 | ⏳ |
-| 3.2.6 | LinkBlock（行内链接） — **注**：LinkElement 是行内元素，此任务仅扩展 ParagraphBlock 的 inline renderer，不创建独立 `blocks/link/` 目录 | ui-spec.md §7 | ⏳ |
-| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/`（block_toolbar / block_selection / block_drag_handle） | 架构演进 | ⏳ |
-| 3.2.8 | WebView 预热机制（App 启动后并行加载，不阻塞首屏） | Phase 3.1 原 3.4 | ⏳ |
-| 3.2.9 | 公式 / Mermaid 渲染缓存策略改造（不退出清空） | Phase 3.1 原 3.5 | ⏳ |
-| 3.2.10 | 代码块语法高亮（highlight.js / flutter_highlight） | Phase 3.1 原 3.6 | ⏳ |
-
-详见 [Phase 3.2 Task Contract](file:///d:/Projects/Active/math/docs/contracts/phase3.2-task-contract.md)。
-
-### Phase 3.3 — Immersive Experience
-
-**目标**：完成 Typora 级沉浸体验（交互体验层）。架构层沉浸式已在 Phase 3.1-A 完成，本阶段解决体验层沉浸式。
+> **Closure 修订（2026-07-22）**：原计划 10 个任务,实际交付 8 个 + 2 个延期至 Phase 3.5+。延期项不影响"完整 Markdown Block Runtime"核心能力达成（用户可打开含表格/引用/Mermaid 的 .md 文档正常编辑）。详见 §任务表与 Verification Report。
 
 ### 任务
 
-| # | 任务 | 来源 | 状态 |
-|---|------|------|------|
-| 3.3.1 | AppBar 显示当前文档标题 + 修改状态（`•`） | Phase 3.1 原 3.3 | ⏳ |
-| 3.3.2 | 字号可缩放（Ctrl +/- / 双指缩放） | Phase 3.1 原 3.10 | ⏳ |
-| 3.3.3 | 焦点模式 / 打字机模式 | Phase 3.1 原 3.11 | ⏳ |
-| 3.3.4 | 实时字数统计（底部状态栏） | Phase 3.1 原 3.12 | ⏳ |
-| 3.3.5 | 撤销 / 重做按钮接入 UI（`HistoryManager` 已实现） | Phase 3.1 原 3.13 | ⏳ |
-| 3.3.6 | 自动配对（`$` / `(` / `[` / `*` 等） | Phase 3.1 原 3.14 | ⏳ |
-| 3.3.7 | 快捷键支持（Android 物理键盘 + Web） | Phase 3.1 原 3.16 | ⏳ |
+| # | 任务 | 来源 | 状态 | 备注 |
+|---|------|------|------|------|
+| 3.2.1 | MathBlock（行内 + 块级公式） | ui-spec.md §7 | 🔻 **延期** | 延期至 Phase 3.5：依赖 `FormulaSvgService` 成熟 + AST 表达方式评审 |
+| 3.2.2 | MermaidBlock（流程图 / 时序图） | ui-spec.md §7 | ✅ 已交付 | PR #3：封装 MermaidElementWidget + WebView 未就绪 fallback |
+| 3.2.3 | QuoteBlock（引用块） | ui-spec.md §7 | ✅ 已交付 | PR #2 |
+| 3.2.4 | TableBlock（基本渲染 + 双态,可视化编辑留 Phase 3.3） | ui-spec.md §7 | ✅ 已交付 | PR #2 |
+| 3.2.5 | Image Inline Rendering Enhancement | ui-spec.md §7 | ✅ 已交付 | PR #2：扩展 ParagraphBlock inline renderer |
+| 3.2.6 | Link Inline Rendering Enhancement | ui-spec.md §7 | ✅ 已交付 | PR #2：扩展 ParagraphBlock inline renderer |
+| 3.2.7 | `blocks/<type>/` 目录结构 + `blocks/shared/`（block_toolbar / block_selection / block_drag_handle） | 架构演进 | 🟡 **部分** | 目录重组 ✅（PR #1）,shared/ 3 个组件延期 Phase 3.5+（见下） |
+| 3.2.8 | WebView 预热机制 | Phase 3.1 原 3.4 | ✅ 已交付（退化） | PR #3：复用 MermaidService,退化为预热机制 |
+| 3.2.9 | Mermaid 渲染缓存 | Phase 3.1 原 3.5 | ✅ 已交付 | PR #3：复用 MermaidService LRU（256 entries / 32MB） |
+| 3.2.10 | 代码块语法高亮 | Phase 3.1 原 3.6 | ✅ 已交付 | PR #3：flutter_highlight 0.7.0 + githubTheme |
+
+**Closure 决议（2026-07-22,Human Owner 审批）**：
+
+1. **MathBlock（§3.2.1）延期至 Phase 3.5**：
+   - 公式渲染不应直接走 Mermaid 路径,`FormulaSvgService` 尚未成熟
+   - AST 表达方式（`FormulaElement` vs 新类型）需评审
+   - Phase 3.5 设立专门的 "Formula Rendering" 任务
+
+2. **blocks/shared/ 3 个共享组件延期至 Phase 3.5+**：
+   - 实际验证发现系统在缺少 BlockToolbar / BlockSelection / BlockDragHandle 时仍正常工作
+   - 原设计被高估,3 个组件并非 Phase 3.2 核心能力
+   - 为避免"为满足合同而写死代码"（技术债）,正式延期
+
+详见 [Phase 3.2 Task Contract v1.3](./contracts/phase3.2-task-contract.md) §10 Closure Decisions 与 [Phase 3.2 Verification Report](./releases/phase3.2-verification-report.md)。
+
+### Phase 3.3 — Mobile Markdown Editing Experience
+
+**目标**：完成移动端 Markdown 输入体验。聚焦手机端真正高价值的输入辅助能力。**不追求**桌面化能力（快捷键、打字机模式延期至 Phase 3.4 Desktop Enhancement）。
+
+**核心洞察**（v1.2 产品方向调整,Human Owner 2026-07-22）：桌面用户靠键盘快捷键,手机用户靠输入辅助。这是两套完全不同的交互体系。
+
+**v1.4 架构评审 R3 调整（Human Owner 2026-07-22,9.0/10 评分后 Accepted）**：
+- Markdown 工具栏（§3.3.7）提升为 Phase 3.3 **核心任务**,单独成 PR #2（v1.3 已落实）
+- 自动配对（§3.3.6）缩减范围：禁止 `*`/`$`/`#`/`-`/`>` 无条件补全（v1.3 已落实）
+- 字号缩放（§3.3.2）P1 确认（v1.3 已降级,R3 确认）
+- **§3.3.9 选区格式化菜单整体延期至 Phase 3.4 §3.4.10**（v1.4 新增,选区包裹能力作为 §3.3.7 工具栏内置模式保留）
+- **新增 §3.3.10 Markdown 模板插入菜单（P1）**：释放 Phase 3.2 TableBlock/MermaidBlock 成果
+
+**v1.4 R4 PR 拆分调整（Human Owner 2026-07-22）**：
+- §3.3.10 模板插入菜单从 PR #4 移至 PR #2 扩展（架构耦合：Toolbar → Template Menu）
+- PR #4 仅保留 §3.3.2 + §3.3.3（字号缩放 + 焦点模式）,与工具栏解耦
+- 详见 [Phase 3.3 Task Contract §8.1](./contracts/phase3.3-task-contract.md#81-分-pr-建议4-个-prv14-调整--r4-pr-拆分)
+
+**详细 Task Contract**：[Phase 3.3 Task Contract v1.4](./contracts/phase3.3-task-contract.md)（Accepted,架构评审 R3 9.0/10）
+
+### 任务（9 个,6 项 P0 + 3 项 P1）
+
+| # | 任务 | 优先级 | 状态 |
+|---|------|--------|------|
+| 3.3.1 | AppBar 显示文档标题 + 修改状态（`•`） | P0 | ⏳ |
+| 3.3.2 | 字号缩放（双指缩放 + 按钮 + 重置） | **P1**（v1.3 降级,R3 确认） | ⏳ |
+| 3.3.3 | 焦点模式（隐藏 chrome,双击退出） | P1 | ⏳ |
+| 3.3.4 | 实时字数统计（底部状态栏） | P0 | ⏳ |
+| 3.3.5 | 撤销 / 重做按钮接入 UI（`HistoryManager` 已实现） | P0 | ⏳ |
+| 3.3.6 | 自动配对（**仅 `(`/`[`/`{`/`` ` ``,v1.3 缩减范围**） | P0 | ⏳ |
+| 3.3.7 | **Markdown 工具栏（核心任务）**：11 按钮 + 选区包裹模式（内置） | **P0 核心** | ⏳ |
+| 3.3.8 | 自动续列表 / 引用 / 代码块（回车自动续行） | P0 | ⏳ |
+| 3.3.10 | **Markdown 模板插入菜单（v1.4 新增 P1）**：`+` 按钮,表格/Mermaid/代码块/任务列表模板 | P1 | ⏳ |
+
+### 已延期至 Phase 3.4 Desktop Enhancement（v1.4 调整）
+
+| 原任务 | 去向 | 理由 |
+|--------|------|------|
+| 3.3.7 快捷键支持（v1.0） | Phase 3.4 §3.4.5 | 手机端无 Ctrl 键,ROI 极低。手机用户靠输入辅助,不靠键盘快捷键 |
+| 3.3.3 打字机模式（v1.0） | Phase 3.4 §3.4.6 | 手机端软键盘已占半屏,TextField 自带滚动 |
+| 3.3.9 选区格式化菜单（v1.2,v1.4 整体延期） | Phase 3.4 §3.4.10 | Flutter Overlay + TextSelection + 光标坐标 + 滚动同步复杂度高,Phase 3.3 风险敏感。选区包裹能力已作为 §3.3.7 工具栏内置模式保留 |
 
 ### Phase 3.4+ — Advanced Capabilities
 
-**目标**：高级能力扩展（TOC / 文件树 / 主题 / 导出 / 协作等）。
+**目标**：高级能力扩展（TOC / 文件树 / 主题 / 导出 / 协作 / 桌面化等）。
 
 ### 任务
 
@@ -382,13 +424,38 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 | 3.4.2 | 文件树侧滑（替代文件管理独立屏幕） | Phase 3.1 原 3.8 | ⏳ |
 | 3.4.3 | 多套主题（GitHub / Night / Sepia / Newsprint） | Phase 3.1 原 3.9 | ⏳ |
 | 3.4.4 | 导出进度反馈（百分比 + 当前公式计数） | Phase 3.1 原 3.17 | ⏳ |
+| 3.4.5 | 快捷键支持（Android 物理键盘 + Web,Phase 3.3 v1.0 延期项） | Phase 3.3 v1.0 原 3.3.7 | ⏳ |
+| 3.4.6 | 打字机模式（光标行居中,Phase 3.3 v1.0 延期项） | Phase 3.3 v1.0 原 3.3.3 打字机部分 | ⏳ |
+| 3.4.7 | 自动保存（dirty tracking 只做状态,自动保存逻辑留 Phase 3.4+） | Phase 3.3 v1.2 边界 | ⏳ |
+| 3.4.8 | 页面宽度控制（max-width 720px） | Phase 3.3 v1.2 边界 | ⏳ |
+| 3.4.9 | Markdown 图片插入（从相册选图） | Phase 3.3 v1.2 边界 | ⏳ |
+| 3.4.10 | 选区格式化菜单（Overlay 浮动菜单,Phase 3.3 v1.4 延期项,选区包裹已作为 §3.3.7 工具栏内置模式） | Phase 3.3 v1.2 原 3.3.9 | ⏳ |
 
 ### 退出条件（Phase 3.1+ 整体）
 
 - [x] 用户不再需要切换"编辑/预览"模式（Phase 3.1-A 已完成）
-- [ ] WebView 冷启动时间 < 500ms 或预热完成后才显示编辑器（Phase 3.2）
-- [ ] 9 种 BlockType 全部支持双态切换（Phase 3.2）
+- [x] WebView 预热机制建立（Phase 3.2 已交付,退化实现：复用 MermaidService.awaitPageLoaded）
+- [x] 8 种 BlockType 支持双态切换（Phase 3.2 已交付：paragraph / heading / code / quote / table / mermaid + image/link inline）
+- [ ] MathBlock 双态切换（Phase 3.5：原 Phase 3.2 §3.2.1 延期）
+- [ ] blocks/shared/ 3 个共享组件（Phase 3.5+：原 Phase 3.2 §3.2.7 部分延期）
 - [ ] 21 项 Typora 核心特性对齐度 ≥ 80%（Phase 3.3+）
+
+### Phase 3.5 — Deferred Block Runtime Items
+
+**目标**：承接 Phase 3.2 延期项 + 公式渲染系统专项。Phase 3.3 / 3.4 可并行推进,不阻塞本阶段。
+
+**前置条件**：Phase 3.2 Conditionally Complete（已满足）。
+
+### 任务
+
+| # | 任务 | 来源 | 状态 |
+|---|------|------|------|
+| 3.5.1 | MathBlock（行内 + 块级公式） — 依赖 `FormulaSvgService` 成熟 + AST 表达方式评审（`FormulaElement` vs 新类型） | Phase 3.2 §3.2.1 延期 | ⏳ |
+| 3.5.2 | `blocks/shared/block_toolbar.dart` — Block 工具栏（移动 / 删除 / 转换类型） | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.3 | `blocks/shared/block_selection.dart` — Block 选中状态视觉反馈 | Phase 3.2 §3.2.7 延期 | ⏳ |
+| 3.5.4 | `blocks/shared/block_drag_handle.dart` — Block 拖拽重排序 | Phase 3.2 §3.2.7 延期 | ⏳ |
+
+**说明**：3.5.2-4 是否合并实施取决于 Phase 3.3 交互体验推进时是否真正需要这些组件。若 Phase 3.3 推进中发现 BlockToolbar 是硬需求,可提前从 Phase 3.5 拉回 Phase 3.3 实施。
 
 ---
 
@@ -430,6 +497,6 @@ Phase 2.6 块级操作五原语（insert / delete / merge / split / move）+ Tra
 
 ---
 
-**当前阶段**：Phase 3.2 — Block Runtime Expansion（roadmap drift 修正后）
-**最近更新**：2026-07-21（Phase 3.1-A 完成 + ROADMAP 阶段重新划分：3.1 WYSIWYG Migration / 3.2 Block Runtime Expansion / 3.3 Immersive Experience / 3.4+ Advanced Capabilities）
+**当前阶段**：Phase 3.3 — Mobile Markdown Editing Experience（v1.4 Accepted,启动 PR 待人工创建）
+**最近更新**：2026-07-22（Phase 3.2 Closure Conditionally Complete + Phase 3.3 Task Contract v1.4 R4 PR 拆分调整 + 优先级统计修正 6P0+3P1）
 **维护人**：首席架构工程师

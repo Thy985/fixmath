@@ -6,8 +6,13 @@
 /// 守门内容：
 /// - `BlockRenderer` 必须使用 `switch (element)` exhaustive 语法
 /// - `BlockRenderer` 不允许 `_ =>` fallback 分支
-/// - `BlockRenderer` 必须显式支持 3 种 BlockType（paragraph / heading / code）
-/// - 未实现的 6 种类型必须显式 throw UnimplementedError（不默默退化显示）
+/// - `BlockRenderer` 必须显式支持 6 种 BlockType
+///   （Phase 3.0: paragraph / heading / code
+///    Phase 3.2 PR #2: quote / table
+///    Phase 3.2 PR #3: mermaid）
+/// - 未实现的 3 种类型必须显式 throw UnimplementedError（不默默退化显示）
+///   （listItem / taskListItem / horizontalRule）
+///   MathBlock 留 Phase 3.5+（依赖 FormulaSvgService 集成）
 ///
 /// 为什么不允许 GenericBlock fallback（Human Owner 反馈）：
 /// - 若有 fallback，新增 Block 类型时不会立刻暴露未实现，可能默默退化显示
@@ -58,10 +63,10 @@ void main() {
       );
     });
 
-    test('block_renderer.dart 显式支持 3 种 BlockType', () {
+    test('block_renderer.dart 显式支持 6 种 BlockType（Phase 3.0 + PR #2 + PR #3）', () {
       final file = File('lib/presentation/blocks/block_renderer.dart');
       final content = file.readAsStringSync();
-      // 必须显式 case ParagraphElement / HeadingElement / CodeElement
+      // Phase 3.0：3 种基础 BlockType
       expect(
         content.contains('ParagraphElement'),
         isTrue,
@@ -77,12 +82,30 @@ void main() {
         isTrue,
         reason: 'BlockRenderer 必须支持 CodeElement',
       );
-      // 其他 6 种类型必须显式 throw UnimplementedError（不默默 fallback）
+      // Phase 3.2 PR #2：2 种新增 BlockType
+      expect(
+        content.contains('BlockquoteElement'),
+        isTrue,
+        reason: 'Phase 3.2 PR #2：BlockRenderer 必须支持 BlockquoteElement',
+      );
+      expect(
+        content.contains('TableElement'),
+        isTrue,
+        reason: 'Phase 3.2 PR #2：BlockRenderer 必须支持 TableElement',
+      );
+      // Phase 3.2 PR #3：1 种新增 BlockType（Mermaid）
+      expect(
+        content.contains('MermaidElement'),
+        isTrue,
+        reason: 'Phase 3.2 PR #3：BlockRenderer 必须支持 MermaidElement',
+      );
+      // 其他 3 种类型必须显式 throw UnimplementedError（不默默 fallback）
+      // MathBlock 留 Phase 3.5+（依赖 FormulaSvgService 集成）
       expect(
         content.contains('UnimplementedError'),
         isTrue,
-        reason: 'Phase 3.0：未实现的 6 种类型必须显式 throw UnimplementedError，'
-            '不允许默默退化显示。',
+        reason: 'Phase 3.2 PR #3：未实现的 3 种类型必须显式 throw '
+            'UnimplementedError，不允许默默退化显示。',
       );
     });
   });

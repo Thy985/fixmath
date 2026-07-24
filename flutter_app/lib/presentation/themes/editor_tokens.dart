@@ -43,6 +43,23 @@ class EditorTokens {
   /// 代码块 language chip 颜色。
   static const Color codeLanguageChip = Color(0xFFE0E0E0);
 
+  /// 引用块左侧竖线颜色（Phase 3.2 §3.4 QuoteBlock）。
+  static const Color quoteBorderColor = Color(0xFFC0C0C0);
+
+  /// 表格边框颜色（Phase 3.2 §3.5 TableBlock）。
+  static const Color tableBorderColor = Color(0xFFE0E0E0);
+
+  /// 表格表头背景色（Phase 3.2 §3.5 TableBlock）。
+  static const Color tableHeaderBackground = Color(0xFFF5F5F5);
+
+  /// 行内链接颜色（Phase 3.2 §3.7 LinkElement inline rendering）。
+  ///
+  /// 注：与 [ThemeData.colorScheme.primary] 的关系——
+  /// 此 token 用于 ParagraphBlock 的 inline TextSpan（TextSpan 不支持
+  /// 运行时 Theme.of(context) 查找,需要编译时常量）。
+  /// Phase 3.9+ 主题切换时此 token 将改为 Theme 驱动。
+  static const Color linkColor = Color(0xFF2196F3);
+
   // ============ 间距 ============
 
   /// 块间距（块与块之间的垂直间距）。
@@ -64,6 +81,9 @@ class EditorTokens {
 
   /// 代码字号。
   static const double codeFontSize = 14.0;
+
+  /// 表格单元格字号（Phase 3.2 §3.5 TableBlock,与 code 字号一致但语义独立）。
+  static const double tableCellFontSize = 14.0;
 
   /// 状态栏字号。
   static const double statusBarFontSize = 11.0;

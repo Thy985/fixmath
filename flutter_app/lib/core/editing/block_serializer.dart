@@ -99,8 +99,11 @@ HeadingElement _parseHeading(String source) {
 }
 
 ListElement _parseListItem(String source) {
-  // ^(\s*)([-*+]\s|\d+\.\s)(.*)$
-  final match = RegExp(r'^(\s*)([-*+]|\d+\.)\s+(.*)$').firstMatch(source);
+  // ^(\s*)([-*+]\s|\d+\.\s)([\s\S]*)$
+  // 注：content 组用 [\s\S]* 而非 (.*)，以支持跨换行的多行列表源
+  // （如自动续列表产生的 "- item\n- "）。(.*) 无法匹配内嵌 \n，
+  // 会导致回退到"整段当文本"分支并重复前缀。
+  final match = RegExp(r'^(\s*)([-*+]|\d+\.)\s+([\s\S]*)$').firstMatch(source);
   if (match == null) {
     // 非法 list 源，降级为无序 + 0 indent + 原文
     return ListElement(
@@ -121,7 +124,7 @@ ListElement _parseListItem(String source) {
 
 TaskListItemElement _parseTaskListItem(String source) {
   // ^(\s*)[-*+]\s\[(?: |x|X)\]\s(.*)$
-  final match = RegExp(r'^(\s*)[-*+]\s\[( |x|X)\]\s+(.*)$').firstMatch(source);
+  final match = RegExp(r'^(\s*)[-*+]\s\[( |x|X)\]\s+([\s\S]*)$').firstMatch(source);
   if (match == null) {
     // 非法 task list 源，降级为 unchecked + 原文
     return TaskListItemElement(

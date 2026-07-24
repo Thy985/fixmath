@@ -25,3 +25,14 @@ export 'editor_command.dart' show MoveBlockUpCommand;
 export 'editor_command.dart' show MoveBlockDownCommand;
 export 'editor_command.dart' show UpdateBlockSourceCommand;
 export 'editor_command.dart' show TransformBlockCommand;
+
+// Phase 3.3 PR #2A 新增 3 个 Command 子类（Markdown 工具栏 + 模板菜单）
+export 'editor_command.dart' show InsertTextCommand;
+export 'editor_command.dart' show WrapSelectionCommand;
+export 'editor_command.dart' show InsertTemplateCommand;
+export 'editor_command.dart' show TemplateInsertMode;
+
+// Phase 3.3 PR #3 新增 2 个 Command 子类（自动配对 + 自动续列表）
+export 'editor_command.dart' show PairInsertCommand;
+export 'editor_command.dart' show PairInsertMode;
+export 'editor_command.dart' show InsertNewLineWithPrefixCommand;

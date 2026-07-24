@@ -79,10 +79,14 @@ void main() {
 
   group('TC-ARCH-UI-10 BaseBlockState 共享样板守门', () {
     test('paragraph / heading / code 3 个 Block 都 extends BaseBlockState', () {
+      // Phase 3.2 §3.2.7 目录重组后文件位置变更：
+      //   paragraph_block.dart → paragraph/paragraph_block.dart
+      //   heading_block.dart   → heading/heading_block.dart
+      //   code_block.dart      → code/code_block.dart
       const blockFiles = [
-        'paragraph_block.dart',
-        'heading_block.dart',
-        'code_block.dart',
+        'paragraph/paragraph_block.dart',
+        'heading/heading_block.dart',
+        'code/code_block.dart',
       ];
       final hits = <String>[];
       for (final name in blockFiles) {
@@ -106,9 +110,9 @@ void main() {
       // R4 抽取后，_textController 应只存在于 BaseBlockState，
       // 3 个 Block 子类不应再各自声明。
       const blockFiles = [
-        'paragraph_block.dart',
-        'heading_block.dart',
-        'code_block.dart',
+        'paragraph/paragraph_block.dart',
+        'heading/heading_block.dart',
+        'code/code_block.dart',
       ];
       final hits = <String>[];
       for (final name in blockFiles) {
@@ -138,6 +142,96 @@ void main() {
         RegExp(r'abstract\s+class\s+BaseBlockState').hasMatch(content),
         isTrue,
         reason: 'BaseBlockState 必须是 abstract 类（R4 设计）',
+      );
+    });
+
+    // ============ Phase 3.2 §3.0 方案 A 守门 ============
+
+    test('TC-ARCH-UI-16 BaseBlockState.build() 统一分发（§3.0 方案 A）', () {
+      // Phase 3.2 §3.0 方案 A：基类 build() 按 currentMode 分发到
+      // buildRenderContent / buildEditField，消除子类重复样板。
+      final file = File('lib/presentation/blocks/base_block_state.dart');
+      final content = file.readAsStringSync();
+      expect(
+        RegExp(r'Widget\s+build\(BuildContext\s+context\)\s*\{[^}]*'
+            r'if\s*\(currentMode\s*==\s*RenderMode\.editing\)').hasMatch(content),
+        isTrue,
+        reason: 'Phase 3.2 §3.0 方案 A：BaseBlockState.build() 必须统一按 '
+            'currentMode 分发（若子类重写 build 则为方案 B 违规）',
+      );
+    });
+
+    test('TC-ARCH-UI-17 3 个 Block 子类不重写 build()', () {
+      // 方案 A 后,子类不应再重写 build()（基类统一调度）
+      const blockFiles = [
+        'paragraph/paragraph_block.dart',
+        'heading/heading_block.dart',
+        'code/code_block.dart',
+      ];
+      final hits = <String>[];
+      for (final name in blockFiles) {
+        final file = File('lib/presentation/blocks/$name');
+        final lines = file.readAsLinesSync();
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
+          // 检测 `Widget build(BuildContext context)` 在非抽象基类中的重写
+          // 允许在基类中（base_block_state.dart）,禁止在子类
+          if (RegExp(r'^\s*@override\s*$').hasMatch(line) == false) continue;
+          // 查找下一个非空行是否为 build 方法签名
+          for (var j = i + 1; j < lines.length; j++) {
+            final next = lines[j].trim();
+            if (next.isEmpty) continue;
+            if (RegExp(r'Widget\s+build\(BuildContext\s+context\)').hasMatch(next)) {
+              hits.add('$name:${j + 1}:$next');
+            }
+            break;
+          }
+        }
+      }
+      expect(
+        hits,
+        isEmpty,
+        reason: 'Phase 3.2 §3.0 方案 A：3 个 Block 子类不应重写 build()，'
+            '由 BaseBlockState 统一分发。\n'
+            '命中：\n${hits.join('\n')}',
+      );
+    });
+
+    test('TC-ARCH-UI-18 3 个 Block 子类实现 buildRenderContent', () {
+      // 方案 A 后,子类必须实现 buildRenderContent（不再是空壳 SizedBox.shrink）
+      const blockFiles = [
+        'paragraph/paragraph_block.dart',
+        'heading/heading_block.dart',
+        'code/code_block.dart',
+      ];
+      final hits = <String>[];
+      for (final name in blockFiles) {
+        final file = File('lib/presentation/blocks/$name');
+        final content = file.readAsStringSync();
+        // 必须有 buildRenderContent 方法声明
+        if (!RegExp(r'Widget\s+buildRenderContent\(BuildContext\s+context\)').hasMatch(content)) {
+          hits.add('$name: 缺少 buildRenderContent 方法');
+          continue;
+        }
+        // 不应返回 SizedBox.shrink()（Phase 3.1-A 期间的死代码空壳）
+        // 提取 buildRenderContent 方法体并检查
+        final methodMatch = RegExp(
+          r'Widget\s+buildRenderContent\(BuildContext\s+context\)\s*\{([^}]*)\}',
+          multiLine: true,
+        ).firstMatch(content);
+        if (methodMatch != null) {
+          final body = methodMatch.group(1) ?? '';
+          if (body.contains('SizedBox.shrink')) {
+            hits.add('$name: buildRenderContent 返回 SizedBox.shrink（死代码）');
+          }
+        }
+      }
+      expect(
+        hits,
+        isEmpty,
+        reason: 'Phase 3.2 §3.0 方案 A：3 个 Block 子类必须实现 buildRenderContent,'
+            '不能返回 SizedBox.shrink 空壳。\n'
+            '命中：\n${hits.join('\n')}',
       );
     });
   });

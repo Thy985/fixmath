@@ -1,10 +1,13 @@
 # Phase 3.2 Task Contract: Block Runtime Expansion
 
-> **版本**：v1.0（草案，待 Human Owner 审批）
+> **版本**：v1.3（Closure：记录 MathBlock + shared/ 延期决议,Phase 3.2 正式关闭）
 > **起草日期**：2026-07-21
+> **v1.1 修订日期**：2026-07-21（记录 §9 决策事项结果）
+> **v1.2 修订日期**：2026-07-22（§3.6 / §3.7 改为 inline rendering；§8.1 PR 划分调整；§6.1 Exit Gate 拆分；ui-spec.md §7 同步）
+> **v1.3 修订日期**：2026-07-22（§10 Closure Decisions：MathBlock + shared/ 正式延期至 Phase 3.5+）
 > **起草人**：AI Agent（GLM-5.2）
-> **状态**：Proposed
-> **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项，不阻塞 Phase 3.2）
+> **状态**：Closed（v1.1 Human Owner 审批通过 2026-07-21；v1.3 Closure PR 待 Human Owner 审批）
+> **前置阶段**：Phase 3.1 WYSIWYG Migration（✅ Phase 3.1-A 已完成；Phase 3.1-B/C 为触发制延后项,不阻塞 Phase 3.2）
 > **后继阶段**：Phase 3.3 Immersive Experience（体验层沉浸式：焦点模式 / 打字机模式 / 字号缩放等）
 >
 > **关联文档**：
@@ -281,34 +284,44 @@ lib/presentation/blocks/
 - TC-BLOCK-TABLE-2：双态切换
 - TC-BLOCK-TABLE-3：含对齐标记的表格
 
-### 3.6 任务 3.2.5：ImageBlock
+### 3.6 任务 3.2.5：Image Inline Rendering Enhancement
 
-**AST 类型**：`ImageElement`（已存在）
+> **v1.2 修订**：任务名从 "ImageBlock" 改为 "Image Inline Rendering Enhancement"。
+> 原命名误导（`ImageBlock` 暗示独立 BlockType），实际 AST 中
+> [ImageElement extends InlineElement](../../flutter_app/lib/data/models/document.dart)，
+> 不进入 BlockRenderer 的 exhaustive switch。
+
+**AST 类型**：`ImageElement extends InlineElement`（已存在,**行内元素**）
 
 **视觉规范**（见 [ui-spec.md §3.1](../design/ui-spec.md)）：
 - render 态：占位 + alt 文本（Phase 3.5+ 接入图片管理）
 - edit 态：`![alt](url)` source
 
 **实现要点**：
-- Phase 3.2 只实现占位渲染（不实际加载图片）
+- 扩展 `paragraph_block.dart` 的 inline 渲染器（已有占位渲染,Phase 3.2 仅微调）
+- 不在 BlockRenderer 新增 case（违反 TC-ARCH-UI-8 exhaustive switch 守门）
 - 实际图片加载归入 Phase 3.5（原 ROADMAP 3.5）
 
 **测试**：
 - TC-BLOCK-IMAGE-1：占位 + alt 文本 render
 - TC-BLOCK-IMAGE-2：双态切换
 
-### 3.7 任务 3.2.6：LinkBlock
+### 3.7 任务 3.2.6：Link Inline Rendering Enhancement
 
-**AST 类型**：`LinkElement`（已存在，但是行内元素）
+> **v1.2 修订**：任务名从 "LinkBlock" 改为 "Link Inline Rendering Enhancement"。
+> 与 §3.6 同理,`LinkElement extends InlineElement`,不进入 BlockRenderer。
 
-**设计决策**：LinkBlock 作为**行内元素**，不是独立 Block。Phase 3.2 在 ParagraphBlock 的 inline 渲染中实现 LinkElement 的 render 态（蓝色文本 + 下划线）+ edit 态（`[text](url)` source）。
+**AST 类型**：`LinkElement extends InlineElement`（已存在,**行内元素**）
+
+**设计决策**：Link 作为**行内元素**,不是独立 Block。Phase 3.2 在 ParagraphBlock 的 inline 渲染中实现 LinkElement 的 render 态（蓝色文本 + 下划线,不显示多余 URL）+ edit 态（`[text](url)` source）。
 
 **实现要点**：
-- 扩展 `paragraph_block.dart` 的 inline 渲染器
-- 不创建独立 `blocks/link/` 目录（但保留在 ROADMAP 以便跟踪）
+- 扩展 `paragraph_block.dart` 的 inline 渲染器（已有占位渲染,Phase 3.2 仅微调：移除多余 ` (url)` 后缀）
+- 不创建独立 `blocks/link/` 目录（不进入 BlockRenderer case）
+- 不在 BlockRenderer 新增 case（违反 TC-ARCH-UI-8）
 
 **测试**：
-- TC-BLOCK-LINK-1：行内链接 render 视觉
+- TC-BLOCK-LINK-1：行内链接 render 视觉（蓝色 + 下划线,无多余 URL）
 - TC-BLOCK-LINK-2：edit source 显示正确
 
 ### 3.8 任务 3.2.7：blocks/shared/ 共享组件
@@ -461,8 +474,19 @@ flutter test     # 0 regression
 
 ### 6.1 UI 验证
 
+> **v1.2 修订**：原 "6 种新 Block 双态切换正常" 表述错误。
+> 实际 BlockType 新增 4 种（Quote / Table / Math / Mermaid）,
+> Image / Link 是 InlineElement（不进入 BlockRenderer case）。
+> 验收标准按 AST 事实拆分为两条。
+
 - [ ] 含表格 / 引用 / Mermaid / 公式 / 图片占位 / 行内链接的 .md 文档可在 `/editor` 正常打开（无 `UnimplementedError`）
-- [ ] 6 种新 Block 双态切换正常（render ↔ edit）
+- [ ] **4 种新增 Block 双态切换正常**（render ↔ edit）：
+  - QuoteBlock / TableBlock（PR #2）
+  - MathBlock / MermaidBlock（PR #3）
+- [ ] **Image / Link Inline Rendering 符合设计规范**：
+  - Image：占位 + alt 文本（Phase 3.5+ 接入图片管理）
+  - Link：蓝色文本 + 下划线（不显示多余 URL 后缀）
+  - 两者均扩展自 ParagraphBlock 的 inline renderer,不进入 BlockRenderer exhaustive switch
 - [ ] 行内公式 / 行内链接在 ParagraphBlock inline renderer 中正确渲染
 - [ ] BlockToolbar 在每个 Block 上挂载可用（hover / long-press 触发）
 
@@ -539,13 +563,24 @@ flutter test     # 0 regression
 
 ### 8.1 单 PR vs 分 PR
 
-Phase 3.2 任务量大（10 个子任务），建议分 3 个 PR：
+> **v1.2 修订**：原 PR 划分把 MathBlock / MermaidBlock 放入 PR #2,
+> 但 §3.2 / §3.3 明确声明这两个任务依赖 §3.2.8 WebView 预热（原 PR #3）,
+> 形成倒置依赖。修订后把 WebView 相关任务聚合到 PR #3,消除依赖冲突。
+> 同时 §3.6 / §3.7 改为 inline rendering,PR #2 范围相应调整。
+
+Phase 3.2 任务量大（10 个子任务），分 3 个 PR：
 
 | PR | 范围 | 依赖 |
 |----|------|------|
-| PR #1 | §3.0 方案 A 重构 + 任务 3.2.7 目录重组 | 无 |
-| PR #2 | 任务 3.2.1-3.2.6（6 个新 Block） | PR #1 |
-| PR #3 | 任务 3.2.8-3.2.10（性能 + 高亮） | PR #2 |
+| PR #1 | §3.0 方案 A 重构 + 任务 3.2.7 目录重组 | 无（✅ 已合并 main） |
+| PR #2 | 任务 3.2.3 QuoteBlock + 3.2.4 TableBlock + 3.2.5 Image inline 微调 + 3.2.6 Link inline 微调（纯 Flutter,4 项） | PR #1 |
+| PR #3 | 任务 3.2.1 MathBlock + 3.2.2 MermaidBlock + 3.2.8 WebView 预热 + 3.2.9 渲染缓存 + 3.2.10 语法高亮（WebView 相关,5 项） | PR #2 |
+
+**v1.2 修订理由**：
+- MathBlock / MermaidBlock 依赖 WebViewPool（§3.2 / §3.3 明确声明）
+- WebViewPool 是 §3.2.8 的产物,原 PR #3 内容
+- 若 MathBlock / MermaidBlock 在 PR #2,则 PR #2 依赖 PR #3 → 倒置依赖错误
+- 修订后依赖树正确：`WebViewPool → MathBlock → MermaidBlock`（PR #3 内部顺序）
 
 ### 8.2 分支命名
 
@@ -555,15 +590,83 @@ Phase 3.2 任务量大（10 个子任务），建议分 3 个 PR：
 
 ---
 
-## 9. 待 Human Owner 决策事项
+## 9. Human Owner 决策事项（v1.1 已全部决策）
 
 1. **§3.0 方案 A vs 方案 B**：BaseBlockState.buildRenderContent 死代码处理方案
-2. **§3.11 任务 3.2.10 选项 A vs B**：代码块语法高亮用 flutter_highlight 还是 highlight.js via WebView
-3. **新增依赖审批**：`flutter_highlight` 是否允许加入 `pubspec.yaml`
-4. **§8 PR 策略**：分 3 个 PR 还是单 PR
-5. **任务优先级**：是否按 1→10 顺序执行，还是允许并行（如 3.2.8 WebView 预热优先于 3.2.1 MathBlock）
+   - **决策**：✅ 方案 A（基类统一调度）— Human Owner 审批 2026-07-21
+   - 实施要点：`BaseBlockState.build()` 按 `currentMode` 分发到 `buildRenderContent` / `buildEditField`,子类只实现 `buildRenderContent` + 提供 `editStyle`,不再重写 `build()`
+   - 影响：需重构现有 3 个 Block（paragraph / heading / code）
+
+2. **§3.11 任务 3.2.10 选项 A vs B**：代码块语法高亮方案
+   - **决策**：✅ 选项 A（`flutter_highlight` 纯 Dart）— Human Owner 审批 2026-07-21
+   - 理由：性能更好,避免 WebView 滥用,不与 MathBlock/MermaidBlock 共享 pool
+
+3. **新增依赖审批**：`flutter_highlight`
+   - **决策**：✅ 批准加入 `pubspec.yaml` — Human Owner 审批 2026-07-21
+   - 实施要点：用 `dependency_overrides` 锁定版本（若与 `flutter_inappwebview` 全家桶冲突）
+
+4. **§8 PR 策略**
+   - **决策**：✅ 分 3 个 PR — Human Owner 审批 2026-07-21
+   - PR #1: §3.0 + §3.2.7 目录重组（`feat/phase3.2-block-runtime-base`）
+   - PR #2: §3.2.1-3.2.6（6 个新 Block）（`feat/phase3.2-block-types`）
+   - PR #3: §3.2.8-3.2.10（性能 + 高亮）（`feat/phase3.2-perf-highlight`）
+
+5. **任务优先级**
+   - **决策**：✅ 顺序执行（1→10）— Human Owner 审批 2026-07-21
+   - 理由：简单清晰,避免并行引入冲突
 
 ---
 
-**本文件由 AI Agent 起草，版本 v1.0，生效日期 2026-07-21。**
-**待 Human Owner 审批后进入执行阶段。**
+## 10. Closure Decisions（v1.3,2026-07-22）
+
+Phase 3.2 实施完成后的收尾决议。3 个 PR（#1 / #2 / #3）已全部合并到 main,8/10 任务交付,2 项正式延期至 Phase 3.5+。
+
+### 10.1 MathBlock（§3.2.1）延期至 Phase 3.5
+
+**决议**：✅ Human Owner 授权延期 — 2026-07-22
+
+**理由**：
+
+1. 公式渲染不应直接走 Mermaid 路径,需独立 `FormulaSvgService`
+2. `FormulaSvgService` 尚未实现,无法复用
+3. AST 表达方式（`FormulaElement` vs 新增独立类型）需架构评审
+4. 避免在上述三项未明确前实现导致返工
+
+**去向**：Phase 3.5 §3.5.1 "MathBlock（行内 + 块级公式）"
+
+**影响**：用户在 Phase 3.2 阶段打开含 `$$...$$` 块级公式的 .md 文档会抛 UnimplementedError。行内公式 `$...$` 由 `flutter_math_fork` 处理,不受影响。
+
+### 10.2 blocks/shared/ 3 个组件延期至 Phase 3.5+
+
+**决议**：✅ Human Owner 授权延期 — 2026-07-22
+
+**理由**：
+
+1. 实际验证发现系统在缺少这 3 个组件时仍正常工作（原设计被高估）
+2. BlockToolbar / BlockSelection / BlockDragHandle 属于交互增强,不属于 Block Runtime 核心
+3. 避免为满足合同而写死代码（技术债）
+4. 依赖 Phase 3.3 交互设计明确后才能确定 UX 形态
+
+**去向**：Phase 3.5+ §3.5.2-4
+
+**说明**：若 Phase 3.3 推进中发现 BlockToolbar 是硬需求,可提前从 Phase 3.5 拉回 Phase 3.3 实施。
+
+### 10.3 WebView 预热机制（§3.2.8）退化实现
+
+**决议**：✅ 接受退化实现 — 2026-07-22（PR #3 实施时决策）
+
+**内容**：不新增独立 WebViewPool,复用已有 `MermaidService.awaitPageLoaded()` 预热机制。
+
+**影响**：首次渲染 Mermaid 仍有冷启动延迟,后续渲染命中缓存无延迟。Phase 3.5+ 视性能测试结果决定是否升级。
+
+### 10.4 相关文档同步
+
+本 Closure 决议同步更新到：
+
+- [ROADMAP.md Phase 3.2](../ROADMAP.md)（任务表状态 + 退出条件 + 新增 Phase 3.5 章节）
+- [design/ui-spec.md §7](../design/ui-spec.md)（Phase 3.2 任务表状态 + v1.3 修订说明）
+- [releases/phase3.2-verification-report.md](../releases/phase3.2-verification-report.md)（完整交付清单 + 延期决议 + Exit Gate 检查）
+
+---
+
+**本文件由 AI Agent 起草,版本 v1.3（Closure 决议已记录,待 Human Owner 审批 Closure PR 后正式关闭 Phase 3.2）。**

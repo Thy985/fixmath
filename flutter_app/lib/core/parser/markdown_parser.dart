@@ -302,8 +302,12 @@ class MarkdownParser {
     final formulas = FormulaExtractor.extractFormulas(text);
 
     if (formulas.isEmpty) {
-      if (text.trim().isNotEmpty) {
-        elements.addAll(_parseInlineStyle(text.trim()));
+      // 仅裁剪前导空白（规范化缩进内容），**保留尾部空白**。
+      // 尾部空格是合法内容（如自动续列表产生的 "- " 空列表项），
+      // 若用 text.trim() 会丢失续行光标位置，破坏 round-trip。
+      final trimmed = text.trimLeft();
+      if (trimmed.isNotEmpty) {
+        elements.addAll(_parseInlineStyle(trimmed));
       }
       return elements;
     }
