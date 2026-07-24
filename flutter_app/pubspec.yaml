@@ -48,6 +48,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.1
+  integration_test:
+    sdk: flutter
 
 dependency_overrides:
   # 锁定 inappwebview 全家桶到稳定版，避免 pub 选择 beta 版本
