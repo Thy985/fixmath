@@ -1,4 +1,4 @@
-/// EditorCommand sealed class + 子类（用户意图，纯数据）。
+/// EditorCommand sealed class + 核心子类（用户意图，纯数据）。
 ///
 /// 落地 ADR-0009 §3.2 + Phase 3.1-A Task Contract §3.1.A.1（R6 评审反馈）。
 ///
@@ -9,9 +9,12 @@
 /// - **来源显式**：[origin] 区分意图来源（keyboard / ime / ai / voice / menu / gesture）
 /// - **不感知执行**：Command 不持有 TransactionBuilder 引用，不感知执行细节
 ///
-/// **为什么 sealed class 必须与子类同文件**：
-/// Dart sealed class 限定所有直接子类必须位于同一 library。本文件将 [EditorCommand]
-/// 与所有 8 个子类合并到同一文件，外部仅通过 `export` 引用（见 commands.dart）。
+/// **为什么 sealed class 必须与子类同 library**：
+/// Dart sealed class 限定所有直接子类必须位于同一 library。本文件定义 [EditorCommand]
+/// 与 8 个核心子类；Phase 3.3 新增的 5 个 Command 子类拆到同 library 的
+/// [editor_command_insert.dart] / [editor_command_pairing.dart]（用 `part` 共享 library，
+/// 既满足 sealed 约束，又满足 AGENTS.md §1.2 ≤400 行约束）。外部仅通过
+/// `export` 引用（见 commands.dart）。
 ///
 /// **不破坏运行时行为**：sealed 仅在编译期生效，不影响 dispatch 性能。
 library;
@@ -20,6 +23,9 @@ import 'package:flutter/widgets.dart';
 
 import '../../core/editing/block_types.dart';
 import '../../data/models/document.dart';
+
+part 'editor_command_insert.dart';
+part 'editor_command_pairing.dart';
 
 /// Command 来源枚举。
 ///
@@ -50,8 +56,8 @@ enum CommandOrigin {
 /// 所有 UI 事件必须先构造 [EditorCommand] 子类，再交由 [CommandHandler] 处理。
 /// 禁止 UI 直接调用 [BlockOperations]（ADR-0009 Hard Rule 2）。
 ///
-/// **sealed 限定**：所有直接子类必须位于本文件（同 library）。外部 import 通过
-/// [commands.dart] 的 `export 'editor_command.dart'` 引用。
+/// **sealed 限定**：所有直接子类必须位于本 library（含其 `part` 文件）。外部
+/// import 通过 [commands.dart] 的 `export 'editor_command.dart'` 引用。
 @immutable
 sealed class EditorCommand {
   /// 人类可读的 Command 名称（用于 Undo / Redo 菜单显示）。
@@ -70,7 +76,7 @@ sealed class EditorCommand {
   });
 }
 
-// ============ 8 种 EditorCommand 子类（sealed library 限定） ============
+// ============ 8 种核心 EditorCommand 子类（sealed library 限定） ============
 
 /// 拆分块（在 [offset] 位置把 [blockId] 拆成两块）。
 @immutable
@@ -173,239 +179,4 @@ final class TransformBlockCommand extends EditorCommand {
     required this.blockId,
     super.origin = CommandOrigin.keyboard,
   }) : super(displayName: '转换块类型');
-}
-
-// ============ Phase 3.3 PR #2A 新增 3 个 Command 子类 ============
-//
-// 落地 Phase 3.3 PR #2A Task Contract v2.1 §4.3 + ADR-0011 §5。
-//
-// 设计要点（§2.4 selection 传递方案 A）：
-// - Command 字段携带 [TextSelection]，由 Toolbar 构造时从
-//   `coordinator.focusedSelection` 传入（强一致读取，见 §2.7.1）
-// - CommandHandler 保持纯逻辑层，不反向依赖 CoordinatorState
-// - selection == null 表示单光标点（无选区），用于计算插入位置
-
-/// 在光标位置插入文本（Markdown 工具栏按钮）。
-///
-/// 例如点击 B 按钮无选区时插入 `****`，光标移到中间（[cursorOffset] = -2）。
-///
-/// **[cursorOffset] 语义**：相对插入文本末尾的偏移。
-/// - 0 = 光标在插入文本末尾
-/// - 负数 = 从末尾前移（如 -2 表示在 `**|**` 中间）
-@immutable
-final class InsertTextCommand extends EditorCommand {
-  /// 目标块 ID。
-  final BlockId blockId;
-
-  /// 待插入文本（含光标占位考虑，如 `**|**` 仅文档示意，实际插入 `****`）。
-  final String text;
-
-  /// 相对插入文本末尾的光标偏移（0 = 末尾，负数 = 从末尾前移）。
-  final int cursorOffset;
-
-  /// 当前选区（null = 单光标点）。
-  ///
-  /// 由 Toolbar 构造时从 `coordinator.focusedSelection` 传入。
-  /// CommandHandler 用此计算插入位置（selection.baseOffset）。
-  final TextSelection? selection;
-
-  const InsertTextCommand({
-    required this.blockId,
-    required this.text,
-    this.cursorOffset = 0,
-    this.selection,
-    super.origin = CommandOrigin.menu,
-  }) : super(displayName: '插入文本');
-}
-
-/// 选区包裹（选中文字 → `**selection**`）。
-///
-/// 例如选中 `hello`，点击 B 按钮包裹为 `**hello**`，光标移到末尾。
-@immutable
-final class WrapSelectionCommand extends EditorCommand {
-  /// 目标块 ID。
-  final BlockId blockId;
-
-  /// 前缀（如 `**` / `` ` `` / `[`）。
-  final String prefix;
-
-  /// 后缀（如 `**` / `` ` `` / `](url)`）。
-  final String suffix;
-
-  /// 当前选区（必须非 null，包裹必须有选区）。
-  final TextSelection selection;
-
-  const WrapSelectionCommand({
-    required this.blockId,
-    required this.prefix,
-    required this.suffix,
-    required this.selection,
-    super.origin = CommandOrigin.menu,
-  }) : super(displayName: '包裹选区');
-}
-
-/// 模板插入模式（[InsertTemplateCommand.mode]）。
-enum TemplateInsertMode {
-  /// 在当前块光标位置插入模板文本。
-  insert,
-
-  /// 在当前块后插入新 Block（模板作为独立 Block）。
-  newBlock,
-}
-
-/// 插入模板（表格 / Mermaid / 代码块等）。
-///
-/// **过渡方案（Phase 3.3 PR #2C）**：字符串 [template] + [mode]。
-/// **长期方向（Phase 3.4+）**：演进为 `enum MarkdownTemplate` + domain 层
-/// `TemplateRegistry` 生成结构化内容（见 [ADR-0011](../../../docs/ADR/0011-phase3.3-architecture-decisions.md)
-/// §5 演进路径）。
-///
-/// **Hard Rule（Task Contract v2.1 §2.5.1）**：禁止业务逻辑用字符串判断模板类型
-/// （如 `if (template.contains('mermaid'))`）。模板内容必须作为常量管理
-/// （如 `Templates.mermaidDefault`）。
-///
-/// **[cursorOffset] 语义**（仅 [TemplateInsertMode.insert] 模式生效）：
-/// 相对插入文本末尾的光标偏移（与 [InsertTextCommand.cursorOffset] 语义一致）。
-/// - 0 = 光标在插入文本末尾（默认）
-/// - 负数 = 从末尾前移（如代码块模板 `cursorOffset = -3` 将光标定位到代码区首行）
-@immutable
-final class InsertTemplateCommand extends EditorCommand {
-  /// 目标块 ID。
-  final BlockId blockId;
-
-  /// 模板文本（Markdown 格式）。
-  ///
-  /// 由调用方从常量（如 `Templates.tableDefault`）传入，禁止运行时字符串拼接判断。
-  final String template;
-
-  /// 插入模式（insert = 当前块光标插入；newBlock = 新建块）。
-  final TemplateInsertMode mode;
-
-  /// 当前选区（仅 [TemplateInsertMode.insert] 模式使用，null = 单光标点）。
-  final TextSelection? selection;
-
-  /// 相对插入文本末尾的光标偏移（仅 [TemplateInsertMode.insert] 模式生效）。
-  ///
-  /// 0 = 末尾（默认），负数 = 从末尾前移。
-  /// [TemplateInsertMode.newBlock] 模式忽略此字段（光标固定在新块首）。
-  final int cursorOffset;
-
-  const InsertTemplateCommand({
-    required this.blockId,
-    required this.template,
-    this.mode = TemplateInsertMode.insert,
-    this.selection,
-    this.cursorOffset = 0,
-    super.origin = CommandOrigin.menu,
-  }) : super(displayName: '插入模板');
-}
-
-// ============ Phase 3.3 PR #3 新增 2 个 Command 子类 ============
-//
-// 落地 Phase 3.3 PR #3 Task Contract v1.1 §3.1 + §3.2 + ADR-0011 §5。
-//
-// 设计要点（v1.1 Human Owner 审批）：
-// - Command = 意图（在哪里做什么），不携带 State（如 currentSource）
-// - PairInsertCommand 通过 insertOffset 明确描述插入位置，不通过 selection 推断
-// - CommandOrigin.ime：自动配对 / 续列表是 IME 输入的"副作用"
-// - 不实现 Coalescing：两个独立 undo 步骤（Phase 3.4 技术债）
-
-/// 自动配对模式（[PairInsertCommand.mode]）。
-enum PairInsertMode {
-  /// 光标后追加配对符右半部分（无选区时）。
-  ///
-  /// 用户输入 '(' 后，Command 只追加 ')'，不修改 '('。
-  appendAfterCursor,
-
-  /// 选区包裹为 prefix + selection + suffix（有选区时）。
-  ///
-  /// 选区末尾追加 suffixChar（insertOffset = selection.end）。
-  wrapSelection,
-}
-
-/// 自动配对 Command：追加配对符右半部分或包裹选区。
-///
-/// **关键约束**（Task Contract §9.2 R4）：不修改原始用户输入，只追加配对符
-/// 右半部分。原始输入（如 '('）由 IME 直接提交到 controller，本 Command 只
-/// 追加 ')'。
-///
-/// **v1.1 修订**：新增 [insertOffset] 字段，不通过 selection 推断 cursor。
-/// Command 是历史记录对象，必须描述"我要在哪里做什么"，而不是"当前状态
-/// 是什么"。
-///
-/// **CommandOrigin**：[CommandOrigin.ime]（Task Contract §2.2 决策）
-@immutable
-final class PairInsertCommand extends EditorCommand {
-  /// 目标块 ID。
-  final BlockId blockId;
-
-  /// 配对符右半部分（如 ')' / ']' / '}' / '`'）。
-  ///
-  /// **v1.1 修订**：移除 `prefixChar` 字段。appendAfterCursor 模式只追加
-  /// suffixChar（prefixChar 已由 IME 提交，Command 不需要知道）；
-  /// wrapSelection 模式同样只追加 suffixChar 到选区末尾。
-  final String suffixChar;
-
-  /// 插入位置（绝对 offset，基于 source）。
-  ///
-  /// **v1.1 新增**：
-  /// - appendAfterCursor 模式 = 光标位置（'(' 之后）
-  /// - wrapSelection 模式 = 选区末尾（selection.end）
-  final int insertOffset;
-
-  /// 配对模式。
-  final PairInsertMode mode;
-
-  /// 相对插入文本末尾的光标偏移（0 = 末尾，负数 = 从末尾前移）。
-  ///
-  /// - appendAfterCursor 模式：光标在 suffixChar 之前
-  ///   （offset = -suffixChar.length，如 ')' → -1，光标在 '()' 中间）
-  /// - wrapSelection 模式：光标在 suffixChar 之后（offset = 0）
-  final int cursorOffset;
-
-  const PairInsertCommand({
-    required this.blockId,
-    required this.suffixChar,
-    required this.insertOffset,
-    this.mode = PairInsertMode.appendAfterCursor,
-    this.cursorOffset = 0,
-    super.origin = CommandOrigin.ime,
-  }) : super(displayName: '自动配对');
-}
-
-/// 自动续列表 Command：插入换行 + 续行前缀。
-///
-/// **触发条件**：用户按回车（onChanged 检测到 '\n'），且当前行有列表 / 引用
-/// 前缀。
-///
-/// **续行规则**（Task Contract §3.8）：
-/// - `- item` → `- `（无序列表）
-/// - `* item` → `* `（无序列表）
-/// - `1. item` → `2. `（有序列表，编号 +1）
-/// - `> quote` → `> `（引用）
-/// - `- [ ] task` → `- [ ] `（任务列表）
-///
-/// **退出规则**：当前行为空模式（如 `- ` 后无内容），回车清除前缀。
-///
-/// **v1.1 修订**：删除 `currentSource` 字段。Command = 意图，Handler = 执行。
-/// Handler 通过 `editor.getBlock(c.blockId)` 读取当前 source。
-///
-/// **CommandOrigin**：[CommandOrigin.ime]（Task Contract §2.2 决策）
-@immutable
-final class InsertNewLineWithPrefixCommand extends EditorCommand {
-  /// 目标块 ID。
-  final BlockId blockId;
-
-  /// 续行前缀（如 '- ' / '1. ' / '> '）。
-  final String prefix;
-
-  /// 是否为退出续行（清除空行前缀）。
-  final bool isExit;
-
-  const InsertNewLineWithPrefixCommand({
-    required this.blockId,
-    required this.prefix,
-    this.isExit = false,
-    super.origin = CommandOrigin.ime,
-  }) : super(displayName: '自动续列表');
 }
