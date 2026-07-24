@@ -1,17 +1,13 @@
 /// EditorCoordinator：UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
 ///
-/// 落地 ADR-0009 §3.5 + Phase 3.0 Task Contract §3.4 + §2.4（避免 God Object）。
-/// 落地 Phase 3.1-A Task Contract §3.1.A.3（弱化版 R1 评审反馈）：
-/// viewStates + focusedId 合并为不可变 [CoordinatorState] `_state` 单字段,
-/// 每次修改产生新副本,消除多步修改的中间不一致状态。
+/// 落地 ADR-0009 §3.5 + Phase 3.0 Task Contract §3.4 + §2.4（避免 God Object）+
+/// Phase 3.1-A Task Contract §3.1.A.3（弱化版 R1：CoordinatorState 单字段）。
 ///
-/// **职责**（只协调，不持有业务状态）：持有 editor / history / handler,
-/// 管理 [CoordinatorState],提供 [handle] / [undo] / [redo]。
-///
-/// **变更通知**：继承 [ChangeNotifier],状态变化时调用 [notifyListeners]。
-/// **Hard Rule 1（AST 零污染）**：UI 状态通过 [CoordinatorState] 单独建模。
-/// **Hard Rule 4（避免 God Object）**：不持有 Theme / File / Route 等领域状态。
-/// **Hard Rule 8（依赖方向）**：editor/ → core/editing/（单向依赖）。
+/// **职责**：持有 editor / history / handler,管理 [CoordinatorState]，
+/// 提供 [handle] / [undo] / [redo]。只协调,不持有业务状态。
+/// **Hard Rule 1**：UI 状态通过 [CoordinatorState] 单独建模。
+/// **Hard Rule 4**：不持有 Theme / File / Route 等领域状态。
+/// **Hard Rule 8**：editor/ → core/editing/（单向依赖）。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -27,13 +23,9 @@ import '../states/block_view_state.dart';
 import '../states/coordinator_state.dart';
 import 'in_memory_document_editor.dart';
 
-/// UI 层对编辑内核的协调器（Phase 3.0 production 路径）。
-///
-/// Widget 通过 [EditorScope] 获取 Coordinator 实例,调用：
-/// - `coordinator.handle(command)` — 处理用户事件
-/// - `coordinator.viewStateOf(id)` — 查询 UI 状态
-/// - `coordinator.setFocus(id)` / `clearFocus(id)` — 管理焦点
-/// - `coordinator.undo()` / `redo()` — 撤销 / 重做
+/// UI 层对编辑内核的协调器。Widget 通过 [EditorScope] 获取实例。
+/// 调用 [handle] 处理事件、[viewStateOf] 查询状态、[setFocus] 管理焦点、
+/// [undo] / [redo] 撤销重做。
 class EditorCoordinator extends ChangeNotifier {
   final InMemoryDocumentEditor editor;
   final EditorHistory history;
@@ -56,14 +48,49 @@ class EditorCoordinator extends ChangeNotifier {
 
   // ============ Command 入口 ============
 
-  /// 处理 [EditorCommand],成功时触发 [notifyListeners] 重建 UI。
+  /// 处理 [EditorCommand]（R1+R2：成功后同步 selection 到 [BlockViewState]）。
   ///
-  /// **Dirty tracking（ADR-0011 §4）**：handle 成功后 dirty 由 editor 的
-  /// mutating 方法自动标记。undo/redo 不直接修改 dirty 标记。
+  /// **oldSource 捕获**：InsertTextCommand 的 cursorOffset 计算需要插入前
+  /// 的 source 长度,而非插入后（可能因 tryTransform 改变 source 序列化结果）。
   bool handle(EditorCommand command) {
+    final oldSource = command is InsertTextCommand
+        ? editor.sourceOf(command.blockId)
+        : null;
     final ok = handler.handle(command);
-    if (ok) notifyListeners();
+    if (ok) {
+      _syncSelectionAfterCommand(command, oldSource);
+      notifyListeners();
+    }
     return ok;
+  }
+
+  /// 命令后同步 selection（R1+R2 修复）。
+  void _syncSelectionAfterCommand(EditorCommand command, String? oldSource) {
+    switch (command) {
+      case InsertTextCommand c:
+        final insertOffset =
+            c.selection?.baseOffset ?? (oldSource?.length ?? 0);
+        final cursorPos = insertOffset + c.text.length + c.cursorOffset;
+        _updateSelectionInternal(
+            c.blockId, TextSelection.collapsed(offset: cursorPos));
+      case WrapSelectionCommand c:
+        final start = c.selection.start;
+        final len = c.selection.end - start;
+        _updateSelectionInternal(
+          c.blockId,
+          TextSelection(
+            baseOffset: start + c.prefix.length,
+            extentOffset: start + c.prefix.length + len,
+          ),
+        );
+      default:
+        break;
+    }
+  }
+
+  void _updateSelectionInternal(BlockId id, TextSelection selection) {
+    final current = _state.viewStateOf(id) ?? BlockViewState(id: id);
+    _state = _state.updateViewState(id, current.copyWith(selection: selection));
   }
 
   // ============ 查询接口（转发到 editor） ============
@@ -73,25 +100,16 @@ class EditorCoordinator extends ChangeNotifier {
   DocumentElement? getBlock(BlockId id) => editor.getBlock(id);
   String sourceOf(BlockId id) => editor.sourceOf(id);
 
-  // ============ Phase 3.3 chrome 接线（§3.3.1 + §3.3.4） ============
+  // ============ Phase 3.3 chrome 接线 ============
 
-  /// 文档标题（Phase 3.3：透传 editor.title,用于 EditorAppBar）。
   String get title => editor.title;
-
-  /// 实时字数统计（Phase 3.3：透传 editor.wordCount,用于 EditorStatusBar）。
   int get wordCount => editor.wordCount;
-
-  /// 是否有未保存修改（ADR-0011 §4：Dirty 归属 Document State）。
-  /// handle() 成功后自动 true,markSaved() 后 false。
   bool get isDirty => editor.isDirty;
-
-  /// 标记文档已保存（重置 isDirty）。Phase 3.4+ 接入持久化时调用。
   void markSaved() => editor.markSaved();
 
   // ============ Phase 3.3 PR #2B: Toolbar 便捷查询 ============
 
-  /// 当前聚焦块的 [BlockType]（null = 无聚焦块）。
-  /// 用于 MarkdownToolbar 判断 CodeBlock（§2.8 禁用工具栏）。
+  /// 聚焦块的 [BlockType]（null = 无聚焦,§2.8 CodeBlock 禁用工具栏）。
   BlockType? get focusedBlockType {
     final id = _state.focusedId;
     if (id == null) return null;
@@ -100,10 +118,11 @@ class EditorCoordinator extends ChangeNotifier {
     return BlockType.fromElement(element);
   }
 
-  /// 当前聚焦块的 [TextSelection]（§2.7.1 强一致读取,Toolbar 用此值）。
-  TextSelection? get focusedSelection => _state.focusedSelection;
+  /// 聚焦块是否为 CodeBlock（消除 Toolbar 对 core/editing/ 的依赖）。
+  bool get isFocusedOnCodeBlock => focusedBlockType == BlockType.code;
 
-  /// 当前聚焦块是否有非空选区。
+  /// 聚焦块的 selection（§2.7.1 强一致读取,Toolbar 用此值）。
+  TextSelection? get focusedSelection => _state.focusedSelection;
   bool get hasSelection => _state.hasSelection;
 
   // ============ UI 视图状态（Hard Rule 1：AST 零污染）============
@@ -139,9 +158,7 @@ class EditorCoordinator extends ChangeNotifier {
   bool get canRedo => history.canRedo;
 
   /// Undo 一步。返回被撤销的 Transaction,失败返回 null。
-  ///
-  /// **Prototype 限制**（R2）：currentState 使用空 Transaction,
-  /// redo → undo 链在第 2 步会丢失状态记录。Phase 3.0+ 需 state snapshot。
+  /// **Prototype 限制**（R2）：currentState 空 Transaction,Phase 3.0+ 需 snapshot。
   Transaction? undo() {
     final tx = history.undo(_emptyCurrentState(TransactionOrigin.undo));
     if (tx == null) return null;
@@ -166,7 +183,6 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
-  /// 构造空 Transaction 作为 undo/redo 的 currentState（Prototype 限制）。
   Transaction _emptyCurrentState(TransactionOrigin origin) => Transaction(
         id: TransactionId.next(),
         ops: const [],
@@ -174,12 +190,11 @@ class EditorCoordinator extends ChangeNotifier {
         origin: origin,
       );
 
-  /// 同步 viewStates：移除已不在 editor 的 BlockId,补全新增的 BlockId。
   void _syncViewStates() {
     _state = _state.syncViewStates(editor.allIds);
   }
 
   @override
-  String toString() => 'EditorCoordinator(blockCount=$blockCount, '
-      'focused=${_state.focusedId}, canUndo=$canUndo, canRedo=$canRedo)';
+  String toString() =>
+      'EditorCoordinator(blocks=$blockCount, focused=${_state.focusedId})';
 }

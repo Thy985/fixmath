@@ -33,7 +33,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/editing/block_types.dart';
 import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import 'editor_strings.dart';
@@ -56,11 +55,11 @@ class MarkdownToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final focusedType = coordinator.focusedBlockType;
-    final isCodeBlock = focusedType == BlockType.code;
+    // §2.8：CodeBlock 聚焦时显示禁用提示替代工具栏按钮
+    // ADR-0011 §3：Toolbar 不 import core/editing/，通过 coordinator 便捷属性查询
+    final isCodeBlock = coordinator.isFocusedOnCodeBlock;
     final hasFocused = coordinator.focusedId != null;
 
-    // §2.8：CodeBlock 聚焦时显示禁用提示替代工具栏按钮
     if (isCodeBlock) {
       return const _DisabledBar(hint: EditorStrings.codeBlockToolbarDisabled);
     }

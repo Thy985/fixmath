@@ -57,30 +57,22 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   late final FocusNode focusNode;
 
   /// 当前 Block 所属的 [EditorCoordinator]（缓存，避免事件回调中调用 of(context)）。
-  ///
-  /// **前提假设**：[EditorScope] 必须是当前 widget 树的祖先（由 [EditorPage]
-  /// 在 widget 树顶部挂载保证）。若 Block 在 EditorScope 外渲染会抛
-  /// [FlutterError]（设计上不允许,见 [EditorScope.of] 的设计决策注释）。
-  ///
-  /// **初始化策略**（修复 PR #1 review 反馈）：
-  /// - [initState] 中用 `listen: false` 获取一次性引用（避免在 initState
-  ///   中注册 InheritedWidget 依赖的 Flutter 反模式）
-  /// - [didChangeDependencies] 中用 `listen: true` 重新获取并注册依赖
-  ///   （响应 EditorScope.coordinator 实例替换时自动 rebuild）
-  /// - 事件回调（[_onFocusChange] / [_commitSource]）使用缓存值,
-  ///   避免在非 build 方法中调用 `dependOnInheritedWidgetOfExactType`
   late EditorCoordinator _coordinator;
+
+  /// 上次同步到 controller 的 source（R1 修复：检测外部 source 变化）。
+  late String _lastSyncedSource;
+
+  /// 标记当前是否正在本地 commit（R1 修复：区分本地输入与外部命令）。
+  bool _isCommitting = false;
 
   @override
   void initState() {
     super.initState();
-    // initState 中用 listen: false 获取一次性引用（不注册依赖,避免 Flutter 反模式）
-    // 依赖注册推迟到 didChangeDependencies
     _coordinator = EditorScope.of(context, listen: false);
     textController = TextEditingController(text: _initialSource());
+    _lastSyncedSource = textController.text;
     focusNode = FocusNode();
     focusNode.addListener(_onFocusChange);
-    // Phase 3.3 PR #2B §2.7：selection 同步（节流）
     textController.addListener(_onSelectionChanged);
   }
 
@@ -125,10 +117,33 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     // 检测 mode 变化（RenderMode 切换时同步 controller 文本 + 焦点）
     if (currentMode != previousMode(oldWidget)) {
       textController.text = _initialSource();
+      _lastSyncedSource = textController.text;
+      _syncSelectionFromViewState();
       if (currentMode == RenderMode.editing) {
         focusNode.requestFocus();
       }
       onModeChanged(previousMode(oldWidget));
+    } else if (!_isCommitting) {
+      // R1 修复：检测外部 source 变化（如 toolbar 命令修改了 Document）
+      final newSource = _initialSource();
+      if (newSource != _lastSyncedSource) {
+        textController.text = newSource;
+        _lastSyncedSource = newSource;
+        // R2 修复：同步 selection（cursor 位置由 Coordinator 计算）
+        _syncSelectionFromViewState();
+      }
+    }
+    _isCommitting = false;
+  }
+
+  /// 从 [BlockViewState] 同步 selection 到 controller（R2 修复）。
+  ///
+  /// Coordinator 在 handle InsertText/WrapSelection 后会更新 viewState.selection,
+  /// 此方法将其同步到 [TextEditingController.selection]。
+  void _syncSelectionFromViewState() {
+    final sel = _coordinator.viewStateOf(blockId)?.selection;
+    if (sel != null) {
+      textController.selection = sel;
     }
   }
 
@@ -169,7 +184,12 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   }
 
   /// commit 当前 textController 文本到 [EditorCoordinator]。
+  ///
+  /// **R1 修复**：设置 [_isCommitting] 标志,防止 didUpdateWidget 把
+  /// 本地输入误判为外部命令而反向同步 controller（导致光标跳位）。
   void _commitSource() {
+    _isCommitting = true;
+    _lastSyncedSource = textController.text;
     _coordinator.handle(UpdateBlockSourceCommand(
       blockId: blockId,
       newSource: textController.text,
