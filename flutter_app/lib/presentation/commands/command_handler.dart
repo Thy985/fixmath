@@ -26,7 +26,6 @@ import '../../core/editing/transaction.dart';
 import '../../core/editing/transaction_builder.dart';
 import '../../data/models/document.dart';
 import 'commands.dart';
-import 'editor_command.dart';
 
 /// CommandHandler：解释 [EditorCommand] 为 [BlockOperation] 序列。
 ///
@@ -95,6 +94,9 @@ class CommandHandler {
       InsertTextCommand c => _handleInsertText(c, operations),
       WrapSelectionCommand c => _handleWrapSelection(c, operations),
       InsertTemplateCommand c => _handleInsertTemplate(c, operations),
+      // Phase 3.3 PR #3 新增 2 个分支（自动配对 + 自动续列表）
+      PairInsertCommand c => _handlePairInsert(c, operations),
+      InsertNewLineWithPrefixCommand c => _handleNewLineWithPrefix(c, operations),
     };
   }
 
@@ -247,5 +249,61 @@ class CommandHandler {
         );
         return newId != null;
     }
+  }
+
+  // ============ Phase 3.3 PR #3 新增 _handle* 方法 ============
+  //
+  // 落地 Task Contract v1.1 §3.3 + ADR-0011 §5。
+  //
+  // 设计要点（v1.1 Human Owner 审批）：
+  // - PairInsertCommand：基于 insertOffset，不通过 selection 推断 cursor
+  // - InsertNewLineWithPrefixCommand：Handler 读取 source，Command 不携带 State
+
+  /// 处理 [PairInsertCommand]（v1.1：基于 insertOffset，不推断 cursor）。
+  ///
+  /// 两种模式都是追加 [PairInsertCommand.suffixChar] 到 [insertOffset] 位置：
+  /// - appendAfterCursor：insertOffset = 光标位置（'(' 之后）
+  /// - wrapSelection：insertOffset = 选区末尾（selection.end）
+  bool _handlePairInsert(PairInsertCommand c, BlockOperations ops) {
+    final element = editor.getBlock(c.blockId);
+    if (element == null) return false;
+    final source = fromElement(element);
+
+    // v1.1：直接使用 c.insertOffset，不通过 selection 推断
+    if (c.insertOffset < 0 || c.insertOffset > source.length) return false;
+
+    final newSource = source.substring(0, c.insertOffset) +
+        c.suffixChar +
+        source.substring(c.insertOffset);
+    return ops.updateSource(c.blockId, newSource);
+  }
+
+  /// 处理 [InsertNewLineWithPrefixCommand]（v1.1：Handler 读取 source）。
+  ///
+  /// - isExit = false：在 source 末尾追加 [prefix]
+  /// - isExit = true：清除当前行（最后一行）的列表前缀
+  bool _handleNewLineWithPrefix(
+      InsertNewLineWithPrefixCommand c, BlockOperations ops) {
+    final element = editor.getBlock(c.blockId);
+    if (element == null) return false;
+    final source = fromElement(element); // v1.1：Handler 读取 source
+
+    if (c.isExit) {
+      // 退出续行：清除最后一行的前缀
+      // source 形如 "- \n"（'\n' 由 IME 提交），移除最后的空列表项前缀
+      final lastNewline = source.lastIndexOf('\n');
+      final lastLineStart = lastNewline == -1 ? 0 : lastNewline + 1;
+      final lastLine = source.substring(lastLineStart);
+      // 若最后一行恰好是 prefix（无内容），移除它
+      if (lastLine == c.prefix) {
+        final newSource = source.substring(0, lastLineStart);
+        return ops.updateSource(c.blockId, newSource);
+      }
+      return false;
+    }
+
+    // 续行：在 source 末尾追加 prefix
+    final newSource = source + c.prefix;
+    return ops.updateSource(c.blockId, newSource);
   }
 }

@@ -37,9 +37,8 @@ class EditorCoordinator extends ChangeNotifier {
 
   // ============ Command 入口 ============
 
-  /// 处理 [EditorCommand]（R1+R2：成功后同步 selection 到 [BlockViewState]）。
-  /// oldSource 捕获：InsertText / InsertTemplate(insert) 的 cursorOffset 计算需要
-  /// 插入前的 source 长度（tryTransform 可能改变序列化结果）。
+  /// 处理 [EditorCommand]（成功后同步 selection 到 [BlockViewState]）。
+  /// oldSource 捕获：cursorOffset 计算需要插入前的 source 长度（tryTransform 可能改变序列化结果）。
   bool handle(EditorCommand command) {
     final (oldSource, oldIds) = switch (command) {
       InsertTextCommand c => (editor.sourceOf(c.blockId), null),
@@ -47,6 +46,7 @@ class EditorCoordinator extends ChangeNotifier {
         (editor.sourceOf(c.blockId), null),
       InsertTemplateCommand c when c.mode == TemplateInsertMode.newBlock =>
         (null, editor.allIds.toSet()),
+      InsertNewLineWithPrefixCommand c => (editor.sourceOf(c.blockId), null),
       _ => (null, null),
     };
     final ok = handler.handle(command);
@@ -81,6 +81,12 @@ class EditorCoordinator extends ChangeNotifier {
           orElse: () => editor.allIds.last);
         _state = _state.focusOn(newId);
         _updateSelectionInternal(newId, const TextSelection.collapsed(offset: 0));
+      case PairInsertCommand c:
+        _setCollapsedCursor(c.blockId, TextSelection.collapsed(offset: c.insertOffset),
+            null, c.suffixChar.length, c.cursorOffset);
+      case InsertNewLineWithPrefixCommand c:
+        _updateSelectionInternal(c.blockId,
+            TextSelection.collapsed(offset: editor.sourceOf(c.blockId).length));
       default:
         break;
     }
@@ -161,7 +167,6 @@ class EditorCoordinator extends ChangeNotifier {
   bool get canUndo => history.canUndo;
   bool get canRedo => history.canRedo;
 
-  /// Undo 一步。
   Transaction? undo() {
     final tx = history.undo(_emptyCurrentState(TransactionOrigin.undo));
     if (tx == null) return null;
@@ -173,7 +178,6 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
-  /// Redo 一步。**Prototype 限制**：与 [undo] 相同。
   Transaction? redo() {
     final tx = history.redo(_emptyCurrentState(TransactionOrigin.redo));
     if (tx == null) return null;
@@ -185,16 +189,12 @@ class EditorCoordinator extends ChangeNotifier {
     return tx;
   }
 
-  Transaction _emptyCurrentState(TransactionOrigin origin) => Transaction(
-        id: TransactionId.next(),
-        ops: const [],
-        metadata: TransactionMetadata(timestamp: DateTime.now()),
-        origin: origin,
-      );
+  Transaction _emptyCurrentState(TransactionOrigin o) => Transaction(
+      id: TransactionId.next(), ops: const [],
+      metadata: TransactionMetadata(timestamp: DateTime.now()), origin: o);
 
   void _syncViewStates() => _state = _state.syncViewStates(editor.allIds);
 
   @override
-  String toString() =>
-      'EditorCoordinator(blocks=$blockCount, focused=${_state.focusedId})';
+  String toString() => 'EditorCoordinator(blocks=$blockCount, focused=${_state.focusedId})';
 }

@@ -34,6 +34,7 @@ import '../commands/commands.dart';
 import '../editor/editor_coordinator.dart';
 import '../editor/editor_scope.dart';
 import '../states/block_view_state.dart';
+import 'input/input_handler.dart';
 
 /// Block 组件状态抽象基类。
 ///
@@ -65,15 +66,33 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 标记当前是否正在本地 commit（R1 修复：区分本地输入与外部命令）。
   bool _isCommitting = false;
 
+  /// 自动输入行为调度器（Phase 3.3 PR #3：自动配对 + 自动续列表）。
+  ///
+  /// 落地 Task Contract v1.1 §2.6：BaseBlockState 委托 InputHandler,
+  /// 不直接实现配对 / 续行规则,避免 God Object 膨胀。
+  late final InputHandler _inputHandler;
+
+  /// 上一次 [TextEditingValue]（Phase 3.3 PR #3：自动配对/续列表的 oldValue 来源）。
+  ///
+  /// **为什么由 BaseBlockState 持有而非 InputHandler**：
+  /// - InputHandler 设计为无状态（纯函数式调度,便于测试）
+  /// - BaseBlockState 已管理 [textController] 生命周期,自然持有其历史值
+  /// - 避免状态分散在 InputHandler + BaseBlockState 两处
+  ///
+  /// **重置时机**：进入 editing 模式时重置为当前 controller value（[didUpdateWidget]）。
+  TextEditingValue? _previousTextValue;
+
   @override
   void initState() {
     super.initState();
     _coordinator = EditorScope.of(context, listen: false);
     textController = TextEditingController(text: _initialSource());
     _lastSyncedSource = textController.text;
+    _previousTextValue = textController.value;
     focusNode = FocusNode();
     focusNode.addListener(_onFocusChange);
     textController.addListener(_onSelectionChanged);
+    _inputHandler = InputHandler();
   }
 
   // ============ Phase 3.3 PR #2B §2.7: selection 同步（节流）============
@@ -119,6 +138,8 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
       textController.text = _initialSource();
       _lastSyncedSource = textController.text;
       _syncSelectionFromViewState();
+      // Phase 3.3 PR #3：进入 editing 时重置 oldValue（避免跨会话残留）
+      _previousTextValue = textController.value;
       if (currentMode == RenderMode.editing) {
         focusNode.requestFocus();
       }
@@ -131,6 +152,8 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
         _lastSyncedSource = newSource;
         // R2 修复：同步 selection（cursor 位置由 Coordinator 计算）
         _syncSelectionFromViewState();
+        // 外部 source 变化后同步 oldValue（避免下次输入误判）
+        _previousTextValue = textController.value;
       }
     }
     _isCommitting = false;
@@ -291,6 +314,9 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// [TextInputAction.done]（默认）时触发。覆盖为 [TextInputAction.newline]
   /// 的子类（如 CodeBlock）不会触发 onSubmitted,改由 [_onFocusChange]
   /// 在失焦时 commit。
+  ///
+  /// **Phase 3.3 PR #3**：新增 [onChanged] → [_onTextChanged],
+  /// 统一入口处理自动配对 + 自动续列表（§2.4）。
   @protected
   Widget buildEditField({
     required TextStyle? style,
@@ -305,7 +331,41 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
       maxLines: maxLines,
       textInputAction: inputAction,
       decoration: decoration,
+      onChanged: _onTextChanged,
       onSubmitted: (_) => focusNode.unfocus(),
+    );
+  }
+
+  // ============ Phase 3.3 PR #3: 自动输入行为（§2.4 + §2.6）============
+
+  /// 输入变化回调：自动配对 + 自动续列表统一入口。
+  ///
+  /// **v1.1 Hard Rule（§2.1.1）**：必须基于 [TextEditingController.value]
+  /// （含 composing）而非 String 判断。composing region 非 collapsed 时
+  /// 禁止自动行为（避免 IME 组合输入态触发配对 / 续行导致状态错乱）。
+  ///
+  /// **职责边界**（§2.6）：
+  /// - BaseBlockState 只负责"守门"（isFocused / composing / isCodeBlock）
+  ///   + 持有 [_previousTextValue]（oldValue 来源）
+  /// - 规则检测 + Command 派发委托 [_inputHandler]（不直接实现规则）
+  void _onTextChanged(String text) {
+    if (!isFocused) return; // 仅聚焦块处理
+
+    // §2.1.1 Hard Rule：composing region 检查
+    final value = textController.value;
+    if (value.composing != TextRange.empty) return; // IME 组合输入态,跳过
+
+    // §2.5 CodeBlock 例外：不应用自动配对 / 自动续列表
+    if (coordinator.isFocusedOnCodeBlock) return;
+
+    // §2.6 委托 InputHandler（传入 oldValue 供 AutoPairRules.detect 使用）
+    final oldValue = _previousTextValue ?? value;
+    _previousTextValue = value;
+    _inputHandler.handle(
+      newValue: value,
+      oldValue: oldValue,
+      blockId: blockId,
+      coordinator: coordinator,
     );
   }
 }
