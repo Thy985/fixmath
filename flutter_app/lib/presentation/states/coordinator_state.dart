@@ -20,6 +20,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show TextSelection;
 
 import '../../core/editing/block_types.dart';
 import 'block_view_state.dart';
@@ -120,6 +121,28 @@ class CoordinatorState {
 
   /// 查询指定块的 [BlockViewState]。
   BlockViewState? viewStateOf(BlockId id) => viewStates[id];
+
+  // ============ Phase 3.3 PR #2B: focused block 便捷查询 ============
+
+  /// 当前聚焦块的 [TextSelection]（null = 无聚焦块或无选区）。
+  ///
+  /// 从 [viewStates] 中按 [focusedId] 查询。Toolbar 通过此值判断
+  /// 是否有选区（决定 InsertText vs WrapSelection 路径）。
+  ///
+  /// **节流说明**（§2.7）：此值由 BaseBlockState 通过 PostFrameCallback
+  /// 节流同步,可能滞后一帧。Toolbar 按钮 onPressed 中应通过
+  /// [EditorCoordinator.focusedSelection] 强一致读取（§2.7.1）。
+  TextSelection? get focusedSelection {
+    if (focusedId == null) return null;
+    final state = viewStates[focusedId!];
+    return state?.selection;
+  }
+
+  /// 当前聚焦块是否有非空选区（baseOffset != extentOffset）。
+  bool get hasSelection {
+    final sel = focusedSelection;
+    return sel != null && sel.baseOffset != sel.extentOffset;
+  }
 
   @override
   String toString() =>

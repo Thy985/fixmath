@@ -80,6 +80,36 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
     textController = TextEditingController(text: _initialSource());
     focusNode = FocusNode();
     focusNode.addListener(_onFocusChange);
+    // Phase 3.3 PR #2B §2.7：selection 同步（节流）
+    textController.addListener(_onSelectionChanged);
+  }
+
+  // ============ Phase 3.3 PR #2B §2.7: selection 同步（节流）============
+
+  /// 帧内节流标记（同一帧内多次 selection 变化只同步一次）。
+  bool _selectionSyncScheduled = false;
+
+  /// selection 变化回调：仅 focused 时同步,帧内节流。
+  ///
+  /// **节流策略**（§2.7）：
+  /// 1. 仅 focused 时同步（非聚焦块的 selection 变化不进入全局状态）
+  /// 2. 帧内节流：同一帧内多次 selection 变化只同步一次,
+  ///    通过 [WidgetsBinding.instance.addPostFrameCallback] 合并
+  void _onSelectionChanged() {
+    if (!mounted || !isFocused) return; // 仅 focused 时同步
+    if (_selectionSyncScheduled) return; // 帧内已调度,跳过
+    _selectionSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectionSyncScheduled = false;
+      if (!mounted) return;
+      final sel = textController.selection;
+      final current = _coordinator.viewStateOf(blockId)?.selection;
+      if (sel != current) {
+        final state =
+            _coordinator.viewStateOf(blockId) ?? BlockViewState(id: blockId);
+        _coordinator.updateViewState(blockId, state.copyWith(selection: sel));
+      }
+    });
   }
 
   @override
@@ -106,6 +136,7 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   void dispose() {
     focusNode.removeListener(_onFocusChange);
     focusNode.dispose();
+    textController.removeListener(_onSelectionChanged);
     textController.dispose();
     super.dispose();
   }
@@ -152,6 +183,12 @@ abstract class BaseBlockState<T extends StatefulWidget> extends State<T> {
   /// 中会注册 InheritedWidget 依赖（Flutter 反模式）。
   /// 现改为返回 [_coordinator] 缓存值,由 [didChangeDependencies] 维护。
   EditorCoordinator get coordinator => _coordinator;
+
+  /// 当前 Block 是否处于聚焦态（editing 模式）。
+  ///
+  /// 用于 [_onSelectionChanged] 节流判断：仅聚焦块同步 selection 到
+  /// [CoordinatorState]（§2.7）。非聚焦块的 selection 变化不进入全局状态。
+  bool get isFocused => currentMode == RenderMode.editing;
 
   /// 当前 Block 的 [BlockId]（子类必须实现，从 widget 拿）。
   BlockId get blockId;

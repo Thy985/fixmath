@@ -1,17 +1,20 @@
 /// EditorShell：编辑器外壳（布局壳，组合 chrome + workspace + status）。
 ///
 /// 落地 Phase 3.0 Task Contract §3.2 + ADR-0009 §3（Editor Shell Architecture）。
+/// Phase 3.3 PR #2B：新增 MarkdownToolbar（§2.1 位置 A+B 混合布局）。
 ///
-/// **布局**（v1.1 修订：新增 chrome/ 目录）：
+/// **布局**（v2.1 修订：新增 MarkdownToolbar）：
 /// ```
 /// ┌──────────────────────────────────────┐
 /// │ AppBar（title + modified indicator） │ ← chrome/editor_app_bar.dart
 /// ├────────────┬─────────────────────────┤
 /// │            │                         │
-/// │ SidePanel  │     EditorViewport      │
-/// │ （占位）   │  （3 种 Block 渲染）    │ ← blocks/block_renderer.dart
+/// │ SidePanel  │     EditorViewport      │ ← blocks/block_renderer.dart
+/// │ （占位）   │  （Block 渲染列表）     │
 /// │            │                         │
 /// ├────────────┴─────────────────────────┤
+/// │ MarkdownToolbar（11 按钮 + 横向滚动） │ ← chrome/markdown_toolbar.dart
+/// ├──────────────────────────────────────┤
 /// │ StatusBar（块数 / 字数 / Undo 状态） │ ← chrome/editor_status_bar.dart
 /// └──────────────────────────────────────┘
 /// ```
@@ -25,6 +28,7 @@ import 'package:flutter/material.dart';
 import '../blocks/block_renderer.dart';
 import '../chrome/editor_app_bar.dart';
 import '../chrome/editor_status_bar.dart';
+import '../chrome/markdown_toolbar.dart';
 import '../panels/side_panel_host.dart';
 import '../states/block_view_state.dart';
 import 'editor_coordinator.dart';
@@ -49,7 +53,13 @@ class EditorShell extends StatelessWidget {
         title: coordinator.title,
         isModified: coordinator.isDirty,
       ),
-      body: Workspace(coordinator: coordinator),
+      // Phase 3.3 PR #2B §2.1：Toolbar 在 Workspace 与 StatusBar 之间（位置 A）
+      body: Column(
+        children: [
+          Expanded(child: Workspace(coordinator: coordinator)),
+          MarkdownToolbar(coordinator: coordinator),
+        ],
+      ),
       bottomNavigationBar: EditorStatusBar(coordinator: coordinator),
     );
   }
