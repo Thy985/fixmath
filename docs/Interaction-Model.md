@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 CommandHandler 中间层修订）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联 ADR**：[ADR-0009](docs/ADR/0009-ui-architecture-design.md)
+> **关联 ADR**：[ADR-0009](ADR/0009-ui-architecture-design.md)
 > **范围**：定义用户操作如何映射到 EditorCommand → CommandHandler → Transaction → AST
 
 ## 版本修订记录
@@ -86,7 +86,7 @@
 /// - 改为描述意图（payload），由 [CommandHandler] 解释为 BlockOperation
 /// - 这样 Command 可序列化、可记录、可重放（用于 AI / 录制回放 / 协同编辑）
 ///
-/// 详见 [ADR-0009 §3](docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3](ADR/0009-ui-architecture-design.md)
 @immutable
 abstract class EditorCommand {
   /// 人类可读的 Command 名称（用于 Undo/Redo 菜单显示）
@@ -126,7 +126,7 @@ enum CommandOrigin {
 ///
 /// **不持有 UI 状态**：CommandHandler 是纯逻辑层，由 BlockEditorWidgetState 持有
 ///
-/// 详见 [ADR-0009 §3.3](docs/ADR/0009-ui-architecture-design.md)
+/// 详见 [ADR-0009 §3.3](ADR/0009-ui-architecture-design.md)
 class CommandHandler {
   final BlockEditor _editor;
 
@@ -473,7 +473,7 @@ class UpdateBlockSourceCommand implements EditorCommand {
 
 ### 4.3 IME 组合态守门
 
-**核心约束**（[ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律）：
+**核心约束**（[ADR-0007 §5](ADR/0007-blockeditor-abstraction-design.md) IME 三铁律）：
 
 1. **铁律 1**：composing 态下，所有 BlockOperation 被拒绝
 2. **铁律 2**：composing commit 时，入栈 Transaction（origin = ime）
@@ -610,7 +610,7 @@ class _BlockWidgetState extends State<BlockWidget> {
 
 ### 8.3 不显示 detail 给用户
 
-**核心约束**（[AGENTS.md §6.1.3](AGENTS.md)）：
+**核心约束**（[AGENTS.md §6.1.3](../AGENTS.md)）：
 - 禁止把异常 `detail` / `stack` 直接显示给用户
 - Command 返回 false 时，UI 显示友好提示（如 "操作无法完成"）
 

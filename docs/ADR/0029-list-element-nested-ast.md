@@ -3,7 +3,7 @@
 - **状态**：Proposed（Run #008 Batch 4，2026-08-18）
 - **日期**：2026-08-18
 - **决策者**：Human Owner（评审通过后 Accepted）
-- **关联**：[ADR-0004 Markdown Parser Extension Strategy](./0004-markdown-parser-extension-strategy.md) / [ADL-LOOP-RUN-008.md](../ADL-LOOP-RUN-008.md)（BUG-5）
+- **关联**：[ADR-0004 Markdown Parser Extension Strategy](./0004-markdown-parser-extension-strategy.md) / [ADL-LOOP-RUN-008.md](../runs/adl/ADL-LOOP-RUN-008.md)（BUG-5）
 
 > **一句话决策**：`ListElement` 增加 `nested` 字段（`List<ListElement>`）承载嵌套子项，
 > parser 不再把缩进子项**拍平合并**进父项文本，而是构建嵌套结构；serializer 递归

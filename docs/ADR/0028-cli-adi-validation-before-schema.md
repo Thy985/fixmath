@@ -3,7 +3,7 @@
 - **状态**：Accepted（随 Run #007 F2 修复落地，2026-08-17）
 - **日期**：2026-08-17
 - **决策者**：Human Owner（评审通过）
-- **关联**：[ADR-0024 Agent Diagnostic Interface](./0024-agent-diagnostic-interface.md)（§2.4 Validation Adapter 定义 Dart 侧 `before` 枚举）/ [ADI Design Document v1.0](../design/adi-design-v1.md) / [ADL-LOOP-RUN-007.md](../ADL-LOOP-RUN-007.md)（F2 验收）
+- **关联**：[ADR-0024 Agent Diagnostic Interface](./0024-agent-diagnostic-interface.md)（§2.4 Validation Adapter 定义 Dart 侧 `before` 枚举）/ [ADI Design Document v1.0](../design/adi-design-v1.md) / [ADL-LOOP-RUN-007.md](../runs/adl/ADL-LOOP-RUN-007.md)（F2 验收）
 
 > **一句话决策**：CLI `adi validate` 输出的 `before` 字段从 Dart 侧的多值枚举
 > **收敛为二值** `'reproduced' / 'unknown'`——它表达的是「该 session 是否

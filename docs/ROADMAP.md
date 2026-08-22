@@ -468,7 +468,7 @@ FormulaFix 当前状态：
 | 3.4.10 | 选区格式化菜单（Overlay 浮动菜单,选区包裹已作为 §3.3.7 工具栏内置模式） | Phase 3.3 v1.2 原 3.3.9 | ⏳ 未实现 |
 
 > **状态图例**：✅ 已合入 main ／ 🔶 已实现·PR 评审中（未合入 main）／ ⏳ 未启动。
-> **进度同步自** [Phase 3.4 Task Contract v1.2](../contracts/phase3.4-task-contract.md)（PR #68 已合入 main）；切片 1/2/3/7 分别对应 PR #69 / #70 / #71 / #78。
+> **进度同步自** [Phase 3.4 Task Contract v1.2](contracts/phase3.4-task-contract.md)（PR #68 已合入 main）；切片 1/2/3/7 分别对应 PR #69 / #70 / #71 / #78。
 > 3.4.5 / 3.4.6 快捷键 / 打字机按 Task Contract §9.5 决策整体移入 Phase 4 Desktop Enhancement 子阶段,本阶段不再跟踪。
 
 ## Phase 3.4.5 — Design System Alignment（产品化对齐）
@@ -479,7 +479,7 @@ FormulaFix 当前状态：
 
 **核心理念**：本阶段只做"换皮 + 公式块 UI 原型"，不做公式渲染内核（内核留 Phase 3.5）。最高 ROI 在 **P0-1（主色）+ P0-2（字体）**，单项即可让观感接近设计 ~60%。
 
-**关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](../ADR/0017-design-system-alignment.md)（新增，定义 token 单一真相源 + 字体系统 + "Widget 禁止硬编码颜色" 守门）；[ADR-0015 Theme Architecture Migration](../ADR/0015-theme-architecture-migration.md)（机制：static const → ThemeExtension，本阶段补**值**）。
+**关联 ADR**：[ADR-0017 Design System Token & Typography Alignment](ADR/0017-design-system-alignment.md)（新增，定义 token 单一真相源 + 字体系统 + "Widget 禁止硬编码颜色" 守门）；[ADR-0015 Theme Architecture Migration](ADR/0015-theme-architecture-migration.md)（机制：static const → ThemeExtension，本阶段补**值**）。
 
 ### 任务
 

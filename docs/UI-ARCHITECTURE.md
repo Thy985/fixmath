@@ -4,7 +4,7 @@
 > **版本**：v1.1（采纳 4 项决议 + 新增 CommandHandler 中间层）
 > **起草日期**：2026-07-20
 > **起草人**：AI Agent（GLM-5.2）
-> **关联 ADR**：[ADR-0009](docs/ADR/0009-ui-architecture-design.md)
+> **关联 ADR**：[ADR-0009](ADR/0009-ui-architecture-design.md)
 > **范围**：定义 FormulaFix UI 架构心智模型 + 状态模型 + 组件结构
 
 ## 版本修订记录
@@ -114,7 +114,7 @@ HeadingElement(           ┌─────────────────
 
 ### 3.1 BlockViewState 设计
 
-**核心原则**：UI 状态单独建模，不污染 AST（[ADR-0009 §2](docs/ADR/0009-ui-architecture-design.md)）
+**核心原则**：UI 状态单独建模，不污染 AST（[ADR-0009 §2](ADR/0009-ui-architecture-design.md)）
 
 ```dart
 /// UI 层 Block 视图状态（不污染 AST）。
@@ -148,7 +148,7 @@ class BlockViewState {
   /// **与 ComposingController 的同步策略**（v1.1 补充）：
   /// - `ComposingController`（`lib/core/editing/composing_controller.dart`）是
   ///   composing 态的唯一真相源（Single Source of Truth），负责 IME 三铁律守门
-  ///   （[ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md)）
+  ///   （[ADR-0007 §5](ADR/0007-blockeditor-abstraction-design.md)）
   /// - `BlockViewState.composingRegion` 是其**只读镜像**，仅用于 UI 渲染（如显示
   ///   composing 下划线）
   /// - **写入方向**：`ComposingController.onComposingStart / onComposingCommit /
@@ -381,7 +381,7 @@ BlockEditorWidget
 | `EditorCommand`（abstract） + `CommandOrigin` enum + 各 Command 实现 | `lib/presentation/commands/` | 纯数据 Command |
 | `CommandHandler` | `lib/presentation/commands/command_handler.dart` | 业务逻辑类（v1.1 新增） |
 
-详见 [Component-Tree.md §1.2](docs/Component-Tree.md)。
+详见 [Component-Tree.md §1.2](Component-Tree.md)。
 
 ### 4.2 BlockWidget 内部结构
 
@@ -599,7 +599,7 @@ class BlockRendererRegistry {
 **AST 不克隆**：
 - BlockWidget 直接读 `editor.getBlock(id)`，不持有副本
 - 修改通过 `CommandHandler.handle(EditorCommand)`，不直接修改 AST
-- 详见 [Interaction-Model.md §2](docs/Interaction-Model.md)（v1.1 流：EditorCommand → CommandHandler → TransactionBuilder → BlockOperation）
+- 详见 [Interaction-Model.md §2](Interaction-Model.md)（v1.1 流：EditorCommand → CommandHandler → TransactionBuilder → BlockOperation）
 
 ### 6.3 IME 性能
 
@@ -607,7 +607,7 @@ class BlockRendererRegistry {
 - composing 态时，BlockWidget 不触发 setState（避免光标跳动）
 - composing commit 后，通过 Command 提交，再重建
 
-**详见 [ADR-0007 §5](docs/ADR/0007-blockeditor-abstraction-design.md) IME 三铁律**
+**详见 [ADR-0007 §5](ADR/0007-blockeditor-abstraction-design.md) IME 三铁律**
 
 ---
 

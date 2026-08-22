@@ -3,6 +3,9 @@
 **目的**：统一导航 docs/ 下全部文档（架构 / ADR / 路线图 / 审计报告 / 运行报告），
 按类别索引，避免文档散乱。**新读者从这里进入。**
 
+> 📑 **全量索引**：需要机器可核对的完整清单（含子目录 + 35 篇 RUN 报告分类表）见
+> [INDEX.md](INDEX.md)（2026-08-22 文档整理轮新增）。README 为分类导航，INDEX 为全量索引。
+
 ---
 
 ## 1. 架构与路线图（顶层）
@@ -12,7 +15,7 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 架构总览（当前 + 目标 + 问题 + 风险） |
 | [ROADMAP.md](ROADMAP.md) | 路线图（Phase 0-4，含 Phase 3.10） |
 | [DESIGN.md](DESIGN.md) | 总体设计 |
-| [REFACTOR_DESIGN.md](REFACTOR_DESIGN.md) | 重构方案设计 |
+| [REFACTOR_DESIGN.md](archive/REFACTOR_DESIGN.md) | 重构方案设计（**已归档**，2026-08-22） |
 | [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md) | 现状严厉批判报告 |
 | [UI-ARCHITECTURE.md](UI-ARCHITECTURE.md) / [UI_SPEC.md](UI_SPEC.md) | UI 架构 / 规范 |
 | [Component-Tree.md](Component-Tree.md) / [Interaction-Model.md](Interaction-Model.md) | 组件树 / 交互模型 |
@@ -40,13 +43,13 @@
 
 | 文档 | 说明 |
 |------|------|
-| [DOGFOOD-RUN-001-SMOKE.md](DOGFOOD-RUN-001-SMOKE.md) | Dogfood ① Smoke（real_runtime_path=true） |
-| [DOGFOOD-RUN-002-KNOWN-GOOD.md](DOGFOOD-RUN-002-KNOWN-GOOD.md) | Dogfood ② Known-Good（vs Matrix 对照） |
-| [DOGFOOD-RUN-003-KNOWN-BAD.md](DOGFOOD-RUN-003-KNOWN-BAD.md) | Dogfood ③ Known-Bad（回退 BUG-1 → FAIL） |
-| [DOGFOOD-RUN-004-ADI-CONSUMER.md](DOGFOOD-RUN-004-ADI-CONSUMER.md) | Dogfood ④ ADI/Consumer 联合 |
-| [DOGFOOD-RUN-005-REAL-REPAIR.md](DOGFOOD-RUN-005-REAL-REPAIR.md) | Dogfood ⑤ Real Agent Repair |
-| [DOGFOOD-RUN-006-REGRESSION.md](DOGFOOD-RUN-006-REGRESSION.md) | REGRESSION path 补齐（serializer 第 2 能力） |
-| [DOGFOOD-RUN-007-CONSUMER-ADAPTER.md](DOGFOOD-RUN-007-CONSUMER-ADAPTER.md) | Consumer Adapter 扩展（word/formula） |
+| [DOGFOOD-RUN-001-SMOKE.md](runs/dogfood/DOGFOOD-RUN-001-SMOKE.md) | Dogfood ① Smoke（real_runtime_path=true） |
+| [DOGFOOD-RUN-002-KNOWN-GOOD.md](runs/dogfood/DOGFOOD-RUN-002-KNOWN-GOOD.md) | Dogfood ② Known-Good（vs Matrix 对照） |
+| [DOGFOOD-RUN-003-KNOWN-BAD.md](runs/dogfood/DOGFOOD-RUN-003-KNOWN-BAD.md) | Dogfood ③ Known-Bad（回退 BUG-1 → FAIL） |
+| [DOGFOOD-RUN-004-ADI-CONSUMER.md](runs/dogfood/DOGFOOD-RUN-004-ADI-CONSUMER.md) | Dogfood ④ ADI/Consumer 联合 |
+| [DOGFOOD-RUN-005-REAL-REPAIR.md](runs/dogfood/DOGFOOD-RUN-005-REAL-REPAIR.md) | Dogfood ⑤ Real Agent Repair |
+| [DOGFOOD-RUN-006-REGRESSION.md](runs/dogfood/DOGFOOD-RUN-006-REGRESSION.md) | REGRESSION path 补齐（serializer 第 2 能力） |
+| [DOGFOOD-RUN-007-CONSUMER-ADAPTER.md](runs/dogfood/DOGFOOD-RUN-007-CONSUMER-ADAPTER.md) | Consumer Adapter 扩展（word/formula） |
 | [CONTRACT-SYNC-MINIMAL.md](CONTRACT-SYNC-MINIMAL.md) | Contract Sync 最小版（Matrix ↔ contracts） |
 
 ## 4. 审计报告（Phase 3.9 全量）
@@ -81,13 +84,13 @@
 
 | 文档 | 说明 |
 |------|------|
-| [ADL-LOOP-RUN-001.md](ADL-LOOP-RUN-001.md) ~ [ADL-LOOP-RUN-008.md](ADL-LOOP-RUN-008.md) | Run #001-008 闭环报告（含 PLAN 文件） |
+| [ADL-LOOP-RUN-001.md](runs/adl/ADL-LOOP-RUN-001.md) ~ [ADL-LOOP-RUN-008.md](runs/adl/ADL-LOOP-RUN-008.md) | Run #001-008 闭环报告（含 PLAN 文件） |
 
 ## 8. 测试计划与质量门禁
 
 | 文档 | 说明 |
 |------|------|
-| [E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) / [PHASE1_TEST_PLAN.md](PHASE1_TEST_PLAN.md) | E2E / Phase 1 测试计划 |
+| [E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) / [PHASE1_TEST_PLAN.md](archive/PHASE1_TEST_PLAN.md) | E2E / Phase 1 测试计划 |
 | [TEST_GAP_PLAN.md](TEST_GAP_PLAN.md) / [TEST_SKIP_REGISTRY.md](TEST_SKIP_REGISTRY.md) | 测试缺口 / skip 登记 |
 | [phase3.1-review-backlog.md](phase3.1-review-backlog.md) | 3.1 评审 backlog |
 | [UI_FIX_PLAN.md](UI_FIX_PLAN.md) / [UI_STATUS.md](UI_STATUS.md) | UI 修复计划 / 状态 |

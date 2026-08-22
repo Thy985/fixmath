@@ -41,7 +41,7 @@ Phase 0-3.7 全部完成，Phase 3.8 ADI 已 Accepted 待实施，编辑器已�
 | [AGENTS.md](AGENTS.md) | **AI 协作规范**（架构原则 / 编码规范 / 禁止事项 / CI 失败手册）— 协作者必读 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 架构总览（当前 + 目标 + 问题 + 风险） |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 路线图（Phase 0-4 分阶段，含 3.0-3.8 子阶段） |
-| [docs/REFACTOR_DESIGN.md](docs/REFACTOR_DESIGN.md) | FormulaFix 2.0 重构方案 |
+| [docs/archive/REFACTOR_DESIGN.md](docs/archive/REFACTOR_DESIGN.md) | FormulaFix 2.0 重构方案 |
 | [docs/CRITICAL_REVIEW.md](docs/CRITICAL_REVIEW.md) | 现状严厉批判报告 |
 | [docs/CODING_RULES.md](docs/CODING_RULES.md) | 详细编码规范 |
 | [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md) | Git 流程 + PR 检查清单 |
